@@ -13,6 +13,7 @@ import { ASSET_IMAGES, CUTOUT_IMAGES } from '../data/seedData';
 import { filterVisibleProducts } from '../utils/marketplace';
 import { MotionButton, SPRING_CARD, SPRING_SNAPPY } from './MotionPrimitives';
 import { ProductCard } from './ProductCard';
+import { BrandLogo, type PartnerBrandName } from './BrandLogo';
 
 const HERO_SLIDES = [
   {
@@ -47,13 +48,13 @@ const HERO_SLIDES = [
   },
 ];
 
-const PARTNER_BRANDS = [
-  { name: 'Apple', color: '#0A3768', accent: '#18A3DE', sub: 'Authorized' },
-  { name: 'Samsung', color: '#0475EE', accent: '#18A3DE', sub: 'Galaxy Pro' },
-  { name: 'Dell', color: '#0A3768', accent: '#0475EE', sub: 'Workstation' },
-  { name: 'Sony', color: '#222222', accent: '#18A3DE', sub: 'Hi-Res Audio' },
-  { name: 'ASUS', color: '#0A3768', accent: '#1AD6DE', sub: 'ROG Gaming' },
-  { name: 'Anker', color: '#0475EE', accent: '#0A3768', sub: 'GaN Power' },
+const PARTNER_BRANDS: Array<{ name: PartnerBrandName; ariaLabel: string }> = [
+  { name: 'Apple', ariaLabel: 'Filtrar produtos Apple' },
+  { name: 'Samsung', ariaLabel: 'Filtrar produtos Samsung' },
+  { name: 'Dell', ariaLabel: 'Filtrar produtos Dell' },
+  { name: 'Sony', ariaLabel: 'Filtrar produtos Sony' },
+  { name: 'ASUS', ariaLabel: 'Filtrar produtos ASUS' },
+  { name: 'Anker', ariaLabel: 'Filtrar produtos Anker' },
 ];
 
 export function HomeView() {
@@ -837,15 +838,18 @@ export function HomeView() {
             </motion.div>
         </section>
 
-        {/* 6. PARTNER BRANDS LOGO STRIP */}
+        {/* 6. PARTNER BRANDS OFFICIAL LOGO STRIP */}
         <section
           aria-label="Marcas parceiras"
-          className="pt-6 pb-4 border-t border-[#EFEFEF] grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 items-center"
+          data-testid="partner-brands-strip"
+          className="pt-8 pb-4 border-t border-[#EFEFEF] grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6 items-center"
         >
           {PARTNER_BRANDS.map((b) => (
             <motion.button
               key={b.name}
               type="button"
+              aria-label={b.ariaLabel}
+              title={`Ver produtos ${b.name}`}
               whileHover={{ scale: 1.07, y: -2 }}
               whileTap={{ scale: 0.95 }}
               transition={SPRING_SNAPPY}
@@ -854,20 +858,9 @@ export function HomeView() {
                 setPageIdx(0);
                 document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
               }}
-              className="py-2 px-3 flex flex-col items-center justify-center opacity-80 hover:opacity-100 transition-opacity cursor-pointer"
+              className="h-12 px-3 flex items-center justify-center opacity-85 hover:opacity-100 transition-opacity cursor-pointer"
             >
-              <span
-                className="font-condensed text-xl font-bold uppercase tracking-wider"
-                style={{ color: b.color }}
-              >
-                {b.name}
-              </span>
-              <span
-                className="text-[10px] font-semibold uppercase tracking-widest"
-                style={{ color: b.accent }}
-              >
-                {b.sub}
-              </span>
+              <BrandLogo brand={b.name} />
             </motion.button>
           ))}
         </section>
