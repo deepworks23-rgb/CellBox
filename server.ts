@@ -1,4 +1,4 @@
-import fs from 'node:fs';
+import 'dotenv/config';
 import path from 'node:path';
 import express from 'express';
 import type { Request, Response } from 'express';
@@ -26,7 +26,6 @@ import type {
   SellerStatus,
   SellerStore,
   User,
-  UserRole,
 } from './src/types.ts';
 import {
   calculateCartTotals,
@@ -43,36 +42,27 @@ import {
   verifyPassword,
   verifySessionToken,
 } from './src/server/auth.ts';
+import {
+  closeDatabasePool,
+  initAndLoadDatabase,
+  recordUploadedAsset,
+  saveDatabase,
+  type DatabaseSchema,
+  type StoredUser,
+} from './src/server/db.ts';
+import {
+  buildUploadKey,
+  getObjectPresignedUrl,
+  getS3Bucket,
+  isS3Configured,
+  sanitizeStorageKey,
+  uploadObjectToS3,
+  validateImageUploadPayload,
+} from './src/server/storage.ts';
 
-interface StoredUser extends User {
-  passwordHash: string;
-}
-
-interface DatabaseSchema {
-  users: StoredUser[];
-  sellers: SellerStore[];
-  products: Product[];
-  categories: string[];
-  orders: Order[];
-  addressesByUser: Record<string, Address[]>;
-  wishlistsByUser: Record<string, string[]>;
-  newsletterEmails: string[];
-  contactMessages: Array<{
-    id: string;
-    name: string;
-    email: string;
-    subject: string;
-    message: string;
-    createdAt: string;
-  }>;
-  commissionRate: number;
-}
-
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 const SESSION_COOKIE_NAME = 'cellbox_session';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'cellbox-mz-session-signing-key-2026-v1';
-const DATA_DIR = path.resolve(process.cwd(), '.cellbox-data');
-const DB_FILE = path.join(DATA_DIR, 'db.json');
 
 function createSeedDatabase(): DatabaseSchema {
   const defaultPasswordHash = hashPassword('cellbox123');
@@ -99,49 +89,7 @@ function createSeedDatabase(): DatabaseSchema {
   };
 }
 
-function loadDatabase(): DatabaseSchema {
-  try {
-    if (fs.existsSync(DB_FILE)) {
-      const raw = fs.readFileSync(DB_FILE, 'utf8');
-      const parsed = JSON.parse(raw) as Partial<DatabaseSchema>;
-      if (
-        Array.isArray(parsed.users) &&
-        Array.isArray(parsed.sellers) &&
-        Array.isArray(parsed.products) &&
-        Array.isArray(parsed.categories) &&
-        Array.isArray(parsed.orders)
-      ) {
-        return {
-          users: parsed.users,
-          sellers: parsed.sellers,
-          products: parsed.products,
-          categories: parsed.categories,
-          orders: parsed.orders,
-          addressesByUser: parsed.addressesByUser ?? {},
-          wishlistsByUser: parsed.wishlistsByUser ?? {},
-          newsletterEmails: parsed.newsletterEmails ?? [],
-          contactMessages: parsed.contactMessages ?? [],
-          commissionRate: typeof parsed.commissionRate === 'number' ? parsed.commissionRate : 10,
-        };
-      }
-    }
-  } catch (err) {
-    console.warn('[Cellbox DB] Failed reading existing database, regenerating seed:', err);
-  }
-
-  const seeded = createSeedDatabase();
-  saveDatabase(seeded);
-  return seeded;
-}
-
-function saveDatabase(data: DatabaseSchema): void {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  const tmpFile = `${DB_FILE}.tmp`;
-  fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2), 'utf8');
-  fs.renameSync(tmpFile, DB_FILE);
-}
-
-let db: DatabaseSchema = loadDatabase();
+let db: DatabaseSchema = createSeedDatabase();
 
 function toPublicUser(u: StoredUser): User {
   return {
@@ -222,9 +170,22 @@ function buildBootstrapPayload(user: StoredUser | null) {
   };
 }
 
+async function persistState(res: Response): Promise<boolean> {
+  try {
+    await saveDatabase(db);
+    return true;
+  } catch (err) {
+    console.error('[Cellbox DB] Failed to persist state:', err);
+    res.status(500).json({ error: 'Erro ao salvar dados no banco de dados. Tente novamente.' });
+    return false;
+  }
+}
+
 async function startServer() {
+  db = await initAndLoadDatabase(createSeedDatabase);
+
   const app = express();
-  app.use(express.json({ limit: '2mb' }));
+  app.use(express.json({ limit: '10mb' }));
 
   // ── Bootstrap & Session ──────────────────────────────────────────────────
   app.get('/api/bootstrap', (req, res) => {
@@ -264,7 +225,7 @@ async function startServer() {
     });
   });
 
-  app.post('/api/auth/register', (req, res) => {
+  app.post('/api/auth/register', async (req, res) => {
     const body = req.body as {
       name?: string;
       email?: string;
@@ -366,7 +327,7 @@ async function startServer() {
 
     db.addressesByUser[userId] = [];
     db.wishlistsByUser[userId] = [];
-    saveDatabase(db);
+    if (!(await persistState(res))) return;
 
     const token = createSessionToken(createdUser.id, SESSION_SECRET);
     setSessionCookie(res, token);
@@ -385,7 +346,7 @@ async function startServer() {
     });
   });
 
-  app.patch('/api/profile', (req, res) => {
+  app.patch('/api/profile', async (req, res) => {
     const user = getAuthenticatedUser(req);
     if (!user) {
       res.status(401).json({ error: 'Faça login para atualizar seus dados.' });
@@ -398,11 +359,11 @@ async function startServer() {
     if (typeof phone === 'string') {
       user.phone = phone.trim();
     }
-    saveDatabase(db);
+    if (!(await persistState(res))) return;
     res.json({ user: toPublicUser(user) });
   });
 
-  app.post('/api/auth/change-password', (req, res) => {
+  app.post('/api/auth/change-password', async (req, res) => {
     const user = getAuthenticatedUser(req);
     if (!user) {
       res.status(401).json({ error: 'Autenticação necessária.' });
@@ -421,12 +382,12 @@ async function startServer() {
       return;
     }
     user.passwordHash = hashPassword(newPassword);
-    saveDatabase(db);
+    if (!(await persistState(res))) return;
     res.json({ ok: true });
   });
 
   // ── Addresses (Buyer Only) ───────────────────────────────────────────────
-  app.post('/api/addresses', (req, res) => {
+  app.post('/api/addresses', async (req, res) => {
     const user = getAuthenticatedUser(req);
     if (!user) {
       res.status(401).json({ error: 'Faça login para salvar endereços.' });
@@ -460,11 +421,11 @@ async function startServer() {
       : [...existing, created];
 
     db.addressesByUser[user.id] = nextList;
-    saveDatabase(db);
+    if (!(await persistState(res))) return;
     res.status(201).json({ address: created, addresses: nextList });
   });
 
-  app.patch('/api/addresses/:id/default', (req, res) => {
+  app.patch('/api/addresses/:id/default', async (req, res) => {
     const user = getAuthenticatedUser(req);
     if (!user) {
       res.status(401).json({ error: 'Autenticação necessária.' });
@@ -478,11 +439,11 @@ async function startServer() {
     }
     const nextList = existing.map((a) => ({ ...a, isDefault: a.id === targetId }));
     db.addressesByUser[user.id] = nextList;
-    saveDatabase(db);
+    if (!(await persistState(res))) return;
     res.json({ addresses: nextList });
   });
 
-  app.delete('/api/addresses/:id', (req, res) => {
+  app.delete('/api/addresses/:id', async (req, res) => {
     const user = getAuthenticatedUser(req);
     if (!user) {
       res.status(401).json({ error: 'Autenticação necessária.' });
@@ -494,12 +455,12 @@ async function startServer() {
       filtered[0] = { ...filtered[0], isDefault: true };
     }
     db.addressesByUser[user.id] = filtered;
-    saveDatabase(db);
+    if (!(await persistState(res))) return;
     res.json({ addresses: filtered });
   });
 
   // ── Wishlist (Buyer Only) ────────────────────────────────────────────────
-  app.post('/api/wishlist/toggle', (req, res) => {
+  app.post('/api/wishlist/toggle', async (req, res) => {
     const user = getAuthenticatedUser(req);
     if (!user) {
       res.status(401).json({ error: 'Faça login para salvar na lista de desejos.' });
@@ -518,12 +479,12 @@ async function startServer() {
     const exists = current.includes(productId);
     const next = exists ? current.filter((id) => id !== productId) : [productId, ...current];
     db.wishlistsByUser[user.id] = next;
-    saveDatabase(db);
+    if (!(await persistState(res))) return;
     res.json({ wishlist: next, added: !exists });
   });
 
   // ── Orders (Buyer Only) ──────────────────────────────────────────────────
-  app.post('/api/orders', (req, res) => {
+  app.post('/api/orders', async (req, res) => {
     const user = getAuthenticatedUser(req);
     if (!user) {
       res.status(401).json({ error: 'Faça login para concluir seu pedido.' });
@@ -610,7 +571,7 @@ async function startServer() {
     });
 
     db.orders.unshift(newOrder);
-    saveDatabase(db);
+    if (!(await persistState(res))) return;
 
     res.status(201).json({
       order: newOrder,
@@ -619,7 +580,7 @@ async function startServer() {
     });
   });
 
-  app.patch('/api/orders/:orderId/fulfillment', (req, res) => {
+  app.patch('/api/orders/:orderId/fulfillment', async (req, res) => {
     const user = getAuthenticatedUser(req);
     if (!user || user.role !== 'seller') {
       res.status(403).json({ error: 'Apenas o Vendedor responsável pode atualizar o envio.' });
@@ -652,12 +613,12 @@ async function startServer() {
         ),
       };
     });
-    saveDatabase(db);
+    if (!(await persistState(res))) return;
     res.json({ orders: getScopedOrders(user) });
   });
 
   // ── Products (Seller Owned + Admin Moderation) ───────────────────────────
-  app.post('/api/products', (req, res) => {
+  app.post('/api/products', async (req, res) => {
     const user = getAuthenticatedUser(req);
     if (!user || user.role !== 'seller') {
       res.status(403).json({ error: 'Apenas lojistas autenticados podem cadastrar produtos.' });
@@ -721,11 +682,11 @@ async function startServer() {
     };
 
     db.products.unshift(created);
-    saveDatabase(db);
+    if (!(await persistState(res))) return;
     res.status(201).json({ product: created, products: db.products });
   });
 
-  app.patch('/api/products/:id', (req, res) => {
+  app.patch('/api/products/:id', async (req, res) => {
     const user = getAuthenticatedUser(req);
     if (!user || user.role !== 'seller') {
       res.status(403).json({ error: 'Apenas o Vendedor responsável pode editar o produto.' });
@@ -747,11 +708,11 @@ async function startServer() {
     db.products = db.products.map((p) =>
       p.id === req.params.id ? { ...p, ...updates, id: p.id, sellerId: p.sellerId } : p
     );
-    saveDatabase(db);
+    if (!(await persistState(res))) return;
     res.json({ products: db.products });
   });
 
-  app.delete('/api/products/:id', (req, res) => {
+  app.delete('/api/products/:id', async (req, res) => {
     const user = getAuthenticatedUser(req);
     if (!user || (user.role !== 'seller' && user.role !== 'admin')) {
       res.status(403).json({ error: 'Sem permissão para remover produto.' });
@@ -775,12 +736,12 @@ async function startServer() {
     for (const uid of Object.keys(db.wishlistsByUser)) {
       db.wishlistsByUser[uid] = db.wishlistsByUser[uid].filter((id) => id !== req.params.id);
     }
-    saveDatabase(db);
+    if (!(await persistState(res))) return;
     res.json({ products: db.products });
   });
 
   // ── Sellers & Admin ──────────────────────────────────────────────────────
-  app.patch('/api/sellers/:id', (req, res) => {
+  app.patch('/api/sellers/:id', async (req, res) => {
     const user = getAuthenticatedUser(req);
     if (!user || user.role !== 'seller') {
       res.status(403).json({ error: 'Apenas o Vendedor proprietário pode atualizar a loja.' });
@@ -803,11 +764,11 @@ async function startServer() {
       payoutInfo: SellerPayoutInfo;
     };
     db.sellers = db.sellers.map((s) => (s.id === req.params.id ? { ...s, ...updates } : s));
-    saveDatabase(db);
+    if (!(await persistState(res))) return;
     res.json({ sellers: db.sellers });
   });
 
-  app.patch('/api/sellers/:id/status', (req, res) => {
+  app.patch('/api/sellers/:id/status', async (req, res) => {
     const user = getAuthenticatedUser(req);
     if (!user || user.role !== 'admin') {
       res.status(403).json({ error: 'Apenas Super Admin pode alterar status de vendedores.' });
@@ -832,11 +793,11 @@ async function startServer() {
           }
         : s
     );
-    saveDatabase(db);
+    if (!(await persistState(res))) return;
     res.json({ sellers: db.sellers });
   });
 
-  app.post('/api/categories', (req, res) => {
+  app.post('/api/categories', async (req, res) => {
     const user = getAuthenticatedUser(req);
     if (!user || user.role !== 'admin') {
       res.status(403).json({ error: 'Apenas Super Admin pode criar categorias.' });
@@ -852,11 +813,11 @@ async function startServer() {
       return;
     }
     db.categories.push(trimmed);
-    saveDatabase(db);
+    if (!(await persistState(res))) return;
     res.status(201).json({ categories: db.categories });
   });
 
-  app.delete('/api/categories/:name', (req, res) => {
+  app.delete('/api/categories/:name', async (req, res) => {
     const user = getAuthenticatedUser(req);
     if (!user || user.role !== 'admin') {
       res.status(403).json({ error: 'Apenas Super Admin pode remover categorias.' });
@@ -864,11 +825,11 @@ async function startServer() {
     }
     const target = decodeURIComponent(req.params.name);
     db.categories = db.categories.filter((c) => c !== target);
-    saveDatabase(db);
+    if (!(await persistState(res))) return;
     res.json({ categories: db.categories });
   });
 
-  app.patch('/api/commission', (req, res) => {
+  app.patch('/api/commission', async (req, res) => {
     const user = getAuthenticatedUser(req);
     if (!user || user.role !== 'admin') {
       res.status(403).json({ error: 'Apenas Super Admin pode alterar comissão.' });
@@ -880,11 +841,11 @@ async function startServer() {
       return;
     }
     db.commissionRate = Math.max(1, Math.min(35, Number(rate.toFixed(1))));
-    saveDatabase(db);
+    if (!(await persistState(res))) return;
     res.json({ commissionRate: db.commissionRate });
   });
 
-  app.post('/api/newsletter', (req, res) => {
+  app.post('/api/newsletter', async (req, res) => {
     const email = ((req.body as { email?: string }).email ?? '').trim().toLowerCase();
     if (!email || !email.includes('@')) {
       res.status(400).json({ error: 'Digite um e-mail válido.' });
@@ -892,12 +853,12 @@ async function startServer() {
     }
     if (!db.newsletterEmails.includes(email)) {
       db.newsletterEmails.push(email);
-      saveDatabase(db);
+      if (!(await persistState(res))) return;
     }
     res.status(201).json({ ok: true, email });
   });
 
-  app.post('/api/contact', (req, res) => {
+  app.post('/api/contact', async (req, res) => {
     const { name, email, subject, message } = req.body as {
       name?: string;
       email?: string;
@@ -917,18 +878,118 @@ async function startServer() {
       createdAt: new Date().toISOString(),
     };
     db.contactMessages.unshift(entry);
-    saveDatabase(db);
+    if (!(await persistState(res))) return;
     res.status(201).json({ ok: true, id: entry.id });
   });
 
-  app.post('/api/reset-demo', (req, res) => {
+  // ── S3 Object Storage Uploads & Presigned Asset URLs ─────────────────────
+  app.post('/api/uploads', async (req, res) => {
+    const user = getAuthenticatedUser(req);
+    if (!user || (user.role !== 'seller' && user.role !== 'admin')) {
+      res.status(403).json({ error: 'Apenas vendedores ou administradores podem enviar imagens.' });
+      return;
+    }
+
+    if (!isS3Configured()) {
+      res.status(503).json({
+        error:
+          'Armazenamento S3 não configurado. Defina AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY e AWS_ENDPOINT_URL_S3 nas variáveis de ambiente.',
+      });
+      return;
+    }
+
+    const { fileName, contentType, base64Data, folder } = req.body as {
+      fileName?: string;
+      contentType?: string;
+      base64Data?: string;
+      folder?: string;
+    };
+
+    const validated = validateImageUploadPayload({ fileName, contentType, base64Data });
+    if (!validated.ok) {
+      res.status(400).json({ error: validated.error });
+      return;
+    }
+
+    try {
+      const key = buildUploadKey(folder || 'products', validated.fileName);
+      const uploaded = await uploadObjectToS3({
+        key,
+        body: validated.buffer,
+        contentType: validated.contentType,
+      });
+
+      await recordUploadedAsset({
+        key: uploaded.key,
+        bucket: uploaded.bucket,
+        ownerUserId: user.id,
+        originalName: validated.fileName,
+        contentType: validated.contentType,
+        sizeBytes: validated.buffer.length,
+      });
+
+      res.status(201).json({
+        key: uploaded.key,
+        bucket: uploaded.bucket,
+        url: uploaded.proxyUrl,
+        signedUrl: uploaded.signedUrl,
+      });
+    } catch (err) {
+      console.error('[Cellbox S3] Failed uploading asset:', err);
+      res.status(502).json({
+        error: 'Não foi possível enviar a imagem para o armazenamento S3.',
+      });
+    }
+  });
+
+  app.get('/api/uploads/signed-url', async (req, res) => {
+    if (!isS3Configured()) {
+      res.status(503).json({ error: 'Armazenamento S3 não configurado.' });
+      return;
+    }
+    const rawKey = typeof req.query.key === 'string' ? req.query.key : '';
+    const key = sanitizeStorageKey(rawKey);
+    if (!key) {
+      res.status(400).json({ error: 'Chave do objeto inválida.' });
+      return;
+    }
+    try {
+      const url = await getObjectPresignedUrl(key, 3600);
+      res.json({ key, bucket: getS3Bucket(), url, expiresIn: 3600 });
+    } catch (err) {
+      console.error('[Cellbox S3] Failed generating signed URL:', err);
+      res.status(502).json({ error: 'Não foi possível gerar o link do arquivo.' });
+    }
+  });
+
+  app.get('/api/assets/*', async (req, res) => {
+    if (!isS3Configured()) {
+      res.status(503).json({ error: 'Armazenamento S3 não configurado.' });
+      return;
+    }
+    const rawKey = decodeURIComponent(req.path.replace(/^\/api\/assets\//, ''));
+    const key = sanitizeStorageKey(rawKey);
+    if (!key) {
+      res.status(400).json({ error: 'Arquivo inválido.' });
+      return;
+    }
+    try {
+      const signedUrl = await getObjectPresignedUrl(key, 3600);
+      res.redirect(302, signedUrl);
+    } catch (err) {
+      console.error('[Cellbox S3] Failed resolving asset redirect:', err);
+      res.status(404).json({ error: 'Arquivo não encontrado.' });
+    }
+  });
+
+  app.post('/api/reset-demo', async (req, res) => {
     const user = getAuthenticatedUser(req);
     if (!user || user.role !== 'admin') {
       res.status(403).json({ error: 'Apenas Admin pode restaurar os dados da plataforma.' });
       return;
     }
     db = createSeedDatabase();
-    saveDatabase(db);
+    if (!(await persistState(res))) return;
     const admin = db.users.find((u) => u.role === 'admin')!;
     const token = createSessionToken(admin.id, SESSION_SECRET);
     setSessionCookie(res, token);
@@ -953,9 +1014,20 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Cellbox server listening on http://0.0.0.0:${PORT}`);
   });
+
+  const shutdown = async () => {
+    server.close();
+    await closeDatabasePool();
+    process.exit(0);
+  };
+  process.once('SIGINT', () => void shutdown());
+  process.once('SIGTERM', () => void shutdown());
 }
 
-startServer();
+startServer().catch((err) => {
+  console.error('[Cellbox] Failed to start server:', err);
+  process.exit(1);
+});

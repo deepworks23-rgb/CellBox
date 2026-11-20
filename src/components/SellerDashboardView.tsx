@@ -14,6 +14,7 @@ import {
   Star,
   Store,
   Trash2,
+  Upload,
   X,
 } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
@@ -45,6 +46,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
     deleteProduct,
     updateOrderFulfillmentStatus,
     updateSellerSettings,
+    uploadImageAsset,
     navigate,
   } = useMarketplace();
 
@@ -61,6 +63,8 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [editPrice, setEditPrice] = useState('');
   const [editStock, setEditStock] = useState('');
+  const [uploadingProductImg, setUploadingProductImg] = useState(false);
+  const [uploadingBannerImg, setUploadingBannerImg] = useState(false);
 
   const seller =
     sellers.find((s) => currentUser?.sellerId && s.id === currentUser.sellerId) ??
@@ -234,6 +238,36 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
         pixOrWallet: storeForm.pixOrWallet.trim(),
       },
     });
+  };
+
+  const handleProductImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploadingProductImg(true);
+    try {
+      const result = await uploadImageAsset(file, 'products');
+      if (result.ok && result.url) {
+        setFormState((p) => ({ ...p, imageUrl: result.url! }));
+      }
+    } finally {
+      setUploadingProductImg(false);
+    }
+  };
+
+  const handleBannerImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploadingBannerImg(true);
+    try {
+      const result = await uploadImageAsset(file, 'banners');
+      if (result.ok && result.url) {
+        setStoreForm((p) => ({ ...p, bannerImage: result.url! }));
+      }
+    } finally {
+      setUploadingBannerImg(false);
+    }
   };
 
   const navItems = [
@@ -783,15 +817,28 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                   </div>
                   <div>
                     <label htmlFor="store-banner" className="block text-xs font-bold text-[#444444] mb-1">
-                      URL do Banner da Loja
+                      Banner da Loja (URL ou Upload)
                     </label>
-                    <input
-                      id="store-banner"
-                      type="text"
-                      value={storeForm.bannerImage}
-                      onChange={(e) => setStoreForm((p) => ({ ...p, bannerImage: e.target.value }))}
-                      className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        id="store-banner"
+                        type="text"
+                        value={storeForm.bannerImage}
+                        onChange={(e) => setStoreForm((p) => ({ ...p, bannerImage: e.target.value }))}
+                        className="flex-1 min-w-0 h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm"
+                      />
+                      <label className="h-10 px-3 rounded-[2px] border border-[#0475EE] text-[#0475EE] hover:bg-[#EAF6FC] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0">
+                        <Upload className="w-3.5 h-3.5" />
+                        {uploadingBannerImg ? 'Enviando...' : 'Enviar'}
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/avif"
+                          disabled={uploadingBannerImg}
+                          onChange={(e) => void handleBannerImageUpload(e)}
+                          className="sr-only"
+                        />
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -986,9 +1033,9 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
 
                 <div className="sm:col-span-2">
                   <label htmlFor="np-img-preset" className="block text-xs font-bold text-[#444444] mb-1">
-                    Foto de Estúdio (Preset ou URL)
+                    Foto de Estúdio (Preset, URL ou Upload)
                   </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <select
                       id="np-img-preset"
                       value={formState.imageUrl}
@@ -1009,6 +1056,17 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                       placeholder="Ou cole uma URL de imagem"
                       className="h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-xs font-mono"
                     />
+                    <label className="h-10 px-3 rounded-[2px] border border-[#0475EE] text-[#0475EE] hover:bg-[#EAF6FC] text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap">
+                      <Upload className="w-3.5 h-3.5" />
+                      {uploadingProductImg ? 'Enviando...' : 'Enviar Imagem'}
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/avif"
+                        disabled={uploadingProductImg}
+                        onChange={(e) => void handleProductImageUpload(e)}
+                        className="sr-only"
+                      />
+                    </label>
                   </div>
                 </div>
 

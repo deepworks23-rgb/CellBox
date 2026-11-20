@@ -164,6 +164,10 @@ interface MarketplaceContextValue {
       payoutInfo: SellerPayoutInfo;
     }
   ) => Promise<void>;
+  uploadImageAsset: (
+    file: File,
+    folder?: 'products' | 'banners'
+  ) => Promise<{ ok: boolean; url?: string; error?: string }>;
   // Admin actions
   setSellerStatus: (sellerId: string, status: SellerStatus) => Promise<void>;
   addCategory: (name: string) => Promise<boolean>;
@@ -786,6 +790,43 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
     }
   };
 
+  const uploadImageAsset = async (
+    file: File,
+    folder: 'products' | 'banners' = 'products'
+  ): Promise<{ ok: boolean; url?: string; error?: string }> => {
+    const base64Data = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+      reader.onerror = () => reject(new Error('Falha ao ler arquivo de imagem.'));
+      reader.readAsDataURL(file);
+    }).catch(() => '');
+
+    if (!base64Data) {
+      const error = 'Não foi possível ler o arquivo selecionado.';
+      showToast(error, 'warning');
+      return { ok: false, error };
+    }
+
+    const res = await apiRequest<{ url: string; key: string; signedUrl: string }>('/api/uploads', {
+      method: 'POST',
+      body: JSON.stringify({
+        fileName: file.name,
+        contentType: file.type,
+        base64Data,
+        folder,
+      }),
+    });
+
+    if (!res.ok) {
+      const error = res.data.error ?? 'Erro ao enviar imagem.';
+      showToast(error, 'warning');
+      return { ok: false, error };
+    }
+
+    showToast('Imagem enviada com sucesso!');
+    return { ok: true, url: res.data.url };
+  };
+
   const setSellerStatus = async (sellerId: string, status: SellerStatus) => {
     const seller = state.sellers.find((s) => s.id === sellerId);
     const res = await apiRequest<{ sellers: SellerStore[] }>(
@@ -941,6 +982,7 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
         updateProduct,
         deleteProduct,
         updateSellerSettings,
+        uploadImageAsset,
         setSellerStatus,
         addCategory,
         removeCategory,
