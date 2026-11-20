@@ -1,7 +1,11 @@
-import 'dotenv/config';
 import crypto from 'node:crypto';
+import dotenv from 'dotenv';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+
+if (!process.env.VERCEL) {
+  dotenv.config({ quiet: true });
+}
 
 const ALLOWED_IMAGE_MIME_TYPES = new Set([
   'image/jpeg',

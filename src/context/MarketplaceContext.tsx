@@ -343,13 +343,23 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
     let active = true;
     (async () => {
       try {
-        const res = await apiRequest<BootstrapResponse>('/api/bootstrap');
+        let res = await apiRequest<BootstrapResponse>('/api/bootstrap');
+        if (!res.ok && active) {
+          // Single retry handles Neon scale-to-zero cold-start wake-up gracefully
+          await new Promise((resolve) => window.setTimeout(resolve, 800));
+          res = await apiRequest<BootstrapResponse>('/api/bootstrap');
+        }
         if (!active) return;
-        if (res.ok) {
+        if (res.ok && Array.isArray(res.data.products)) {
           applyBootstrap(res.data);
+        } else {
+          console.error(
+            `[Cellbox] /api/bootstrap failed (${res.status}):`,
+            res.data.error ?? 'Resposta inválida da API.'
+          );
         }
       } catch (err) {
-        console.warn('[Cellbox] Failed to bootstrap from server:', err);
+        console.error('[Cellbox] Failed to bootstrap from server:', err);
       } finally {
         if (active) setAuthReady(true);
       }

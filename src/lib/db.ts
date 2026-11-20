@@ -1,6 +1,7 @@
-import 'dotenv/config';
 import crypto from 'node:crypto';
-import { Pool, type PoolClient, type QueryResult, type QueryResultRow } from 'pg';
+import dotenv from 'dotenv';
+import pg from 'pg';
+import type { Pool as PoolType, PoolClient, QueryResult, QueryResultRow } from 'pg';
 import type {
   Address,
   Order,
@@ -11,6 +12,12 @@ import type {
   SellerStore,
   User,
 } from '../types.ts';
+
+if (!process.env.VERCEL) {
+  dotenv.config({ quiet: true });
+}
+
+const { Pool } = pg;
 
 export interface StoredUser extends User {
   passwordHash: string;
@@ -45,47 +52,163 @@ export interface SeedPayload {
   commissionRate: number;
 }
 
-function resolveConnectionString(): string | undefined {
-  return (
-    process.env.DATABASE_URL?.trim() ||
-    process.env.POSTGRES_URL?.trim() ||
-    process.env.POSTGRES_PRISMA_URL?.trim() ||
-    process.env.NEON_DATABASE_URL?.trim()
-  );
+export interface DatabaseEnvDiagnostics {
+  configured: boolean;
+  source: string | null;
+  host: string | null;
+  isServerless: boolean;
 }
 
-function createPool(): Pool {
-  const connectionString = resolveConnectionString();
-  if (!connectionString) {
+const DB_ENV_KEYS = [
+  'DATABASE_URL',
+  'POSTGRES_URL',
+  'POSTGRES_PRISMA_URL',
+  'NEON_DATABASE_URL',
+  'DATABASE_URL_UNPOOLED',
+  'POSTGRES_URL_NON_POOLING',
+] as const;
+
+function sanitizeEnvValue(raw?: string): string {
+  if (!raw) return '';
+  let value = raw.trim();
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    value = value.slice(1, -1).trim();
+  }
+  return value;
+}
+
+function resolveDatabaseConnection(): {
+  source: string | null;
+  connectionString: string | null;
+  host: string | null;
+  useSsl: boolean;
+} {
+  for (const key of DB_ENV_KEYS) {
+    const raw = sanitizeEnvValue(process.env[key]);
+    if (!raw) continue;
+
+    let parsed: URL;
+    try {
+      parsed = new URL(raw);
+    } catch {
+      throw new Error(
+        `A variável de ambiente ${key} contém uma URL PostgreSQL inválida. Verifique o valor configurado na Vercel ou no arquivo .env.`
+      );
+    }
+
+    if (parsed.protocol !== 'postgres:' && parsed.protocol !== 'postgresql:') {
+      throw new Error(
+        `A variável de ambiente ${key} deve iniciar com "postgresql://" ou "postgres://".`
+      );
+    }
+
+    const hostname = parsed.hostname.toLowerCase();
+    const sslMode = parsed.searchParams.get('sslmode')?.toLowerCase();
+    const isLocalHost =
+      hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+    const useSsl = sslMode !== 'disable' && (!isLocalHost || sslMode === 'require');
+
+    // Remove sslmode/channel_binding query overrides when passing explicit ssl config to node-postgres
+    // so Neon TLS works consistently across Node & Vercel serverless runtimes without warnings or negotiation failures.
+    if (useSsl) {
+      parsed.searchParams.delete('sslmode');
+      parsed.searchParams.delete('channel_binding');
+    }
+
+    return {
+      source: key,
+      connectionString: parsed.toString(),
+      host: parsed.hostname || null,
+      useSsl,
+    };
+  }
+
+  return {
+    source: null,
+    connectionString: null,
+    host: null,
+    useSsl: true,
+  };
+}
+
+export function getDatabaseEnvDiagnostics(): DatabaseEnvDiagnostics {
+  const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+  try {
+    const resolved = resolveDatabaseConnection();
+    return {
+      configured: Boolean(resolved.connectionString),
+      source: resolved.source,
+      host: resolved.host,
+      isServerless,
+    };
+  } catch {
+    return {
+      configured: false,
+      source: null,
+      host: null,
+      isServerless,
+    };
+  }
+}
+
+const globalForDb = globalThis as typeof globalThis & {
+  __cellboxPgPool?: PoolType | null;
+};
+
+function createPool(): PoolType {
+  const resolved = resolveDatabaseConnection();
+  if (!resolved.connectionString) {
     throw new Error(
-      'DATABASE_URL não configurada. Configure DATABASE_URL (ou POSTGRES_URL) nas variáveis de ambiente da Vercel ou no arquivo .env.'
+      'DATABASE_URL não configurada no runtime. Defina DATABASE_URL (ou POSTGRES_URL) em Vercel → Project Settings → Environment Variables e faça Redeploy.'
     );
   }
 
   const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 
   const instance = new Pool({
-    connectionString,
-    ssl: { rejectUnauthorized: false },
+    connectionString: resolved.connectionString,
+    ssl: resolved.useSsl ? { rejectUnauthorized: false } : false,
     max: isServerless ? 3 : 10,
     idleTimeoutMillis: isServerless ? 10_000 : 30_000,
-    connectionTimeoutMillis: 15_000,
+    connectionTimeoutMillis: 20_000,
+    allowExitOnIdle: isServerless,
   });
 
   instance.on('error', (err) => {
     console.error('[Cellbox PostgreSQL] Unexpected idle client error:', err.message);
+    if (globalForDb.__cellboxPgPool === instance) {
+      globalForDb.__cellboxPgPool = null;
+    }
   });
 
   return instance;
 }
 
-let poolInstance: Pool | null = null;
-
-export function getPool(): Pool {
-  if (!poolInstance) {
-    poolInstance = createPool();
+export function getPool(): PoolType {
+  if (!globalForDb.__cellboxPgPool) {
+    globalForDb.__cellboxPgPool = createPool();
   }
-  return poolInstance;
+  return globalForDb.__cellboxPgPool;
+}
+
+function isTransientConnectionError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const msg = err.message.toLowerCase();
+  const code = (err as { code?: string }).code ?? '';
+  return (
+    code === 'ECONNRESET' ||
+    code === 'ETIMEDOUT' ||
+    code === 'EPIPE' ||
+    code === '57P01' ||
+    code === '57P02' ||
+    code === '57P03' ||
+    msg.includes('connection terminated unexpectedly') ||
+    msg.includes('client has encountered a connection error') ||
+    msg.includes('timeout exceeded when trying to connect')
+  );
 }
 
 export async function getDatabaseHealthStats(): Promise<{
@@ -113,7 +236,15 @@ export async function query<T extends QueryResultRow = QueryResultRow>(
   text: string,
   params?: unknown[]
 ): Promise<QueryResult<T>> {
-  return getPool().query<T>(text, params);
+  try {
+    return await getPool().query<T>(text, params);
+  } catch (err) {
+    if (isTransientConnectionError(err)) {
+      globalForDb.__cellboxPgPool = null;
+      return getPool().query<T>(text, params);
+    }
+    throw err;
+  }
 }
 
 export async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
@@ -132,9 +263,10 @@ export async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>)
 }
 
 export async function closeDatabasePool(): Promise<void> {
-  if (poolInstance) {
-    await poolInstance.end();
-    poolInstance = null;
+  if (globalForDb.__cellboxPgPool) {
+    const current = globalForDb.__cellboxPgPool;
+    globalForDb.__cellboxPgPool = null;
+    await current.end();
   }
 }
 
@@ -538,24 +670,174 @@ async function insertSeedInClient(client: PoolClient, seed: SeedPayload): Promis
 }
 
 export async function initDatabase(createSeed: () => SeedPayload): Promise<void> {
-  await ensureDatabaseSchema();
-  const countRes = await query<{ count: number }>('SELECT COUNT(*)::int AS count FROM users');
-  if ((countRes.rows[0]?.count ?? 0) === 0) {
-    const seed = createSeed();
-    await withTransaction((client) => insertSeedInClient(client, seed));
-    console.log('[Cellbox PostgreSQL] Schema created and initial data seeded.');
-  } else {
-    const stats = await query<{ users: number; products: number; sellers: number }>(`
-      SELECT
-        (SELECT COUNT(*)::int FROM users) AS users,
-        (SELECT COUNT(*)::int FROM products) AS products,
-        (SELECT COUNT(*)::int FROM sellers) AS sellers
+  await withTransaction(async (client) => {
+    // Serialize concurrent cold-start schema/seed initialization across serverless instances
+    await client.query('SELECT pg_advisory_xact_lock(728391042)');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        role TEXT NOT NULL,
+        phone TEXT,
+        seller_id TEXT,
+        password_hash TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS sellers (
+        id TEXT PRIMARY KEY,
+        owner_user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        slug TEXT NOT NULL,
+        document_id TEXT NOT NULL,
+        main_category TEXT NOT NULL,
+        description TEXT NOT NULL,
+        logo_text TEXT NOT NULL,
+        accent_color TEXT NOT NULL,
+        banner_image TEXT NOT NULL,
+        status TEXT NOT NULL,
+        verified BOOLEAN NOT NULL DEFAULT FALSE,
+        rating DOUBLE PRECISION NOT NULL DEFAULT 5.0,
+        review_count INTEGER NOT NULL DEFAULT 0,
+        joined_date TEXT NOT NULL,
+        tenure_label TEXT NOT NULL,
+        location TEXT NOT NULL,
+        payout_info JSONB NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0
+      );
+
+      CREATE TABLE IF NOT EXISTS categories (
+        name TEXT PRIMARY KEY,
+        sort_order INTEGER NOT NULL DEFAULT 0
+      );
+
+      CREATE TABLE IF NOT EXISTS products (
+        id TEXT PRIMARY KEY,
+        seller_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        brand TEXT NOT NULL,
+        category TEXT NOT NULL,
+        condition TEXT NOT NULL,
+        price DOUBLE PRECISION NOT NULL,
+        original_price DOUBLE PRECISION,
+        stock INTEGER NOT NULL DEFAULT 0,
+        rating DOUBLE PRECISION NOT NULL DEFAULT 5.0,
+        review_count INTEGER NOT NULL DEFAULT 0,
+        sold_count INTEGER NOT NULL DEFAULT 0,
+        is_flash_deal BOOLEAN NOT NULL DEFAULT FALSE,
+        is_best_seller BOOLEAN NOT NULL DEFAULT FALSE,
+        images JSONB NOT NULL,
+        description TEXT NOT NULL,
+        specs JSONB NOT NULL,
+        badge TEXT,
+        created_at TEXT NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0
+      );
+
+      ALTER TABLE products ADD COLUMN IF NOT EXISTS is_flash_deal BOOLEAN NOT NULL DEFAULT FALSE;
+      ALTER TABLE products ADD COLUMN IF NOT EXISTS is_best_seller BOOLEAN NOT NULL DEFAULT FALSE;
+
+      CREATE TABLE IF NOT EXISTS orders (
+        id TEXT PRIMARY KEY,
+        buyer_id TEXT NOT NULL,
+        buyer_name TEXT NOT NULL,
+        buyer_email TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        shipping_address JSONB NOT NULL,
+        payment_method TEXT NOT NULL,
+        commission_rate_snapshot DOUBLE PRECISION NOT NULL,
+        subtotal DOUBLE PRECISION NOT NULL,
+        discount_total DOUBLE PRECISION,
+        coupon_code TEXT,
+        shipping_total DOUBLE PRECISION NOT NULL,
+        total DOUBLE PRECISION NOT NULL,
+        fulfillments JSONB NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0
+      );
+
+      CREATE TABLE IF NOT EXISTS addresses (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        label TEXT NOT NULL,
+        recipient TEXT NOT NULL,
+        street TEXT NOT NULL,
+        city TEXT NOT NULL,
+        state TEXT NOT NULL,
+        zip_code TEXT NOT NULL,
+        is_default BOOLEAN NOT NULL DEFAULT FALSE,
+        sort_order INTEGER NOT NULL DEFAULT 0
+      );
+
+      CREATE TABLE IF NOT EXISTS wishlists (
+        user_id TEXT NOT NULL,
+        product_id TEXT NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (user_id, product_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS newsletter_subscribers (
+        email TEXT PRIMARY KEY,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS contact_messages (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL,
+        subject TEXT NOT NULL,
+        message TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS platform_settings (
+        key TEXT PRIMARY KEY,
+        value JSONB NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS uploaded_assets (
+        key TEXT PRIMARY KEY,
+        bucket TEXT NOT NULL,
+        owner_user_id TEXT NOT NULL,
+        original_name TEXT NOT NULL,
+        content_type TEXT NOT NULL,
+        size_bytes INTEGER NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        token_hash TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        expires_at TIMESTAMPTZ NOT NULL,
+        used_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id
+        ON password_reset_tokens (user_id);
     `);
-    const row = stats.rows[0];
-    console.log(
-      `[Cellbox PostgreSQL] Connected to Neon (${row.users} users, ${row.sellers} sellers, ${row.products} products).`
+
+    const countRes = await client.query<{ count: number }>(
+      'SELECT COUNT(*)::int AS count FROM users'
     );
-  }
+    if ((countRes.rows[0]?.count ?? 0) === 0) {
+      const seed = createSeed();
+      await insertSeedInClient(client, seed);
+      console.log('[Cellbox PostgreSQL] Schema created and initial data seeded.');
+    } else {
+      const stats = await client.query<{ users: number; products: number; sellers: number }>(`
+        SELECT
+          (SELECT COUNT(*)::int FROM users) AS users,
+          (SELECT COUNT(*)::int FROM products) AS products,
+          (SELECT COUNT(*)::int FROM sellers) AS sellers
+      `);
+      const row = stats.rows[0];
+      console.log(
+        `[Cellbox PostgreSQL] Connected to Neon (${row.users} users, ${row.sellers} sellers, ${row.products} products).`
+      );
+    }
+  });
 }
 
 export async function resetDatabaseToSeed(seed: SeedPayload): Promise<void> {

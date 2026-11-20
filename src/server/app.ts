@@ -1,7 +1,11 @@
-import 'dotenv/config';
 import crypto from 'node:crypto';
+import dotenv from 'dotenv';
 import express from 'express';
 import type { Express, NextFunction, Request, RequestHandler, Response } from 'express';
+
+if (!process.env.VERCEL) {
+  dotenv.config({ quiet: true });
+}
 import {
   ACTIVE_COUPONS,
   ASSET_IMAGES,
@@ -214,21 +218,34 @@ export function createApiApp(): Express {
   app.set('trust proxy', 1);
   app.use(express.json({ limit: '10mb' }));
 
+  // ── Healthcheck (PostgreSQL connectivity & runtime env diagnostics) ──────
+  app.get(
+    '/api/health',
+    asyncHandler(async (_req, res) => {
+      const env = db.getDatabaseEnvDiagnostics();
+      try {
+        await ensureDatabaseReady();
+        const stats = await db.getDatabaseHealthStats();
+        res.json({ ok: true, database: 'postgresql', env, ...stats });
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : 'Falha ao conectar ao banco PostgreSQL.';
+        res.status(503).json({
+          ok: false,
+          database: 'postgresql',
+          env,
+          error: message,
+        });
+      }
+    })
+  );
+
   // Lazily ensure Neon PostgreSQL schema & initial seed are ready on cold starts (Vercel Serverless & Node)
   app.use(
     '/api',
     asyncHandler(async (_req, _res, next) => {
       await ensureDatabaseReady();
       next();
-    })
-  );
-
-  // ── Healthcheck (PostgreSQL connectivity verification) ───────────────────
-  app.get(
-    '/api/health',
-    asyncHandler(async (_req, res) => {
-      const stats = await db.getDatabaseHealthStats();
-      res.json({ ok: true, database: 'postgresql', ...stats });
     })
   );
 
