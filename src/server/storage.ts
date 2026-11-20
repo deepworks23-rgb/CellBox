@@ -34,10 +34,15 @@ export function getS3Client(): S3Client {
     const endpoint =
       process.env.AWS_ENDPOINT_URL_S3?.trim() || process.env.AWS_ENDPOINT_URL?.trim();
     const region = process.env.AWS_REGION?.trim() || 'us-east-1';
+    const accessKeyId = process.env.AWS_ACCESS_KEY_ID?.trim();
+    const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY?.trim();
     s3ClientInstance = new S3Client({
       forcePathStyle: true,
       region,
       ...(endpoint ? { endpoint } : {}),
+      ...(accessKeyId && secretAccessKey
+        ? { credentials: { accessKeyId, secretAccessKey } }
+        : {}),
     });
   }
   return s3ClientInstance;
