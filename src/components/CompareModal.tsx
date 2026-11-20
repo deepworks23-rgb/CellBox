@@ -41,10 +41,10 @@ export function CompareModal() {
       <div className="bg-white rounded-[4px] border border-[#E0E0E0] max-w-5xl w-full max-h-[88vh] flex flex-col overflow-hidden shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 bg-[#F1F2F4] border-b border-[#E5E7EB]">
           <div className="flex items-center gap-2.5">
-            <Scale className="w-5 h-5 text-[#43AA5B]" />
+            <Scale className="w-5 h-5 text-[#0475EE]" />
             <h2
               id="compare-modal-title"
-              className="font-condensed text-[20px] font-bold uppercase tracking-wide text-[#43AA5B]"
+              className="font-condensed text-[20px] font-bold uppercase tracking-wide text-[#0A3768]"
             >
               Comparativo Técnico ({comparedProducts.length}/3)
             </h2>
@@ -105,20 +105,20 @@ export function CompareModal() {
                             setCompareOpen(false);
                             navigate({ type: 'product', productId: product.id });
                           }}
-                          className="text-[13px] font-semibold text-[#333333] hover:text-[#43AA5B] text-left line-clamp-2 cursor-pointer"
+                          className="text-[13px] font-semibold text-[#333333] hover:text-[#0475EE] text-left line-clamp-2 cursor-pointer"
                         >
                           {product.title}
                         </button>
                         <p className="text-[11px] text-[#777777] mt-1">
                           {product.brand} · {seller?.name ?? 'Cellbox'}
                         </p>
-                        <p className="text-[16px] font-bold tabular-nums text-[#43AA5B] mt-2">
+                        <p className="text-[16px] font-bold tabular-nums text-[#0475EE] mt-2">
                           {formatCurrency(product.price)}
                         </p>
                         <button
                           type="button"
                           onClick={() => addToCart(product.id)}
-                          className="mt-3 w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-white bg-[#43AA5B] hover:bg-[#2F8E47] rounded-full transition-colors whitespace-nowrap cursor-pointer"
+                          className="mt-3 w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-white bg-[#0475EE] hover:bg-[#0A3768] rounded-full transition-colors whitespace-nowrap cursor-pointer"
                         >
                           <ShoppingCart className="w-3.5 h-3.5" />
                           Adicionar

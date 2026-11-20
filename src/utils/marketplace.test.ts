@@ -6,6 +6,7 @@ import {
   calculateSellerAnalytics,
   calculateShipping,
   filterVisibleProducts,
+  formatCurrency,
   getNextOrderStatus,
   groupCartBySeller,
   validateProductForm,
@@ -175,30 +176,37 @@ test('filterVisibleProducts excludes products from pending or suspended stores',
   assert.equal(visibleAfterApproval.some((p) => p.id === 'p-3'), true);
 });
 
+test('formatCurrency formats values in Mozambican Metical (MT)', () => {
+  const formatted = formatCurrency(98500);
+  assert.ok(formatted.endsWith(' MT'));
+  assert.ok(formatted.includes('98'));
+  assert.ok(formatted.includes('500'));
+});
+
 test('groupCartBySeller supports multi-vendor cart and free shipping threshold', () => {
   const groups = groupCartBySeller(
     [
-      { productId: 'p-1', quantity: 1 },
+      { productId: 'p-1', quantity: 2 },
       { productId: 'p-2', quantity: 2 },
     ],
     mockProducts,
     mockSellers,
-    '01310-100'
+    '1100'
   );
   assert.equal(groups.length, 2);
   const totals = calculateCartTotals(groups);
-  assert.equal(totals.itemCount, 3);
-  assert.equal(totals.subtotal, 14000 + 8999 * 2);
-  assert.equal(totals.shippingTotal, 0); // Both subtotals exceed R$ 1500
+  assert.equal(totals.itemCount, 4);
+  assert.equal(totals.subtotal, 14000 * 2 + 8999 * 2);
+  assert.equal(totals.shippingTotal, 0); // Both subtotals exceed 15.000 MT
   assert.equal(totals.grandTotal, totals.subtotal);
 });
 
 test('calculateShipping charges standard shipping below threshold', () => {
-  const lowOrder = calculateShipping('01310-100', 400);
+  const lowOrder = calculateShipping('1100', 4500);
   assert.equal(lowOrder.isFreeStandard, false);
-  assert.equal(lowOrder.standardCost, 24.9);
+  assert.equal(lowOrder.standardCost, 250);
 
-  const highOrder = calculateShipping('88010-000', 2000);
+  const highOrder = calculateShipping('3100', 20000);
   assert.equal(highOrder.isFreeStandard, true);
   assert.equal(highOrder.standardCost, 0);
 });

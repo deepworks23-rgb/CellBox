@@ -36,7 +36,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
 
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [cep, setCep] = useState('01310-100');
+  const [cep, setCep] = useState('1100');
   const [shippingCalculated, setShippingCalculated] = useState(true);
 
   if (!product) {
@@ -48,7 +48,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
         <button
           type="button"
           onClick={() => navigate({ type: 'home' })}
-          className="mt-4 h-10 px-6 rounded-full bg-[#43AA5B] hover:bg-[#2F8E47] text-white text-xs font-bold uppercase tracking-wide cursor-pointer"
+          className="mt-4 h-10 px-6 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wide cursor-pointer"
         >
           Voltar à vitrine
         </button>
@@ -77,7 +77,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
         <button
           type="button"
           onClick={() => navigate({ type: 'home' })}
-          className="inline-flex items-center gap-1.5 font-semibold text-[#333333] hover:text-[#43AA5B] cursor-pointer"
+          className="inline-flex items-center gap-1.5 font-semibold text-[#333333] hover:text-[#0475EE] cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           Voltar à vitrine
@@ -85,7 +85,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
         <span aria-hidden="true">/</span>
         <span>{product.category}</span>
         <span aria-hidden="true">/</span>
-        <span className="text-[#43AA5B] font-semibold truncate">{product.brand}</span>
+        <span className="text-[#0475EE] font-semibold truncate">{product.brand}</span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -111,8 +111,8 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
                     aria-label={`Ver imagem ${idx + 1}`}
                     className={`w-20 h-16 rounded-[2px] overflow-hidden border-2 transition-colors shrink-0 cursor-pointer ${
                       selectedImageIdx === idx
-                        ? 'border-[#43AA5B]'
-                        : 'border-[#E0E0E0] hover:border-[#43AA5B]/60'
+                        ? 'border-[#0475EE]'
+                        : 'border-[#E0E0E0] hover:border-[#0475EE]/60'
                     }`}
                   >
                     <ProductImage
@@ -130,7 +130,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
           {/* Description & Technical Specs Table */}
           <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-6 space-y-6">
             <div>
-              <h2 className="font-condensed text-[20px] font-bold uppercase tracking-wide text-[#43AA5B]">
+              <h2 className="font-condensed text-[20px] font-bold uppercase tracking-wide text-[#0A3768]">
                 Sobre o Produto
               </h2>
               <p className="mt-2 text-[13px] text-[#555555] leading-relaxed">
@@ -139,7 +139,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
             </div>
 
             <div className="pt-5 border-t border-[#EAEAEA]">
-              <h2 className="font-condensed text-[20px] font-bold uppercase tracking-wide text-[#43AA5B] mb-3">
+              <h2 className="font-condensed text-[20px] font-bold uppercase tracking-wide text-[#0A3768] mb-3">
                 Especificações Técnicas
               </h2>
               <dl className="divide-y divide-[#EAEAEA] border border-[#EAEAEA] rounded-[2px] overflow-hidden">
@@ -160,7 +160,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
         </div>
 
         {/* Right: Sticky Contiguous Purchase Module + Seller Box */}
-        <div className="lg:col-span-5 lg:sticky lg:top-6 space-y-5">
+        <div className="lg:col-span-5 lg:sticky lg:top-[174px] space-y-5">
           <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-6 space-y-5">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wide text-[#777777]">
@@ -198,11 +198,11 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
                   {formatCurrency(product.originalPrice)}
                 </p>
               )}
-              <p className="text-[28px] font-extrabold tabular-nums text-[#43AA5B] leading-tight">
+              <p className="text-[28px] font-extrabold tabular-nums text-[#0475EE] leading-tight">
                 {formatCurrency(product.price)}
               </p>
-              <p className="text-xs text-[#2F8E47] font-semibold mt-1">
-                10% OFF no PIX ou até 12x de {formatCurrency(product.price / 12)} sem juros
+              <p className="text-xs text-[#0A3768] font-semibold mt-1">
+                10% OFF via M-Pesa/e-Mola ou até 12x de {formatCurrency(product.price / 12)} sem juros
               </p>
             </div>
 
@@ -210,7 +210,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
             <div className="flex items-center justify-between pt-2">
               <span className="text-xs font-medium text-[#555555]">
                 {product.stock > 0 ? (
-                  <span className="text-[#2F8E47] font-bold tabular-nums">
+                  <span className="text-[#0A3768] font-bold tabular-nums">
                     Em estoque ({product.stock} un.)
                   </span>
                 ) : (
@@ -250,7 +250,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
                   addToCart(product.id, quantity);
                   navigate({ type: 'cart' });
                 }}
-                className="w-full h-11 rounded-full bg-[#43AA5B] hover:bg-[#2F8E47] disabled:bg-[#CCCCCC] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                className="w-full h-11 rounded-full bg-[#0475EE] hover:bg-[#0A3768] disabled:bg-[#CCCCCC] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
               >
                 Comprar Agora
               </button>
@@ -258,7 +258,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
                 type="button"
                 disabled={product.stock <= 0}
                 onClick={() => addToCart(product.id, quantity)}
-                className="w-full h-10 rounded-full bg-[#0070B8] hover:bg-[#005B96] disabled:bg-[#CCCCCC] text-white text-xs font-bold uppercase tracking-wider inline-flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                className="w-full h-10 rounded-full bg-[#18A3DE] hover:bg-[#0A3768] disabled:bg-[#CCCCCC] text-white text-xs font-bold uppercase tracking-wider inline-flex items-center justify-center gap-2 transition-colors cursor-pointer"
               >
                 <ShoppingCart className="w-4 h-4" />
                 Adicionar ao Carrinho
@@ -270,7 +270,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
                   className={`h-9 rounded-full border text-xs font-semibold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
                     isWished
                       ? 'border-rose-300 bg-rose-50 text-rose-700'
-                      : 'border-[#DCDCDC] text-[#555555] hover:border-[#43AA5B] hover:text-[#43AA5B]'
+                      : 'border-[#DCDCDC] text-[#555555] hover:border-[#0475EE] hover:text-[#0475EE]'
                   }`}
                 >
                   <Heart className={`w-3.5 h-3.5 ${isWished ? 'fill-rose-500 text-rose-500' : ''}`} />
@@ -281,8 +281,8 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
                   onClick={() => toggleCompare(product.id)}
                   className={`h-9 rounded-full border text-xs font-semibold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
                     isCompared
-                      ? 'border-[#43AA5B] bg-[#43AA5B]/10 text-[#2F8E47]'
-                      : 'border-[#DCDCDC] text-[#555555] hover:border-[#43AA5B] hover:text-[#43AA5B]'
+                      ? 'border-[#0475EE] bg-[#0475EE]/10 text-[#0A3768]'
+                      : 'border-[#DCDCDC] text-[#555555] hover:border-[#0475EE] hover:text-[#0475EE]'
                   }`}
                 >
                   <Scale className="w-3.5 h-3.5" />
@@ -294,7 +294,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
             {/* Freight Calculator */}
             <div className="pt-4 border-t border-[#EAEAEA] space-y-3">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-[#333333]">
-                <Truck className="w-4 h-4 text-[#43AA5B]" />
+                <Truck className="w-4 h-4 text-[#0475EE]" />
                 <span>Calcular frete e prazo</span>
               </div>
               <form
@@ -305,19 +305,19 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
                 className="flex gap-2"
               >
                 <label htmlFor="pdp-cep-input" className="sr-only">
-                  CEP de entrega
+                  Código Postal de entrega
                 </label>
                 <input
                   id="pdp-cep-input"
                   type="text"
                   value={cep}
                   onChange={(e) => setCep(e.target.value)}
-                  placeholder="00000-000"
-                  className="flex-1 h-9 px-3 rounded-[2px] border border-[#DCDCDC] text-xs font-mono tabular-nums focus:outline-none focus:border-[#43AA5B]"
+                  placeholder="1100"
+                  className="flex-1 h-9 px-3 rounded-[2px] border border-[#DCDCDC] text-xs font-mono tabular-nums focus:outline-none focus:border-[#0475EE]"
                 />
                 <button
                   type="submit"
-                  className="h-9 px-4 rounded-[2px] border border-[#DCDCDC] hover:border-[#43AA5B] hover:text-[#43AA5B] text-xs font-bold uppercase text-[#444444] whitespace-nowrap cursor-pointer"
+                  className="h-9 px-4 rounded-[2px] border border-[#DCDCDC] hover:border-[#0475EE] hover:text-[#0475EE] text-xs font-bold uppercase text-[#444444] whitespace-nowrap cursor-pointer"
                 >
                   Calcular
                 </button>
@@ -329,7 +329,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
                     <span className="text-[#444444] font-medium">
                       Entrega Padrão ({shippingQuote.standardDays})
                     </span>
-                    <span className="font-mono tabular-nums font-bold text-[#2F8E47]">
+                    <span className="font-mono tabular-nums font-bold text-[#0A3768]">
                       {shippingQuote.isFreeStandard
                         ? 'Grátis'
                         : formatCurrency(shippingQuote.standardCost)}
@@ -348,7 +348,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
             </div>
 
             <div className="flex items-center gap-2 text-xs text-[#666666] pt-1">
-              <ShieldCheck className="w-4 h-4 text-[#43AA5B] shrink-0" />
+              <ShieldCheck className="w-4 h-4 text-[#0475EE] shrink-0" />
               <span>Compra Garantida Cellbox · Devolução grátis em até 30 dias</span>
             </div>
           </div>
@@ -372,7 +372,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
                       <h3 className="text-[15px] font-bold text-[#333333]">{seller.name}</h3>
                       {seller.verified && (
                         <CheckCircle2
-                          className="w-4 h-4 text-[#43AA5B]"
+                          className="w-4 h-4 text-[#0475EE]"
                           aria-label="Lojista oficial verificado"
                         />
                       )}
@@ -393,13 +393,13 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
 
               <div className="mt-4 pt-3 border-t border-[#EAEAEA] flex items-center justify-between">
                 <span className="inline-flex items-center gap-1.5 text-xs text-[#666666]">
-                  <MapPin className="w-3.5 h-3.5 text-[#43AA5B]" />
-                  Envio rápido com NF-e
+                  <MapPin className="w-3.5 h-3.5 text-[#0475EE]" />
+                  Envio rápido com fatura oficial
                 </span>
                 <button
                   type="button"
                   onClick={() => navigate({ type: 'store', sellerId: seller.id })}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#43AA5B] hover:text-[#2F8E47] cursor-pointer"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0475EE] hover:text-[#0A3768] cursor-pointer"
                 >
                   <Store className="w-3.5 h-3.5" />
                   Visitar loja do vendedor

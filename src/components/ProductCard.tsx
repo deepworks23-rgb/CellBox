@@ -46,7 +46,7 @@ export function ProductCard({ product, tiled = true }: ProductCardProps) {
           className={`w-7 h-7 rounded-full flex items-center justify-center border transition-colors cursor-pointer ${
             isWished
               ? 'bg-rose-50 border-rose-200 text-rose-500'
-              : 'bg-white/95 border-[#E5E5E5] text-[#888888] opacity-80 group-hover:opacity-100 hover:text-[#43AA5B] hover:border-[#43AA5B]'
+              : 'bg-white/95 border-[#E5E5E5] text-[#888888] opacity-80 group-hover:opacity-100 hover:text-[#0475EE] hover:border-[#0475EE]'
           }`}
         >
           <Heart className={`w-3.5 h-3.5 ${isWished ? 'fill-rose-500 text-rose-500' : ''}`} />
@@ -61,15 +61,15 @@ export function ProductCard({ product, tiled = true }: ProductCardProps) {
           }
           className={`w-7 h-7 rounded-full flex items-center justify-center border transition-colors cursor-pointer ${
             isCompared
-              ? 'bg-[#43AA5B] border-[#43AA5B] text-white'
-              : 'bg-white/95 border-[#E5E5E5] text-[#888888] opacity-80 group-hover:opacity-100 hover:text-[#43AA5B] hover:border-[#43AA5B]'
+              ? 'bg-[#0475EE] border-[#0475EE] text-white'
+              : 'bg-white/95 border-[#E5E5E5] text-[#888888] opacity-80 group-hover:opacity-100 hover:text-[#0475EE] hover:border-[#0475EE]'
           }`}
         >
           <Scale className="w-3.5 h-3.5" />
         </button>
       </div>
 
-      {/* Product Studio Image Stage (Clean centered frame matching reference) */}
+      {/* Product Studio Image Stage */}
       <button
         type="button"
         onClick={() => navigate({ type: 'product', productId: product.id })}
@@ -88,12 +88,12 @@ export function ProductCard({ product, tiled = true }: ProductCardProps) {
       <button
         type="button"
         onClick={() => navigate({ type: 'product', productId: product.id })}
-        className="text-[12.5px] font-medium text-[#444444] hover:text-[#43AA5B] leading-snug line-clamp-2 min-h-[34px] cursor-pointer transition-colors"
+        className="text-[12.5px] font-medium text-[#333333] hover:text-[#0475EE] leading-snug line-clamp-2 min-h-[34px] cursor-pointer transition-colors"
       >
         {product.title}
       </button>
 
-      {/* 5 Golden Stars + Review Count (Exact Reference Style) */}
+      {/* 5 Golden Stars + Review Count */}
       <div className="mt-1.5 flex items-center justify-center gap-1">
         <div className="flex items-center gap-0.5" aria-label={`Avaliação ${product.rating} de 5`}>
           {[1, 2, 3, 4, 5].map((n) => (
@@ -112,14 +112,14 @@ export function ProductCard({ product, tiled = true }: ProductCardProps) {
         </span>
       </div>
 
-      {/* Centered Bold Green Price */}
+      {/* Centered Bold Brand Price in Metical (MT) */}
       <div className="mt-2">
         {product.originalPrice && product.originalPrice > product.price && (
           <p className="text-[11px] text-[#AAAAAA] line-through font-mono tabular-nums">
             {formatCurrency(product.originalPrice)}
           </p>
         )}
-        <p className="text-[15px] font-bold text-[#43AA5B] font-mono tabular-nums">
+        <p className="text-[14.5px] font-bold text-[#0475EE] font-mono tabular-nums">
           {formatCurrency(product.price)}
         </p>
       </div>
@@ -129,7 +129,7 @@ export function ProductCard({ product, tiled = true }: ProductCardProps) {
         <button
           type="button"
           onClick={() => seller && navigate({ type: 'store', sellerId: seller.id })}
-          className="text-[10.5px] text-[#888888] hover:text-[#43AA5B] truncate max-w-full cursor-pointer"
+          className="text-[10.5px] text-[#888888] hover:text-[#0475EE] truncate max-w-full cursor-pointer"
         >
           {seller?.name ?? 'Cellbox'} · {product.condition}
         </button>
@@ -139,7 +139,7 @@ export function ProductCard({ product, tiled = true }: ProductCardProps) {
           disabled={product.stock <= 0}
           onClick={() => addToCart(product.id)}
           aria-label={`Adicionar ${product.title} ao carrinho`}
-          className="w-full h-8 px-3 rounded-full border border-[#43AA5B] text-[#43AA5B] hover:bg-[#43AA5B] hover:text-white disabled:border-[#DDDDDD] disabled:text-[#AAAAAA] text-[11px] font-bold uppercase tracking-wide inline-flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap cursor-pointer"
+          className="w-full h-8 px-3 rounded-full border border-[#0475EE] text-[#0475EE] hover:bg-[#0475EE] hover:text-white disabled:border-[#DDDDDD] disabled:text-[#AAAAAA] text-[11px] font-bold uppercase tracking-wide inline-flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap cursor-pointer"
         >
           <ShoppingCart className="w-3.5 h-3.5" />
           <span>{product.stock > 0 ? 'Adicionar' : 'Esgotado'}</span>

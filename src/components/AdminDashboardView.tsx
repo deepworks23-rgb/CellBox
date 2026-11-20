@@ -101,11 +101,11 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
   return (
     <div className="max-w-[1170px] mx-auto px-4 py-6 pb-16">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Sidebar (Digimart Deep Green #2F8E47 / #26783B) */}
-        <aside className="lg:col-span-3 bg-[#26783B] text-white rounded-[3px] p-4 space-y-5">
+        {/* Sidebar (Official Cellbox Deep Navy #0A3768) */}
+        <aside className="lg:col-span-3 bg-[#0A3768] text-white rounded-[3px] p-4 space-y-5">
           <div className="flex items-center gap-3 px-2 pt-1 pb-4 border-b border-white/15">
             <div className="w-10 h-10 rounded-[3px] bg-white/15 flex items-center justify-center shrink-0">
-              <ShieldCheck className="w-5 h-5 text-white" />
+              <ShieldCheck className="w-5 h-5 text-[#1AD6DE]" />
             </div>
             <div>
               <p className="font-condensed text-[16px] font-bold uppercase tracking-wide text-white leading-tight">
@@ -126,7 +126,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                   onClick={() => setActiveTab(item.id)}
                   className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-[3px] text-[13px] font-bold transition-colors cursor-pointer ${
                     active
-                      ? 'bg-white text-[#26783B]'
+                      ? 'bg-white text-[#0A3768]'
                       : 'text-white/90 hover:bg-white/10 hover:text-white'
                   }`}
                 >
@@ -170,7 +170,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
               <p className="text-[11px] font-bold uppercase tracking-wider text-[#777777]">
                 Cellbox Master / {navItems.find((i) => i.id === activeTab)?.label}
               </p>
-              <h1 className="font-condensed text-[28px] font-bold uppercase text-[#43AA5B] mt-0.5">
+              <h1 className="font-condensed text-[28px] font-bold uppercase text-[#0A3768] mt-0.5">
                 {navItems.find((i) => i.id === activeTab)?.label}
               </h1>
             </div>
@@ -209,7 +209,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                   <p className="text-xs font-semibold text-[#777777]">Receita de Comissões</p>
                   <p
                     data-testid="admin-commission-revenue"
-                    className="text-2xl font-extrabold font-mono tabular-nums text-[#43AA5B] mt-2"
+                    className="text-2xl font-extrabold font-mono tabular-nums text-[#0475EE] mt-2"
                   >
                     {formatCurrency(analytics.commissionRevenue)}
                   </p>
@@ -222,7 +222,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                   <p className="text-xs font-semibold text-[#777777]">Vendedores Ativos</p>
                   <p
                     data-testid="admin-active-sellers-count"
-                    className="text-2xl font-extrabold font-mono tabular-nums text-[#0070B8] mt-2"
+                    className="text-2xl font-extrabold font-mono tabular-nums text-[#18A3DE] mt-2"
                   >
                     {analytics.activeSellersCount}
                   </p>
@@ -251,7 +251,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                   <button
                     type="button"
                     onClick={() => setActiveTab('sellers')}
-                    className="text-xs font-bold text-[#43AA5B] hover:text-[#2F8E47] cursor-pointer"
+                    className="text-xs font-bold text-[#0475EE] hover:text-[#0A3768] cursor-pointer"
                   >
                     Gerenciar vendedores
                   </button>
@@ -285,7 +285,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                             <td className="py-3 px-4 text-right font-mono tabular-nums font-semibold text-[#333333]">
                               {formatCurrency(sStats.monthlySales)}
                             </td>
-                            <td className="py-3 px-5 text-right font-mono tabular-nums font-bold text-[#43AA5B]">
+                            <td className="py-3 px-5 text-right font-mono tabular-nums font-bold text-[#0475EE]">
                               {formatCurrency(sStats.commissionDeducted)}
                             </td>
                           </tr>
@@ -317,7 +317,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                     onClick={() => setSellerFilter(f.id)}
                     className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide transition-colors whitespace-nowrap cursor-pointer ${
                       sellerFilter === f.id
-                        ? 'bg-[#43AA5B] text-white'
+                        ? 'bg-[#0475EE] text-white'
                         : 'bg-[#F2F3F5] text-[#555555] hover:bg-[#E6E8EC]'
                     }`}
                   >
@@ -337,7 +337,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                       <thead className="bg-[#FAFAFA] border-b border-[#EAEAEA] text-xs text-[#777777] uppercase">
                         <tr>
                           <th className="py-3 px-5 font-bold">Lojista</th>
-                          <th className="py-3 px-4 font-bold">Documento / NIF</th>
+                          <th className="py-3 px-4 font-bold">NUIT / NIF</th>
                           <th className="py-3 px-4 font-bold">Categoria</th>
                           <th className="py-3 px-4 font-bold">Status</th>
                           <th className="py-3 px-5 font-bold text-right">Ações</th>
@@ -377,7 +377,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                                     <button
                                       type="button"
                                       onClick={() => setSellerStatus(s.id, 'active')}
-                                      className="h-8 px-3.5 rounded-full bg-[#43AA5B] hover:bg-[#2F8E47] text-white text-[11px] font-bold uppercase inline-flex items-center gap-1 whitespace-nowrap cursor-pointer"
+                                      className="h-8 px-3.5 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-[11px] font-bold uppercase inline-flex items-center gap-1 whitespace-nowrap cursor-pointer"
                                     >
                                       <CheckCircle2 className="w-3.5 h-3.5" />
                                       Aprovar Cadastro
@@ -397,7 +397,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                                     type="button"
                                     onClick={() => setInspectedSeller(s)}
                                     aria-label={`Ver detalhes de ${s.name}`}
-                                    className="h-8 px-3 rounded-full border border-[#DCDCDC] hover:border-[#43AA5B] hover:text-[#43AA5B] text-[#555555] text-[11px] font-bold uppercase inline-flex items-center gap-1 whitespace-nowrap cursor-pointer"
+                                    className="h-8 px-3 rounded-full border border-[#DCDCDC] hover:border-[#0475EE] hover:text-[#0475EE] text-[#555555] text-[11px] font-bold uppercase inline-flex items-center gap-1 whitespace-nowrap cursor-pointer"
                                   >
                                     <Eye className="w-3.5 h-3.5" />
                                     Detalhes
@@ -420,7 +420,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
             <div className="space-y-6">
               {/* Categories Management */}
               <section className="bg-white border border-[#EAEAEA] rounded-[3px] p-6 space-y-4">
-                <h2 className="font-condensed text-[19px] font-bold uppercase text-[#43AA5B]">
+                <h2 className="font-condensed text-[19px] font-bold uppercase text-[#0A3768]">
                   Categorias de Eletrônicos
                 </h2>
                 <form onSubmit={handleAddCategory} className="flex gap-2 max-w-md">
@@ -433,11 +433,11 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                     value={newCategoryName}
                     onChange={(e) => setNewCategoryName(e.target.value)}
                     placeholder="Ex: Wearables, Monitores..."
-                    className="flex-1 h-9 px-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#43AA5B]"
+                    className="flex-1 h-9 px-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#0475EE]"
                   />
                   <button
                     type="submit"
-                    className="h-9 px-5 rounded-full bg-[#43AA5B] hover:bg-[#2F8E47] text-white text-xs font-bold uppercase inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+                    className="h-9 px-5 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     Adicionar
@@ -523,7 +523,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                                 <span className="text-xs text-amber-700">({statusLabel(s.status)})</span>
                               )}
                             </td>
-                            <td className="py-3 px-4 text-right font-mono tabular-nums font-bold text-[#43AA5B]">
+                            <td className="py-3 px-4 text-right font-mono tabular-nums font-bold text-[#0475EE]">
                               {formatCurrency(p.price)}
                             </td>
                             <td className="py-3 px-5 text-right">
@@ -553,7 +553,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
               className="bg-white border border-[#EAEAEA] rounded-[3px] p-6 max-w-xl space-y-5"
             >
               <div>
-                <h2 className="font-condensed text-[20px] font-bold uppercase text-[#43AA5B]">
+                <h2 className="font-condensed text-[20px] font-bold uppercase text-[#0A3768]">
                   Taxa de Comissão Padrão da Plataforma
                 </h2>
                 <p className="text-xs text-[#666666] mt-1">
@@ -577,7 +577,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                     step={0.5}
                     value={draftCommission}
                     onChange={(e) => setDraftCommission(e.target.value)}
-                    className="w-32 h-11 px-3.5 rounded-[2px] border border-[#DCDCDC] text-lg font-bold font-mono tabular-nums focus:outline-none focus:border-[#43AA5B]"
+                    className="w-32 h-11 px-3.5 rounded-[2px] border border-[#DCDCDC] text-lg font-bold font-mono tabular-nums focus:outline-none focus:border-[#0475EE]"
                   />
                   <span className="text-xs text-[#666666]">% sobre cada venda</span>
                 </div>
@@ -594,7 +594,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                   <span className="text-[#555555]">
                     Receita Estimada com {Number(draftCommission) || commissionRate}%
                   </span>
-                  <span className="font-mono tabular-nums font-extrabold text-[#43AA5B]">
+                  <span className="font-mono tabular-nums font-extrabold text-[#0475EE]">
                     {formatCurrency(
                       analytics.gmv * ((Number(draftCommission) || commissionRate) / 100)
                     )}
@@ -604,7 +604,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
 
               <button
                 type="submit"
-                className="h-10 px-6 rounded-full bg-[#43AA5B] hover:bg-[#2F8E47] text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
+                className="h-10 px-6 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
               >
                 Aplicar Nova Taxa de Comissão
               </button>
@@ -638,7 +638,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                     {inspectedSeller.name}
                   </h2>
                   <p className="text-xs text-[#777777]">
-                    NIF/CNPJ: {inspectedSeller.documentId} · {inspectedSeller.location}
+                    NUIT / NIF: {inspectedSeller.documentId} · {inspectedSeller.location}
                   </p>
                 </div>
               </div>
@@ -666,7 +666,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                     </div>
                     <div className="bg-[#F7F8FA] border border-[#EAEAEA] rounded-[3px] p-3.5">
                       <p className="text-xs text-[#777777]">Comissão Cellbox ({commissionRate}%)</p>
-                      <p className="text-lg font-extrabold font-mono tabular-nums text-[#43AA5B] mt-1">
+                      <p className="text-lg font-extrabold font-mono tabular-nums text-[#0475EE] mt-1">
                         {formatCurrency(sStats.commissionDeducted)}
                       </p>
                     </div>
@@ -696,7 +696,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                           setSellerStatus(inspectedSeller.id, 'active');
                           setInspectedSeller(null);
                         }}
-                        className="h-9 px-5 rounded-full bg-[#43AA5B] hover:bg-[#2F8E47] text-white text-xs font-bold uppercase cursor-pointer"
+                        className="h-9 px-5 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase cursor-pointer"
                       >
                         Aprovar Loja
                       </button>

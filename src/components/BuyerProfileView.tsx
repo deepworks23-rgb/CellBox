@@ -45,7 +45,7 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
     recipient: currentUser.name,
     street: '',
     city: '',
-    state: 'SP',
+    state: 'Maputo',
     zipCode: '',
   });
   const [addrError, setAddrError] = useState('');
@@ -59,7 +59,7 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
   const handleAddAddress = (e: React.FormEvent) => {
     e.preventDefault();
     if (!addrForm.label.trim() || !addrForm.street.trim() || !addrForm.city.trim() || !addrForm.zipCode.trim()) {
-      setAddrError('Preencha identificação, rua, cidade e CEP.');
+      setAddrError('Preencha identificação, rua, cidade e código postal.');
       return;
     }
     addAddress({
@@ -67,7 +67,7 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
       recipient: addrForm.recipient.trim() || currentUser.name,
       street: addrForm.street.trim(),
       city: addrForm.city.trim(),
-      state: addrForm.state.trim() || 'SP',
+      state: addrForm.state.trim() || 'Maputo',
       zipCode: addrForm.zipCode.trim(),
     });
     setAddrForm({
@@ -75,7 +75,7 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
       recipient: currentUser.name,
       street: '',
       city: '',
-      state: 'SP',
+      state: 'Maputo',
       zipCode: '',
     });
     setAddrError('');
@@ -92,7 +92,7 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
     <main className="max-w-[1170px] mx-auto px-4 py-6 pb-16">
       <div className="mb-6 pb-4 border-b border-[#EAEAEA] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-wider text-[#43AA5B]">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-[#0475EE]">
             Área do Cliente
           </p>
           <h1 className="font-condensed text-[28px] font-bold uppercase text-[#222222] mt-0.5">
@@ -104,7 +104,7 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
         <button
           type="button"
           onClick={() => navigate({ type: 'home' })}
-          className="h-9 px-5 rounded-full border border-[#DCDCDC] bg-white hover:border-[#43AA5B] hover:text-[#43AA5B] text-xs font-bold uppercase tracking-wide text-[#444444] whitespace-nowrap self-start sm:self-auto cursor-pointer"
+          className="h-9 px-5 rounded-full border border-[#DCDCDC] bg-white hover:border-[#0475EE] hover:text-[#0475EE] text-xs font-bold uppercase tracking-wide text-[#444444] whitespace-nowrap self-start sm:self-auto cursor-pointer"
         >
           Voltar à vitrine
         </button>
@@ -122,7 +122,7 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
               onClick={() => setActiveTab(tab.id)}
               className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wide transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                 active
-                  ? 'bg-[#43AA5B] text-white'
+                  ? 'bg-[#0475EE] text-white'
                   : 'bg-[#F2F3F5] text-[#555555] hover:bg-[#E6E8EC]'
               }`}
             >
@@ -150,7 +150,7 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
               <button
                 type="button"
                 onClick={() => navigate({ type: 'home' })}
-                className="mt-4 h-10 px-6 rounded-full bg-[#43AA5B] hover:bg-[#2F8E47] text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
+                className="mt-4 h-10 px-6 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
               >
                 Explorar ofertas
               </button>
@@ -184,7 +184,7 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
                   </div>
                   <div className="text-right">
                     <span className="text-[11px] uppercase text-[#777777] block">Total</span>
-                    <span className="text-lg font-extrabold font-mono tabular-nums text-[#43AA5B]">
+                    <span className="text-lg font-extrabold font-mono tabular-nums text-[#0475EE]">
                       {formatCurrency(order.total)}
                     </span>
                   </div>
@@ -201,7 +201,7 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
                             <button
                               type="button"
                               onClick={() => navigate({ type: 'store', sellerId: f.sellerId })}
-                              className="font-bold text-[#333333] hover:text-[#43AA5B] cursor-pointer"
+                              className="font-bold text-[#333333] hover:text-[#0475EE] cursor-pointer"
                             >
                               {f.sellerName}
                             </button>
@@ -212,13 +212,13 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
                           </div>
                           <span className="inline-flex items-center gap-1.5 text-xs font-bold">
                             {f.status === 'Entregue' ? (
-                              <CheckCircle2 className="w-4 h-4 text-[#43AA5B]" />
+                              <CheckCircle2 className="w-4 h-4 text-[#0475EE]" />
                             ) : (
-                              <Truck className="w-4 h-4 text-[#0070B8]" />
+                              <Truck className="w-4 h-4 text-[#18A3DE]" />
                             )}
                             <span
                               className={
-                                f.status === 'Entregue' ? 'text-[#2F8E47]' : 'text-[#0070B8]'
+                                f.status === 'Entregue' ? 'text-[#0A3768]' : 'text-[#18A3DE]'
                               }
                             >
                               {f.status}
@@ -234,7 +234,7 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
                               <div key={step} className="space-y-1.5">
                                 <div
                                   className={`h-1.5 rounded-full transition-colors ${
-                                    reached ? 'bg-[#43AA5B]' : 'bg-[#E5E7EB]'
+                                    reached ? 'bg-[#0475EE]' : 'bg-[#E5E7EB]'
                                   }`}
                                 />
                                 <p
@@ -267,7 +267,7 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
                                   Qtd: {item.quantity} · {item.condition}
                                 </p>
                               </div>
-                              <span className="text-sm font-bold font-mono tabular-nums text-[#43AA5B] whitespace-nowrap">
+                              <span className="text-sm font-bold font-mono tabular-nums text-[#0475EE] whitespace-nowrap">
                                 {formatCurrency(item.price * item.quantity)}
                               </span>
                             </li>
@@ -319,13 +319,13 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
                   <p className="text-sm font-bold text-[#333333]">
                     {addr.label}{' '}
                     {addr.isDefault && (
-                      <span className="text-xs font-bold text-[#43AA5B] ml-2">· Padrão</span>
+                      <span className="text-xs font-bold text-[#0475EE] ml-2">· Padrão</span>
                     )}
                   </p>
                   <p className="text-sm text-[#555555] mt-1">{addr.recipient}</p>
                   <p className="text-sm text-[#777777]">{addr.street}</p>
                   <p className="text-xs text-[#777777] font-mono tabular-nums mt-1">
-                    {addr.city} - {addr.state} · CEP {addr.zipCode}
+                    {addr.city} - {addr.state} · CP {addr.zipCode}
                   </p>
                 </div>
                 {addresses.length > 1 && (
@@ -346,8 +346,8 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
             onSubmit={handleAddAddress}
             className="lg:col-span-5 bg-white border border-[#EAEAEA] rounded-[3px] p-6 space-y-4 h-fit"
           >
-            <h2 className="font-condensed text-[18px] font-bold uppercase text-[#43AA5B] flex items-center gap-2">
-              <Plus className="w-4 h-4" />
+            <h2 className="font-condensed text-[18px] font-bold uppercase text-[#0A3768] flex items-center gap-2">
+              <Plus className="w-4 h-4 text-[#0475EE]" />
               Adicionar Novo Endereço
             </h2>
             {addrError && <p className="text-xs font-medium text-rose-600">{addrError}</p>}
@@ -361,7 +361,7 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
                 value={addrForm.label}
                 onChange={(e) => setAddrForm((p) => ({ ...p, label: e.target.value }))}
                 placeholder="Ex: Casa, Escritório"
-                className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#43AA5B]"
+                className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#0475EE]"
               />
             </div>
             <div>
@@ -373,8 +373,8 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
                 type="text"
                 value={addrForm.street}
                 onChange={(e) => setAddrForm((p) => ({ ...p, street: e.target.value }))}
-                placeholder="Rua, número e complemento"
-                className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#43AA5B]"
+                placeholder="Avenida, número e complemento"
+                className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#0475EE]"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -387,26 +387,27 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
                   type="text"
                   value={addrForm.city}
                   onChange={(e) => setAddrForm((p) => ({ ...p, city: e.target.value }))}
-                  className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#43AA5B]"
+                  placeholder="Maputo"
+                  className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#0475EE]"
                 />
               </div>
               <div>
                 <label htmlFor="prof-addr-zip" className="block text-xs font-bold text-[#444444] mb-1">
-                  CEP
+                  Código Postal
                 </label>
                 <input
                   id="prof-addr-zip"
                   type="text"
                   value={addrForm.zipCode}
                   onChange={(e) => setAddrForm((p) => ({ ...p, zipCode: e.target.value }))}
-                  placeholder="01310-100"
-                  className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm font-mono focus:outline-none focus:border-[#43AA5B]"
+                  placeholder="1100"
+                  className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm font-mono focus:outline-none focus:border-[#0475EE]"
                 />
               </div>
             </div>
             <button
               type="submit"
-              className="w-full h-10 rounded-full bg-[#43AA5B] hover:bg-[#2F8E47] text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
+              className="w-full h-10 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
             >
               Salvar Endereço
             </button>
@@ -423,7 +424,7 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
           }}
           className="max-w-xl bg-white border border-[#EAEAEA] rounded-[3px] p-6 space-y-4"
         >
-          <h2 className="font-condensed text-[20px] font-bold uppercase text-[#43AA5B]">
+          <h2 className="font-condensed text-[20px] font-bold uppercase text-[#0A3768]">
             Dados Pessoais
           </h2>
           <div>
@@ -435,7 +436,7 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#43AA5B]"
+              className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#0475EE]"
             />
           </div>
           <div>
@@ -459,12 +460,12 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
               type="text"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm font-mono focus:outline-none focus:border-[#43AA5B]"
+              className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm font-mono focus:outline-none focus:border-[#0475EE]"
             />
           </div>
           <button
             type="submit"
-            className="h-10 px-6 rounded-full bg-[#43AA5B] hover:bg-[#2F8E47] text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
+            className="h-10 px-6 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
           >
             Salvar Alterações
           </button>

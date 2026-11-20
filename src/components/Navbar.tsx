@@ -114,18 +114,18 @@ export function Navbar() {
         : 'Comprador';
 
   return (
-    <header className="w-full bg-white z-40">
-      {/* 1. Top Slim Utility Bar (#EFEFEF) — Exact Reference Match */}
+    <header className="sticky top-0 z-50 w-full bg-white shadow-[0_2px_12px_rgba(10,55,104,0.09)]">
+      {/* 1. Top Slim Utility Bar (#EFEFEF) */}
       <div className="bg-[#EFEFEF] border-b border-[#E3E3E3] text-[11px] text-[#666666]">
-        <div className="max-w-[1170px] mx-auto px-4 h-9 flex items-center justify-between gap-3">
+        <div className="max-w-[1170px] mx-auto px-4 h-8 flex items-center justify-between gap-3">
           <div className="hidden sm:flex items-center gap-5">
             <span className="inline-flex items-center gap-1.5">
-              <Mail className="w-3.5 h-3.5 text-[#E67E22]" />
-              <span>E-mail: suporte@cellbox.com</span>
+              <Mail className="w-3.5 h-3.5 text-[#18A3DE]" />
+              <span>E-mail: suporte@cellbox.co.mz</span>
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <Phone className="w-3.5 h-3.5 text-[#E67E22]" />
-              <span>Atendimento: +55 (11) 4004-2026</span>
+              <Phone className="w-3.5 h-3.5 text-[#18A3DE]" />
+              <span>Atendimento: +258 84 400 2026</span>
             </span>
           </div>
 
@@ -136,7 +136,7 @@ export function Navbar() {
                 type="button"
                 onClick={() => setCompareOpen(true)}
                 aria-label={`Abrir comparador com ${compareIds.length} itens`}
-                className="h-6 px-2.5 bg-white border border-[#DCDCDC] rounded-xs text-[11px] font-medium text-[#43AA5B] hover:border-[#43AA5B] inline-flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                className="h-6 px-2.5 bg-white border border-[#DCDCDC] rounded-xs text-[11px] font-medium text-[#0475EE] hover:border-[#0475EE] inline-flex items-center gap-1 cursor-pointer whitespace-nowrap"
               >
                 <Scale className="w-3 h-3" />
                 <span>Comparar ({compareIds.length})</span>
@@ -151,9 +151,9 @@ export function Navbar() {
                 aria-expanded={accountMenuOpen}
                 aria-haspopup="menu"
                 aria-label="Menu de conta e perfis de acesso"
-                className="h-6 px-2.5 bg-white border border-[#DCDCDC] rounded-xs text-[11px] font-medium text-[#444444] hover:border-[#43AA5B] inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                className="h-6 px-2.5 bg-white border border-[#DCDCDC] rounded-xs text-[11px] font-medium text-[#444444] hover:border-[#0475EE] inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
               >
-                <User className="w-3 h-3 text-[#43AA5B]" />
+                <User className="w-3 h-3 text-[#0475EE]" />
                 <span className="max-w-[120px] truncate">{currentUser.name}</span>
                 <span className="text-[#888888]">· {roleLabel}</span>
                 <ChevronDown className="w-3 h-3 text-[#888888]" />
@@ -165,7 +165,7 @@ export function Navbar() {
                   className="absolute right-0 mt-1.5 w-72 bg-white text-[#333333] rounded-md border border-[#E0E0E0] shadow-xl py-2 z-50"
                 >
                   <div className="px-4 py-2 border-b border-[#EFEFEF]">
-                    <p className="text-xs font-bold text-[#222222] truncate">{currentUser.name}</p>
+                    <p className="text-xs font-bold text-[#0A3768] truncate">{currentUser.name}</p>
                     <p className="text-[11px] text-[#777777] truncate">
                       {currentUser.email} · {roleLabel}
                     </p>
@@ -179,7 +179,7 @@ export function Navbar() {
                         setAccountMenuOpen(false);
                         navigate({ type: 'profile', tab: 'orders' });
                       }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-[#444444] hover:bg-[#F5F9F6] hover:text-[#43AA5B] text-left cursor-pointer"
+                      className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-[#444444] hover:bg-[#F0F9FD] hover:text-[#0475EE] text-left cursor-pointer"
                     >
                       <Package className="w-3.5 h-3.5 text-[#888888]" />
                       Minha Conta e Pedidos
@@ -192,9 +192,9 @@ export function Navbar() {
                           setAccountMenuOpen(false);
                           navigate({ type: 'seller_dashboard', tab: 'overview' });
                         }}
-                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-[#2F8E47] hover:bg-[#F0FAF2] text-left cursor-pointer"
+                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-[#0A3768] hover:bg-[#EAF6FC] text-left cursor-pointer"
                       >
-                        <Store className="w-3.5 h-3.5 text-[#43AA5B]" />
+                        <Store className="w-3.5 h-3.5 text-[#0475EE]" />
                         Abrir Painel do Vendedor
                       </button>
                     )}
@@ -206,9 +206,9 @@ export function Navbar() {
                           setAccountMenuOpen(false);
                           navigate({ type: 'admin_dashboard', tab: 'overview' });
                         }}
-                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-[#2F8E47] hover:bg-[#F0FAF2] text-left cursor-pointer"
+                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-[#0A3768] hover:bg-[#EAF6FC] text-left cursor-pointer"
                       >
-                        <ShieldCheck className="w-3.5 h-3.5 text-[#43AA5B]" />
+                        <ShieldCheck className="w-3.5 h-3.5 text-[#0475EE]" />
                         Abrir Painel Super Admin
                       </button>
                     )}
@@ -219,7 +219,7 @@ export function Navbar() {
                         setAccountMenuOpen(false);
                         navigate({ type: 'auth', mode: 'login' });
                       }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-[#444444] hover:bg-[#F5F9F6] hover:text-[#43AA5B] text-left cursor-pointer"
+                      className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-[#444444] hover:bg-[#F0F9FD] hover:text-[#0475EE] text-left cursor-pointer"
                     >
                       <LogIn className="w-3.5 h-3.5 text-[#888888]" />
                       Login / Cadastrar Nova Conta
@@ -241,7 +241,7 @@ export function Navbar() {
                         }}
                         className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded text-xs font-medium cursor-pointer ${
                           currentUser.role === 'buyer'
-                            ? 'bg-[#EAF7ED] text-[#2F8E47] font-semibold'
+                            ? 'bg-[#EAF6FC] text-[#0A3768] font-semibold'
                             : 'text-[#555555] hover:bg-[#F7F7F7]'
                         }`}
                       >
@@ -257,7 +257,7 @@ export function Navbar() {
                         }}
                         className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded text-xs font-medium cursor-pointer ${
                           currentUser.role === 'seller'
-                            ? 'bg-[#EAF7ED] text-[#2F8E47] font-semibold'
+                            ? 'bg-[#EAF6FC] text-[#0A3768] font-semibold'
                             : 'text-[#555555] hover:bg-[#F7F7F7]'
                         }`}
                       >
@@ -273,7 +273,7 @@ export function Navbar() {
                         }}
                         className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded text-xs font-medium cursor-pointer ${
                           currentUser.role === 'admin'
-                            ? 'bg-[#EAF7ED] text-[#2F8E47] font-semibold'
+                            ? 'bg-[#EAF6FC] text-[#0A3768] font-semibold'
                             : 'text-[#555555] hover:bg-[#F7F7F7]'
                         }`}
                       >
@@ -286,54 +286,42 @@ export function Navbar() {
               )}
             </div>
 
-            <span className="hidden md:inline-flex items-center justify-center h-6 px-2 bg-white border border-[#DCDCDC] rounded-xs text-[10px] font-semibold text-[#555555]">
-              BRL
+            <span
+              title="Metical de Moçambique"
+              className="hidden md:inline-flex items-center justify-center gap-1 h-6 px-2 bg-white border border-[#DCDCDC] rounded-xs text-[10px] font-bold text-[#0A3768]"
+            >
+              <span>MZ</span>
+              <span className="text-[#CCCCCC]">|</span>
+              <span className="text-[#0475EE]">MZN (MT)</span>
             </span>
           </div>
         </div>
       </div>
 
-      {/* 2. Main White Header Row (Logo · Clean Uppercase Nav · Shopping Cart) */}
+      {/* 2. Main White Header Row (Official Cellbox Logo · Clean Uppercase Nav · Shopping Cart) */}
       <div className="bg-white">
-        <div className="max-w-[1170px] mx-auto px-4 h-[74px] flex items-center justify-between gap-4">
-          {/* Geometric Green Cube Logo + CELLBOX Wordmark (Exact Digimart Aesthetic) */}
+        <div className="max-w-[1170px] mx-auto px-4 h-[68px] flex items-center justify-between gap-4">
+          {/* Official Cellbox Logo */}
           <button
             type="button"
             onClick={() => {
               setFilters((prev) => ({ ...prev, category: 'Todas', search: '' }));
               navigate({ type: 'home' });
             }}
-            className="flex items-center gap-2.5 shrink-0 cursor-pointer group"
+            aria-label="Cellbox — Voltar ao início"
+            className="flex items-center shrink-0 cursor-pointer group"
           >
-            <svg
-              width="34"
-              height="34"
-              viewBox="0 0 36 36"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-              className="shrink-0"
-            >
-              <path
-                d="M18 2L32 10V26L18 34L4 26V10L18 2Z"
-                stroke="#43AA5B"
-                strokeWidth="3"
-                fill="none"
-              />
-              <path d="M18 2L32 10L18 18L4 10L18 2Z" fill="#58B96F" fillOpacity="0.28" />
-              <path d="M18 18V34M18 18L32 10M18 18L4 10" stroke="#2F8E47" strokeWidth="2.4" />
-              <polygon points="18,11 24,14.5 18,18 12,14.5" fill="#43AA5B" />
-            </svg>
-            <span className="text-[26px] font-extrabold tracking-tight leading-none font-condensed uppercase">
-              <span className="text-[#2F8E47]">CELL</span>
-              <span className="text-[#58B96F] font-semibold">BOX</span>
-            </span>
+            <img
+              src="/assets/aistudio/CellBox_9c0f59ac.png"
+              alt="Cellbox"
+              className="h-9 sm:h-11 w-auto object-contain transition-opacity group-hover:opacity-90"
+            />
           </button>
 
           {/* Center Clean Uppercase Navigation Links */}
           <nav
             aria-label="Navegação principal"
-            className="hidden lg:flex items-center gap-7 text-[12px] font-semibold uppercase tracking-wide text-[#555555]"
+            className="hidden lg:flex items-center gap-7 text-[12px] font-semibold uppercase tracking-wide text-[#0A3768]/80"
           >
             <button
               type="button"
@@ -341,8 +329,8 @@ export function Navbar() {
                 setFilters((prev) => ({ ...prev, category: 'Todas' }));
                 navigate({ type: 'home' });
               }}
-              className={`hover:text-[#43AA5B] transition-colors whitespace-nowrap cursor-pointer ${
-                view.type === 'home' ? 'text-[#43AA5B]' : ''
+              className={`hover:text-[#0475EE] transition-colors whitespace-nowrap cursor-pointer ${
+                view.type === 'home' ? 'text-[#0475EE] font-bold' : ''
               }`}
             >
               Início
@@ -355,7 +343,7 @@ export function Navbar() {
                   document.getElementById('lojas-oficiais')?.scrollIntoView({ behavior: 'smooth' });
                 }, 60);
               }}
-              className="hover:text-[#43AA5B] transition-colors whitespace-nowrap cursor-pointer"
+              className="hover:text-[#0475EE] transition-colors whitespace-nowrap cursor-pointer"
             >
               Lojas Oficiais
             </button>
@@ -368,15 +356,15 @@ export function Navbar() {
                   document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
                 }, 60);
               }}
-              className="hover:text-[#43AA5B] transition-colors whitespace-nowrap cursor-pointer"
+              className="hover:text-[#0475EE] transition-colors whitespace-nowrap cursor-pointer"
             >
               Ofertas
             </button>
             <button
               type="button"
               onClick={() => switchDemoRole('seller')}
-              className={`hover:text-[#43AA5B] transition-colors whitespace-nowrap cursor-pointer ${
-                view.type === 'seller_dashboard' ? 'text-[#43AA5B]' : ''
+              className={`hover:text-[#0475EE] transition-colors whitespace-nowrap cursor-pointer ${
+                view.type === 'seller_dashboard' ? 'text-[#0475EE] font-bold' : ''
               }`}
             >
               Painel Vendedor
@@ -384,8 +372,8 @@ export function Navbar() {
             <button
               type="button"
               onClick={() => switchDemoRole('admin')}
-              className={`hover:text-[#43AA5B] transition-colors whitespace-nowrap cursor-pointer ${
-                view.type === 'admin_dashboard' ? 'text-[#43AA5B]' : ''
+              className={`hover:text-[#0475EE] transition-colors whitespace-nowrap cursor-pointer ${
+                view.type === 'admin_dashboard' ? 'text-[#0475EE] font-bold' : ''
               }`}
             >
               Super Admin
@@ -393,15 +381,15 @@ export function Navbar() {
             <button
               type="button"
               onClick={() => navigate({ type: 'auth', mode: 'register' })}
-              className={`hover:text-[#43AA5B] transition-colors whitespace-nowrap cursor-pointer ${
-                view.type === 'auth' ? 'text-[#43AA5B]' : ''
+              className={`hover:text-[#0475EE] transition-colors whitespace-nowrap cursor-pointer ${
+                view.type === 'auth' ? 'text-[#0475EE] font-bold' : ''
               }`}
             >
               Venda Aqui
             </button>
           </nav>
 
-          {/* Right: Shopping Cart Summary (Exact Digimart Icon + Badge + Total) */}
+          {/* Right: Shopping Cart Summary */}
           <button
             type="button"
             onClick={() => navigate({ type: 'cart' })}
@@ -409,10 +397,10 @@ export function Navbar() {
             className="flex items-center gap-2.5 group cursor-pointer shrink-0"
           >
             <div className="relative">
-              <ShoppingBag className="w-7 h-7 text-[#444444] group-hover:text-[#43AA5B] transition-colors stroke-[1.6]" />
+              <ShoppingBag className="w-7 h-7 text-[#0A3768] group-hover:text-[#0475EE] transition-colors stroke-[1.6]" />
               <span
                 data-testid="cart-count-badge"
-                className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-[#43AA5B] text-white text-[10px] font-bold font-mono tabular-nums inline-flex items-center justify-center"
+                className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-[#0475EE] text-white text-[10px] font-bold font-mono tabular-nums inline-flex items-center justify-center"
               >
                 {cartCount}
               </span>
@@ -421,7 +409,7 @@ export function Navbar() {
               <p className="text-[10px] font-bold uppercase tracking-wide text-[#555555]">
                 Meu Carrinho
               </p>
-              <p className="text-[13px] font-bold font-mono tabular-nums text-[#43AA5B]">
+              <p className="text-[13px] font-bold font-mono tabular-nums text-[#0475EE]">
                 {formatCurrency(cartTotal)}
               </p>
             </div>
@@ -429,20 +417,20 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* 3. Full-Width Signature Green Bar (#43AA5B) with Shop by Category + Integrated White Search */}
-      <div className="bg-[#43AA5B] sticky top-0 z-40 shadow-xs">
-        <div className="max-w-[1170px] mx-auto px-4 min-h-[48px] py-1.5 sm:py-0 flex items-center gap-3 sm:gap-4">
-          {/* Dark Green Shop By Category Dropdown */}
+      {/* 3. Full-Width Official Cellbox Cyan-Blue Bar (#18A3DE) with Navy Categories + White Search */}
+      <div className="bg-[#18A3DE]">
+        <div className="max-w-[1170px] mx-auto px-4 min-h-[46px] py-1.5 sm:py-0 flex items-center gap-3 sm:gap-4">
+          {/* Official Deep Navy (#0A3768) Shop By Category Dropdown */}
           <div ref={catRef} className="relative shrink-0">
             <button
               type="button"
               onClick={() => setCatDropdownOpen((v) => !v)}
               aria-expanded={catDropdownOpen}
               aria-haspopup="menu"
-              className="h-[48px] -my-1.5 sm:my-0 px-3 sm:px-5 sm:w-[240px] bg-[#2F8E47] hover:bg-[#277A3C] text-white text-[12px] font-bold uppercase tracking-wide inline-flex items-center justify-between gap-2 transition-colors cursor-pointer whitespace-nowrap"
+              className="h-[46px] -my-1.5 sm:my-0 px-3 sm:px-5 sm:w-[240px] bg-[#0A3768] hover:bg-[#082C54] text-white text-[12px] font-bold uppercase tracking-wide inline-flex items-center justify-between gap-2 transition-colors cursor-pointer whitespace-nowrap"
             >
               <span className="inline-flex items-center gap-2.5">
-                <Menu className="w-4 h-4 shrink-0" />
+                <Menu className="w-4 h-4 shrink-0 text-[#1AD6DE]" />
                 <span className="hidden sm:inline">Categorias</span>
                 <span className="sm:hidden">Menu</span>
               </span>
@@ -452,7 +440,7 @@ export function Navbar() {
             {catDropdownOpen && (
               <div
                 role="menu"
-                className="absolute left-0 top-[48px] w-60 bg-white border border-[#E0E0E0] shadow-xl py-1.5 z-50"
+                className="absolute left-0 top-[46px] w-60 bg-white border border-[#E0E0E0] shadow-xl py-1.5 z-50"
               >
                 <button
                   type="button"
@@ -460,8 +448,8 @@ export function Navbar() {
                   onClick={() => handleCategorySelect('Todas')}
                   className={`w-full text-left px-4 py-2 text-xs font-medium transition-colors cursor-pointer ${
                     filters.category === 'Todas'
-                      ? 'bg-[#EAF7ED] text-[#2F8E47] font-bold'
-                      : 'text-[#444444] hover:bg-[#F5F9F6] hover:text-[#43AA5B]'
+                      ? 'bg-[#EAF6FC] text-[#0A3768] font-bold'
+                      : 'text-[#444444] hover:bg-[#F0F9FD] hover:text-[#0475EE]'
                   }`}
                 >
                   Todos os Produtos
@@ -474,8 +462,8 @@ export function Navbar() {
                     onClick={() => handleCategorySelect(cat)}
                     className={`w-full text-left px-4 py-2 text-xs font-medium transition-colors cursor-pointer ${
                       filters.category === cat
-                        ? 'bg-[#EAF7ED] text-[#2F8E47] font-bold'
-                        : 'text-[#444444] hover:bg-[#F5F9F6] hover:text-[#43AA5B]'
+                        ? 'bg-[#EAF6FC] text-[#0A3768] font-bold'
+                        : 'text-[#444444] hover:bg-[#F0F9FD] hover:text-[#0475EE]'
                     }`}
                   >
                     {cat}
@@ -489,7 +477,7 @@ export function Navbar() {
                       setCatDropdownOpen(false);
                       switchDemoRole('seller');
                     }}
-                    className="w-full text-left px-4 py-2 text-xs font-semibold text-[#2F8E47] hover:bg-[#F5F9F6]"
+                    className="w-full text-left px-4 py-2 text-xs font-semibold text-[#0A3768] hover:bg-[#F0F9FD]"
                   >
                     Painel do Vendedor
                   </button>
@@ -500,7 +488,7 @@ export function Navbar() {
                       setCatDropdownOpen(false);
                       switchDemoRole('admin');
                     }}
-                    className="w-full text-left px-4 py-2 text-xs font-semibold text-[#2F8E47] hover:bg-[#F5F9F6]"
+                    className="w-full text-left px-4 py-2 text-xs font-semibold text-[#0A3768] hover:bg-[#F0F9FD]"
                   >
                     Painel Super Admin
                   </button>
@@ -509,11 +497,11 @@ export function Navbar() {
             )}
           </div>
 
-          {/* Crisp White Search Bar with Category Selector + Green Search Button */}
+          {/* Crisp White Search Bar with Category Selector + Royal Blue Search Button */}
           <div ref={searchRef} className="relative flex-1 min-w-0">
             <form
               onSubmit={handleSearchSubmit}
-              className="flex items-center h-[36px] bg-white rounded-xs overflow-hidden shadow-2xs"
+              className="flex items-center h-[35px] bg-white rounded-xs overflow-hidden shadow-2xs"
             >
               <label htmlFor="header-cat-select" className="sr-only">
                 Categoria da busca
@@ -562,7 +550,7 @@ export function Navbar() {
               <button
                 type="submit"
                 aria-label="Pesquisar produtos"
-                className="w-11 h-full bg-[#58B96F] hover:bg-[#2F8E47] text-white inline-flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+                className="w-11 h-full bg-[#0475EE] hover:bg-[#0A3768] text-white inline-flex items-center justify-center transition-colors shrink-0 cursor-pointer"
               >
                 <Search className="w-4 h-4" />
               </button>
@@ -570,7 +558,7 @@ export function Navbar() {
 
             {/* Instant Search Suggestions Dropdown */}
             {searchFocused && filters.search.trim().length > 0 && (
-              <div className="absolute left-0 right-0 top-[40px] bg-white text-[#333333] border border-[#E0E0E0] shadow-xl overflow-hidden z-50">
+              <div className="absolute left-0 right-0 top-[39px] bg-white text-[#333333] border border-[#E0E0E0] shadow-xl overflow-hidden z-50">
                 {suggestions.length === 0 ? (
                   <div className="px-4 py-3 text-xs text-[#777777]">
                     Nenhum produto encontrado para "{filters.search}".
@@ -587,7 +575,7 @@ export function Navbar() {
                               setSearchFocused(false);
                               navigate({ type: 'product', productId: product.id });
                             }}
-                            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#F5F9F6] text-left transition-colors cursor-pointer"
+                            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#F0F9FD] text-left transition-colors cursor-pointer"
                           >
                             <div className="w-10 h-8 bg-[#F8F8F8] overflow-hidden shrink-0">
                               <ProductImage
@@ -605,7 +593,7 @@ export function Navbar() {
                                 {product.category} · {seller?.name}
                               </p>
                             </div>
-                            <span className="text-xs font-bold font-mono tabular-nums text-[#43AA5B] whitespace-nowrap">
+                            <span className="text-xs font-bold font-mono tabular-nums text-[#0475EE] whitespace-nowrap">
                               {formatCurrency(product.price)}
                             </span>
                           </button>

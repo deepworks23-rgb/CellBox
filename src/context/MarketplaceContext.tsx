@@ -27,7 +27,7 @@ import type {
 } from '../types';
 import { groupCartBySeller, calculateCartTotals } from '../utils/marketplace';
 
-const STORAGE_KEY = 'cellbox_marketplace_state_v1';
+const STORAGE_KEY = 'cellbox_marketplace_state_v2_mzn';
 
 interface PersistedState {
   users: User[];
@@ -317,7 +317,7 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
         mainCategory: payload.mainCategory!,
         description: `Loja parceira Cellbox especializada em ${payload.mainCategory}.`,
         logoText: initials,
-        accentColor: '#2563EB',
+        accentColor: '#0475EE',
         bannerImage: ASSET_IMAGES.hero,
         status: 'pending',
         verified: false,
@@ -325,10 +325,10 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
         reviewCount: 0,
         joinedDate: today,
         tenureLabel: 'Aguardando aprovação',
-        location: 'Brasil',
+        location: 'Maputo, Moçambique',
         payoutInfo: {
           bankName: 'Pendente de configuração',
-          accountType: 'Conta PJ',
+          accountType: 'Conta Empresarial',
           accountNumber: '—',
           pixOrWallet: payload.documentId!.trim(),
         },
@@ -500,7 +500,7 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
         subtotal: g.subtotal,
         shipping: g.shipping,
         status: 'Pago',
-        trackingCode: `CBXBR${randomCode}${idx + 1}SP`,
+        trackingCode: `CBXMZ${randomCode}${idx + 1}MP`,
         updatedAt: nowDate,
       })),
     };

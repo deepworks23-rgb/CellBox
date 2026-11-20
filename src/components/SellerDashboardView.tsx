@@ -247,7 +247,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
           <button
             type="button"
             onClick={() => switchDemoRole('admin')}
-            className="h-9 px-4 rounded-full bg-[#43AA5B] hover:bg-[#2F8E47] text-white text-xs font-bold uppercase whitespace-nowrap cursor-pointer"
+            className="h-9 px-4 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase whitespace-nowrap cursor-pointer"
           >
             Ir para Painel Super Admin
           </button>
@@ -266,7 +266,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
             </div>
             <div className="min-w-0">
               <p className="text-sm font-bold text-[#222222] truncate">{seller.name}</p>
-              <p className="text-xs text-[#43AA5B] font-semibold truncate">{statusText}</p>
+              <p className="text-xs text-[#0475EE] font-semibold truncate">{statusText}</p>
             </div>
           </div>
 
@@ -281,7 +281,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                   onClick={() => setActiveTab(item.id)}
                   className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-[3px] text-[13px] font-bold transition-colors cursor-pointer ${
                     active
-                      ? 'bg-[#43AA5B] text-white'
+                      ? 'bg-[#0475EE] text-white'
                       : 'text-[#555555] hover:bg-[#F1F2F4] hover:text-[#222222]'
                   }`}
                 >
@@ -296,7 +296,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
             <button
               type="button"
               onClick={() => navigate({ type: 'store', sellerId: seller.id })}
-              className="w-full h-9 px-3 rounded-full border border-[#DCDCDC] hover:border-[#43AA5B] hover:text-[#43AA5B] text-xs font-bold uppercase text-[#444444] inline-flex items-center justify-center gap-1.5 cursor-pointer"
+              className="w-full h-9 px-3 rounded-full border border-[#DCDCDC] hover:border-[#0475EE] hover:text-[#0475EE] text-xs font-bold uppercase text-[#444444] inline-flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <Store className="w-3.5 h-3.5" />
               Ver Vitrine Pública
@@ -319,14 +319,14 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
               <p className="text-[11px] font-bold uppercase tracking-wider text-[#777777]">
                 Painel do Vendedor / {navItems.find((i) => i.id === activeTab)?.label}
               </p>
-              <h1 className="font-condensed text-[28px] font-bold uppercase text-[#43AA5B] mt-0.5">
+              <h1 className="font-condensed text-[28px] font-bold uppercase text-[#0A3768] mt-0.5">
                 {navItems.find((i) => i.id === activeTab)?.label}
               </h1>
             </div>
             <button
               type="button"
               onClick={() => setNewProductOpen(true)}
-              className="h-10 px-5 rounded-full bg-[#43AA5B] hover:bg-[#2F8E47] text-white text-xs font-bold uppercase tracking-wider inline-flex items-center gap-2 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              className="h-10 px-5 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider inline-flex items-center gap-2 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               Novo Produto
@@ -349,7 +349,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
 
                 <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-5">
                   <p className="text-xs font-semibold text-[#777777]">Saldo Disponível para Saque</p>
-                  <p className="text-2xl font-extrabold font-mono tabular-nums text-[#43AA5B] mt-2">
+                  <p className="text-2xl font-extrabold font-mono tabular-nums text-[#0475EE] mt-2">
                     {formatCurrency(analytics.availableBalance)}
                   </p>
                   <p className="text-xs text-[#777777] mt-1 tabular-nums">
@@ -359,7 +359,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
 
                 <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-5">
                   <p className="text-xs font-semibold text-[#777777]">Pedidos Pendentes</p>
-                  <p className="text-2xl font-extrabold font-mono tabular-nums text-[#0070B8] mt-2">
+                  <p className="text-2xl font-extrabold font-mono tabular-nums text-[#18A3DE] mt-2">
                     {analytics.pendingOrdersCount}
                   </p>
                   <p className="text-xs text-[#777777] mt-1 tabular-nums">
@@ -388,7 +388,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                   <button
                     type="button"
                     onClick={() => setActiveTab('orders')}
-                    className="text-xs font-bold text-[#43AA5B] hover:text-[#2F8E47] cursor-pointer"
+                    className="text-xs font-bold text-[#0475EE] hover:text-[#0A3768] cursor-pointer"
                   >
                     Ver todos
                   </button>
@@ -418,7 +418,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                             <td className="py-3 px-4 font-semibold text-[#333333]">
                               {entry.fulfillment.status}
                             </td>
-                            <td className="py-3 px-5 text-right font-mono tabular-nums font-bold text-[#43AA5B]">
+                            <td className="py-3 px-5 text-right font-mono tabular-nums font-bold text-[#0475EE]">
                               {formatCurrency(entry.fulfillment.subtotal)}
                             </td>
                           </tr>
@@ -443,7 +443,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
                     placeholder="Buscar por título ou marca..."
-                    className="w-full h-9 pl-9 pr-3 rounded-[2px] bg-white border border-[#DCDCDC] text-xs focus:outline-none focus:border-[#43AA5B]"
+                    className="w-full h-9 pl-9 pr-3 rounded-[2px] bg-white border border-[#DCDCDC] text-xs focus:outline-none focus:border-[#0475EE]"
                   />
                 </div>
                 <select
@@ -469,7 +469,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                   <button
                     type="button"
                     onClick={() => setNewProductOpen(true)}
-                    className="mt-4 h-9 px-5 rounded-full bg-[#43AA5B] hover:bg-[#2F8E47] text-white text-xs font-bold uppercase cursor-pointer"
+                    className="mt-4 h-9 px-5 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase cursor-pointer"
                   >
                     + Cadastrar primeiro produto
                   </button>
@@ -513,7 +513,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                           <td className="py-3 px-4 text-right font-mono tabular-nums font-medium text-[#333333]">
                             {p.stock}
                           </td>
-                          <td className="py-3 px-4 text-right font-mono tabular-nums font-bold text-[#43AA5B]">
+                          <td className="py-3 px-4 text-right font-mono tabular-nums font-bold text-[#0475EE]">
                             {formatCurrency(p.price)}
                           </td>
                           <td className="py-3 px-5 text-right">
@@ -566,8 +566,8 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                             <span
                               className={
                                 entry.fulfillment.status === 'Entregue'
-                                  ? 'text-[#2F8E47]'
-                                  : 'text-[#0070B8]'
+                                  ? 'text-[#0A3768]'
+                                  : 'text-[#18A3DE]'
                               }
                             >
                               {entry.fulfillment.status}
@@ -579,14 +579,14 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                               onClick={() =>
                                 updateOrderFulfillmentStatus(entry.orderId, seller.id, nextStatus)
                               }
-                              className="h-8 px-4 rounded-full bg-[#43AA5B] hover:bg-[#2F8E47] text-white text-[11px] font-bold uppercase inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+                              className="h-8 px-4 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-[11px] font-bold uppercase inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
                             >
                               Avançar para {nextStatus}
                               <ArrowRight className="w-3.5 h-3.5" />
                             </button>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-xs font-bold text-[#2F8E47]">
-                              <CheckCircle2 className="w-4 h-4" />
+                            <span className="inline-flex items-center gap-1 text-xs font-bold text-[#0A3768]">
+                              <CheckCircle2 className="w-4 h-4 text-[#0475EE]" />
                               Concluído
                             </span>
                           )}
@@ -602,7 +602,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                             <span className="text-[#333333] font-medium">
                               {item.quantity}x {item.title}
                             </span>
-                            <span className="font-mono tabular-nums font-bold text-[#43AA5B] whitespace-nowrap">
+                            <span className="font-mono tabular-nums font-bold text-[#0475EE] whitespace-nowrap">
                               {formatCurrency(item.price * item.quantity)}
                             </span>
                           </li>
@@ -622,7 +622,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
               className="bg-white border border-[#EAEAEA] rounded-[3px] p-6 space-y-6"
             >
               <div>
-                <h2 className="font-condensed text-[19px] font-bold uppercase text-[#43AA5B]">
+                <h2 className="font-condensed text-[19px] font-bold uppercase text-[#0A3768]">
                   Identidade da Loja
                 </h2>
                 <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -635,7 +635,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                       type="text"
                       value={storeForm.name}
                       onChange={(e) => setStoreForm((p) => ({ ...p, name: e.target.value }))}
-                      className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#43AA5B]"
+                      className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#0475EE]"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -674,12 +674,12 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                       rows={3}
                       value={storeForm.description}
                       onChange={(e) => setStoreForm((p) => ({ ...p, description: e.target.value }))}
-                      className="w-full p-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#43AA5B]"
+                      className="w-full p-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#0475EE]"
                     />
                   </div>
                   <div>
                     <label htmlFor="store-loc" className="block text-xs font-bold text-[#444444] mb-1">
-                      Cidade / Estado
+                      Cidade / Província
                     </label>
                     <input
                       id="store-loc"
@@ -705,7 +705,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
               </div>
 
               <div className="pt-5 border-t border-[#EAEAEA]">
-                <h2 className="font-condensed text-[19px] font-bold uppercase text-[#43AA5B]">
+                <h2 className="font-condensed text-[19px] font-bold uppercase text-[#0A3768]">
                   Dados Bancários / Carteira de Repasse
                 </h2>
                 <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -723,7 +723,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                   </div>
                   <div>
                     <label htmlFor="bank-acc" className="block text-xs font-bold text-[#444444] mb-1">
-                      Agência e Conta
+                      NIB / Conta Bancária
                     </label>
                     <input
                       id="bank-acc"
@@ -735,7 +735,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                   </div>
                   <div className="sm:col-span-2">
                     <label htmlFor="bank-pix" className="block text-xs font-bold text-[#444444] mb-1">
-                      Chave PIX / Carteira Móvel
+                      Carteira Móvel (M-Pesa / e-Mola)
                     </label>
                     <input
                       id="bank-pix"
@@ -751,7 +751,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
               <div className="flex justify-end">
                 <button
                   type="submit"
-                  className="h-10 px-6 rounded-full bg-[#43AA5B] hover:bg-[#2F8E47] text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
+                  className="h-10 px-6 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
                 >
                   Salvar Configurações
                 </button>
@@ -773,7 +773,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
             <div className="px-6 py-4 bg-[#F1F2F4] border-b border-[#E5E7EB] flex items-center justify-between">
               <h2
                 id="new-product-modal-title"
-                className="font-condensed text-[20px] font-bold uppercase text-[#43AA5B]"
+                className="font-condensed text-[20px] font-bold uppercase text-[#0A3768]"
               >
                 Cadastrar Novo Produto — {seller.name}
               </h2>
@@ -799,7 +799,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                     value={formState.title}
                     onChange={(e) => setFormState((p) => ({ ...p, title: e.target.value }))}
                     placeholder="Ex: MacBook Air M3 16GB 512GB Meia-Noite"
-                    className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#43AA5B]"
+                    className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#0475EE]"
                   />
                   {formErrors.title && (
                     <p className="text-xs text-rose-600 mt-1">{formErrors.title}</p>
@@ -834,7 +834,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                     value={formState.brand}
                     onChange={(e) => setFormState((p) => ({ ...p, brand: e.target.value }))}
                     placeholder="Ex: Apple, Samsung, Dell"
-                    className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#43AA5B]"
+                    className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#0475EE]"
                   />
                   {formErrors.brand && (
                     <p className="text-xs text-rose-600 mt-1">{formErrors.brand}</p>
@@ -861,7 +861,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label htmlFor="np-price" className="block text-xs font-bold text-[#444444] mb-1">
-                      Preço (R$) *
+                      Preço (MT) *
                     </label>
                     <input
                       id="np-price"
@@ -870,8 +870,8 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                       step="0.01"
                       value={formState.price}
                       onChange={(e) => setFormState((p) => ({ ...p, price: e.target.value }))}
-                      placeholder="4999"
-                      className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm font-mono focus:outline-none focus:border-[#43AA5B]"
+                      placeholder="55000"
+                      className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm font-mono focus:outline-none focus:border-[#0475EE]"
                     />
                     {formErrors.price && (
                       <p className="text-xs text-rose-600 mt-1">{formErrors.price}</p>
@@ -973,7 +973,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                     value={formState.description}
                     onChange={(e) => setFormState((p) => ({ ...p, description: e.target.value }))}
                     placeholder="Descreva diferenciais, acessórios inclusos e condições de garantia..."
-                    className="w-full p-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#43AA5B]"
+                    className="w-full p-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#0475EE]"
                   />
                   {formErrors.description && (
                     <p className="text-xs text-rose-600 mt-1">{formErrors.description}</p>
@@ -991,7 +991,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                 </button>
                 <button
                   type="submit"
-                  className="h-10 px-6 rounded-full bg-[#43AA5B] hover:bg-[#2F8E47] text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
+                  className="h-10 px-6 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
                 >
                   Publicar Produto
                 </button>

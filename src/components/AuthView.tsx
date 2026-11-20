@@ -12,7 +12,7 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
 
   // Login state
-  const [loginEmail, setLoginEmail] = useState('mariana@cellbox.com');
+  const [loginEmail, setLoginEmail] = useState('mariana@cellbox.co.mz');
   const [loginPassword, setLoginPassword] = useState('••••••••');
   const [rememberMe, setRememberMe] = useState(true);
   const [loginError, setLoginError] = useState('');
@@ -82,7 +82,7 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
               onClick={() => setMode('login')}
               className={`h-9 rounded-full text-xs font-bold uppercase tracking-wide transition-colors cursor-pointer ${
                 mode === 'login'
-                  ? 'bg-[#43AA5B] text-white shadow-xs'
+                  ? 'bg-[#0475EE] text-white shadow-xs'
                   : 'text-[#666666] hover:text-[#333333]'
               }`}
             >
@@ -93,7 +93,7 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
               onClick={() => setMode('register')}
               className={`h-9 rounded-full text-xs font-bold uppercase tracking-wide transition-colors cursor-pointer ${
                 mode === 'register'
-                  ? 'bg-[#43AA5B] text-white shadow-xs'
+                  ? 'bg-[#0475EE] text-white shadow-xs'
                   : 'text-[#666666] hover:text-[#333333]'
               }`}
             >
@@ -104,7 +104,7 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
           {mode === 'login' ? (
             <form onSubmit={handleLoginSubmit} className="space-y-4">
               <div>
-                <h1 className="font-condensed text-[26px] font-bold uppercase text-[#43AA5B]">
+                <h1 className="font-condensed text-[26px] font-bold uppercase text-[#0A3768]">
                   Acesse sua conta Cellbox
                 </h1>
                 <p className="text-xs text-[#777777] mt-1">
@@ -130,7 +130,7 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
                   type="email"
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
-                  className="w-full h-10 px-3.5 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#43AA5B]"
+                  className="w-full h-10 px-3.5 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#0475EE]"
                 />
               </div>
 
@@ -146,7 +146,7 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
                   type="password"
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
-                  className="w-full h-10 px-3.5 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#43AA5B]"
+                  className="w-full h-10 px-3.5 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#0475EE]"
                 />
               </div>
 
@@ -156,7 +156,7 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    className="rounded border-[#CCCCCC] accent-[#43AA5B]"
+                    className="rounded border-[#CCCCCC] accent-[#0475EE]"
                   />
                   Lembrar-me neste dispositivo
                 </label>
@@ -164,7 +164,7 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
 
               <button
                 type="submit"
-                className="w-full h-11 rounded-full bg-[#43AA5B] hover:bg-[#2F8E47] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                className="w-full h-11 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
               >
                 Entrar
               </button>
@@ -172,7 +172,7 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
           ) : (
             <form onSubmit={handleRegisterSubmit} className="space-y-4">
               <div>
-                <h1 className="font-condensed text-[26px] font-bold uppercase text-[#43AA5B]">
+                <h1 className="font-condensed text-[26px] font-bold uppercase text-[#0A3768]">
                   Cadastre-se na Cellbox
                 </h1>
                 <p className="text-xs text-[#777777] mt-1">
@@ -187,13 +187,13 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
                   onClick={() => setRegisterIntent('buyer')}
                   className={`p-4 rounded-[3px] border text-left transition-colors cursor-pointer ${
                     registerIntent === 'buyer'
-                      ? 'border-[#0098D8] bg-[#0098D8]/5'
+                      ? 'border-[#18A3DE] bg-[#18A3DE]/5'
                       : 'border-[#E0E0E0] hover:border-[#CCCCCC]'
                   }`}
                 >
                   <ShoppingBag
                     className={`w-5 h-5 mb-2 ${
-                      registerIntent === 'buyer' ? 'text-[#0098D8]' : 'text-[#999999]'
+                      registerIntent === 'buyer' ? 'text-[#18A3DE]' : 'text-[#999999]'
                     }`}
                   />
                   <p className="text-sm font-bold text-[#333333]">Quero Comprar</p>
@@ -206,13 +206,13 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
                   onClick={() => setRegisterIntent('seller')}
                   className={`p-4 rounded-[3px] border text-left transition-colors cursor-pointer ${
                     registerIntent === 'seller'
-                      ? 'border-[#43AA5B] bg-[#43AA5B]/5'
+                      ? 'border-[#0475EE] bg-[#0475EE]/5'
                       : 'border-[#E0E0E0] hover:border-[#CCCCCC]'
                   }`}
                 >
                   <Store
                     className={`w-5 h-5 mb-2 ${
-                      registerIntent === 'seller' ? 'text-[#43AA5B]' : 'text-[#999999]'
+                      registerIntent === 'seller' ? 'text-[#0475EE]' : 'text-[#999999]'
                     }`}
                   />
                   <p className="text-sm font-bold text-[#333333]">Quero Vender na Cellbox</p>
@@ -233,7 +233,7 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
                     value={regName}
                     onChange={(e) => setRegName(e.target.value)}
                     placeholder="Seu nome"
-                    className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#43AA5B]"
+                    className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#0475EE]"
                   />
                   {regErrors.name && (
                     <p className="text-xs text-rose-600 mt-1">{regErrors.name}</p>
@@ -248,8 +248,8 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
                     type="email"
                     value={regEmail}
                     onChange={(e) => setRegEmail(e.target.value)}
-                    placeholder="voce@empresa.com"
-                    className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#43AA5B]"
+                    placeholder="voce@empresa.co.mz"
+                    className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#0475EE]"
                   />
                   {regErrors.email && (
                     <p className="text-xs text-rose-600 mt-1">{regErrors.email}</p>
@@ -267,7 +267,7 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
                   value={regPassword}
                   onChange={(e) => setRegPassword(e.target.value)}
                   placeholder="Crie uma senha segura"
-                  className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#43AA5B]"
+                  className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#0475EE]"
                 />
                 {regErrors.password && (
                   <p className="text-xs text-rose-600 mt-1">{regErrors.password}</p>
@@ -276,7 +276,7 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
 
               {registerIntent === 'seller' && (
                 <div className="pt-4 border-t border-[#EAEAEA] space-y-3">
-                  <p className="text-xs font-bold uppercase text-[#43AA5B]">Dados da Loja Parceira</p>
+                  <p className="text-xs font-bold uppercase text-[#0475EE]">Dados da Loja Parceira</p>
                   <div>
                     <label
                       htmlFor="reg-store-name"
@@ -289,8 +289,8 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
                       type="text"
                       value={storeName}
                       onChange={(e) => setStoreName(e.target.value)}
-                      placeholder="Ex: NovaTech Eletrônicos"
-                      className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#43AA5B]"
+                      placeholder="Ex: MaputoTech Eletrônicos"
+                      className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#0475EE]"
                     />
                     {regErrors.storeName && (
                       <p className="text-xs text-rose-600 mt-1">{regErrors.storeName}</p>
@@ -302,15 +302,15 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
                         htmlFor="reg-doc"
                         className="block text-xs font-bold text-[#444444] mb-1"
                       >
-                        Documento / NIF / CNPJ *
+                        NUIT / NIF *
                       </label>
                       <input
                         id="reg-doc"
                         type="text"
                         value={documentId}
                         onChange={(e) => setDocumentId(e.target.value)}
-                        placeholder="00.000.000/0001-00"
-                        className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm font-mono focus:outline-none focus:border-[#43AA5B]"
+                        placeholder="400000000"
+                        className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm font-mono focus:outline-none focus:border-[#0475EE]"
                       />
                       {regErrors.documentId && (
                         <p className="text-xs text-rose-600 mt-1">{regErrors.documentId}</p>
@@ -345,7 +345,7 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
 
               <button
                 type="submit"
-                className="w-full h-11 rounded-full bg-[#43AA5B] hover:bg-[#2F8E47] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                className="w-full h-11 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
               >
                 {registerIntent === 'seller'
                   ? 'Enviar Cadastro de Vendedor'
@@ -355,7 +355,7 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
           )}
         </div>
 
-        {/* Right: Quick RBAC Access Panel (Green Gradient matching Hero) */}
+        {/* Right: Quick RBAC Access Panel (Official Cellbox Logo Gradient) */}
         <aside className="lg:col-span-5 cellbox-hero-gradient text-white rounded-[3px] p-6 sm:p-7 space-y-5">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-wider text-white/85">
@@ -375,7 +375,7 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
               onClick={() => switchDemoRole('buyer')}
               className="w-full text-left p-4 rounded-[3px] bg-white hover:bg-[#F7F8FA] text-[#333333] transition-colors flex items-start gap-3.5 cursor-pointer shadow-xs"
             >
-              <UserCheck className="w-5 h-5 text-[#0098D8] shrink-0 mt-0.5" />
+              <UserCheck className="w-5 h-5 text-[#18A3DE] shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-bold text-[#222222]">Entrar como Comprador</p>
                 <p className="text-xs text-[#666666] mt-0.5">
@@ -389,7 +389,7 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
               onClick={() => switchDemoRole('seller')}
               className="w-full text-left p-4 rounded-[3px] bg-white hover:bg-[#F7F8FA] text-[#333333] transition-colors flex items-start gap-3.5 cursor-pointer shadow-xs"
             >
-              <Store className="w-5 h-5 text-[#43AA5B] shrink-0 mt-0.5" />
+              <Store className="w-5 h-5 text-[#0475EE] shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-bold text-[#222222]">Entrar como Vendedor</p>
                 <p className="text-xs text-[#666666] mt-0.5">
@@ -403,7 +403,7 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
               onClick={() => switchDemoRole('admin')}
               className="w-full text-left p-4 rounded-[3px] bg-white hover:bg-[#F7F8FA] text-[#333333] transition-colors flex items-start gap-3.5 cursor-pointer shadow-xs"
             >
-              <ShieldCheck className="w-5 h-5 text-[#2F8E47] shrink-0 mt-0.5" />
+              <ShieldCheck className="w-5 h-5 text-[#0A3768] shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-bold text-[#222222]">Entrar como Super Admin</p>
                 <p className="text-xs text-[#666666] mt-0.5">

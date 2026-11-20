@@ -19,7 +19,7 @@ export function SellerStoreView({ sellerId }: SellerStoreViewProps) {
         <button
           type="button"
           onClick={() => navigate({ type: 'home' })}
-          className="mt-4 h-10 px-6 rounded-full bg-[#43AA5B] hover:bg-[#2F8E47] text-white text-xs font-bold uppercase tracking-wide cursor-pointer"
+          className="mt-4 h-10 px-6 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wide cursor-pointer"
         >
           Voltar à vitrine
         </button>
@@ -90,7 +90,7 @@ export function SellerStoreView({ sellerId }: SellerStoreViewProps) {
 
       <div>
         <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#EAEAEA] mb-4">
-          <h2 className="font-condensed text-[22px] font-bold uppercase tracking-wide text-[#43AA5B]">
+          <h2 className="font-condensed text-[22px] font-bold uppercase tracking-wide text-[#0A3768]">
             PRODUTOS DE {seller.name} ({storeProducts.length})
           </h2>
           <span className="text-xs text-[#777777]">

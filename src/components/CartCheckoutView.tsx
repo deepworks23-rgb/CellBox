@@ -44,7 +44,7 @@ export function CartCheckoutView() {
     recipient: '',
     street: '',
     city: '',
-    state: 'SP',
+    state: 'Maputo',
     zipCode: '',
   });
   const [addressError, setAddressError] = useState('');
@@ -59,7 +59,7 @@ export function CartCheckoutView() {
         cart,
         products,
         sellers,
-        selectedAddress?.zipCode ?? '01310-100'
+        selectedAddress?.zipCode ?? '1100'
       ),
     [cart, products, sellers, selectedAddress]
   );
@@ -83,13 +83,13 @@ export function CartCheckoutView() {
       recipient: newAddress.recipient.trim(),
       street: newAddress.street.trim(),
       city: newAddress.city.trim(),
-      state: newAddress.state.trim() || 'SP',
+      state: newAddress.state.trim() || 'Maputo',
       zipCode: newAddress.zipCode.trim(),
     });
     setSelectedAddressId(created.id);
     setAddingAddress(false);
     setAddressError('');
-    setNewAddress({ label: '', recipient: '', street: '', city: '', state: 'SP', zipCode: '' });
+    setNewAddress({ label: '', recipient: '', street: '', city: '', state: 'Maputo', zipCode: '' });
   };
 
   const handleCheckout = () => {
@@ -104,10 +104,10 @@ export function CartCheckoutView() {
     return (
       <main className="max-w-3xl mx-auto px-4 py-12">
         <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-8">
-          <div className="flex items-center gap-3 text-[#2F8E47]">
-            <CheckCircle2 className="w-8 h-8 shrink-0" />
+          <div className="flex items-center gap-3 text-[#0A3768]">
+            <CheckCircle2 className="w-8 h-8 shrink-0 text-[#0475EE]" />
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-[#43AA5B]">
+              <p className="text-xs font-bold uppercase tracking-wider text-[#0475EE]">
                 Pedido Confirmado
               </p>
               <h1 className="font-condensed text-2xl font-bold uppercase text-[#222222]">
@@ -146,7 +146,7 @@ export function CartCheckoutView() {
                       <span className="text-[#333333]">
                         {item.quantity}x {item.title}
                       </span>
-                      <span className="font-mono tabular-nums font-bold text-[#43AA5B] whitespace-nowrap">
+                      <span className="font-mono tabular-nums font-bold text-[#0475EE] whitespace-nowrap">
                         {formatCurrency(item.price * item.quantity)}
                       </span>
                     </li>
@@ -158,7 +158,7 @@ export function CartCheckoutView() {
 
           <div className="mt-6 pt-5 border-t border-[#EAEAEA] flex items-center justify-between">
             <span className="text-sm font-semibold text-[#666666]">Total Pago</span>
-            <span className="text-2xl font-extrabold font-mono tabular-nums text-[#43AA5B]">
+            <span className="text-2xl font-extrabold font-mono tabular-nums text-[#0475EE]">
               {formatCurrency(confirmedOrder.total)}
             </span>
           </div>
@@ -167,14 +167,14 @@ export function CartCheckoutView() {
             <button
               type="button"
               onClick={() => navigate({ type: 'profile', tab: 'orders' })}
-              className="h-10 px-6 rounded-full bg-[#43AA5B] hover:bg-[#2F8E47] text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
+              className="h-10 px-6 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
             >
               Acompanhar Meus Pedidos
             </button>
             <button
               type="button"
               onClick={() => navigate({ type: 'home' })}
-              className="h-10 px-5 rounded-full border border-[#DCDCDC] hover:border-[#43AA5B] hover:text-[#43AA5B] text-[#444444] text-xs font-bold uppercase tracking-wider cursor-pointer"
+              className="h-10 px-5 rounded-full border border-[#DCDCDC] hover:border-[#0475EE] hover:text-[#0475EE] text-[#444444] text-xs font-bold uppercase tracking-wider cursor-pointer"
             >
               Continuar Comprando
             </button>
@@ -198,7 +198,7 @@ export function CartCheckoutView() {
           <button
             type="button"
             onClick={() => navigate({ type: 'home' })}
-            className="mt-6 h-10 px-6 rounded-full bg-[#43AA5B] hover:bg-[#2F8E47] text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
+            className="mt-6 h-10 px-6 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
           >
             Explorar Vitrine Cellbox
           </button>
@@ -215,20 +215,20 @@ export function CartCheckoutView() {
   }> = [
     {
       id: 'pix_mobile',
-      label: 'PIX / Carteira Móvel / M-Pesa',
+      label: 'M-Pesa / e-Mola / Carteira Móvel',
       detail: 'Aprovação instantânea e liberação imediata do envio',
       icon: Smartphone,
     },
     {
       id: 'credit_card',
-      label: 'Cartão de Crédito',
+      label: 'Cartão de Crédito / Débito',
       detail: 'Em até 12x sem juros com proteção antifraude',
       icon: CreditCard,
     },
     {
       id: 'bank_transfer',
       label: 'Transferência Bancária',
-      detail: 'Compensação em até 1 dia útil via TED/IBAN',
+      detail: 'Compensação em até 1 dia útil via NIB/IBAN',
       icon: Building2,
     },
   ];
@@ -240,12 +240,12 @@ export function CartCheckoutView() {
           <button
             type="button"
             onClick={() => navigate({ type: 'home' })}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#666666] hover:text-[#43AA5B] mb-2 cursor-pointer"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#666666] hover:text-[#0475EE] mb-2 cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             Continuar comprando
           </button>
-          <h1 className="font-condensed text-[28px] font-bold uppercase tracking-wide text-[#43AA5B]">
+          <h1 className="font-condensed text-[28px] font-bold uppercase tracking-wide text-[#0A3768]">
             Carrinho e Checkout Multi-Vendor
           </h1>
           <p className="text-xs text-[#777777] mt-0.5 tabular-nums">
@@ -267,11 +267,11 @@ export function CartCheckoutView() {
             >
               <div className="px-5 py-3.5 bg-[#F1F2F4] border-b border-[#E5E7EB] flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
-                  <Store className="w-4 h-4 text-[#43AA5B]" />
+                  <Store className="w-4 h-4 text-[#0475EE]" />
                   <span className="text-sm font-bold text-[#333333]">{group.seller.name}</span>
                   <span className="text-xs text-[#777777]">· {group.seller.location}</span>
                 </div>
-                <span className="text-xs font-bold text-[#2F8E47] font-mono tabular-nums">
+                <span className="text-xs font-bold text-[#0A3768] font-mono tabular-nums">
                   {group.shipping === 0
                     ? 'Frete grátis'
                     : `Frete: ${formatCurrency(group.shipping)}`}
@@ -296,7 +296,7 @@ export function CartCheckoutView() {
                       <button
                         type="button"
                         onClick={() => navigate({ type: 'product', productId: product.id })}
-                        className="text-[14px] font-bold text-[#333333] hover:text-[#43AA5B] text-left mt-0.5 cursor-pointer"
+                        className="text-[14px] font-bold text-[#333333] hover:text-[#0475EE] text-left mt-0.5 cursor-pointer"
                       >
                         {product.title}
                       </button>
@@ -307,7 +307,7 @@ export function CartCheckoutView() {
                     </div>
 
                     <div className="flex sm:flex-col items-center sm:items-end justify-between gap-3">
-                      <p className="text-base font-extrabold font-mono tabular-nums text-[#43AA5B]">
+                      <p className="text-base font-extrabold font-mono tabular-nums text-[#0475EE]">
                         {formatCurrency(lineTotal)}
                       </p>
                       <div className="flex items-center gap-2">
@@ -352,7 +352,7 @@ export function CartCheckoutView() {
           <section className="bg-white border border-[#EAEAEA] rounded-[3px] p-5 sm:p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-[#43AA5B]" />
+                <MapPin className="w-4 h-4 text-[#0475EE]" />
                 <h2 className="font-condensed text-[18px] font-bold uppercase text-[#333333]">
                   Endereço de Entrega
                 </h2>
@@ -360,7 +360,7 @@ export function CartCheckoutView() {
               <button
                 type="button"
                 onClick={() => setAddingAddress((v) => !v)}
-                className="text-xs font-bold text-[#43AA5B] hover:text-[#2F8E47] inline-flex items-center gap-1 cursor-pointer"
+                className="text-xs font-bold text-[#0475EE] hover:text-[#0A3768] inline-flex items-center gap-1 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Novo endereço
@@ -377,14 +377,14 @@ export function CartCheckoutView() {
                     onClick={() => setSelectedAddressId(addr.id)}
                     className={`text-left p-4 rounded-[3px] border transition-colors cursor-pointer ${
                       active
-                        ? 'border-[#43AA5B] bg-[#43AA5B]/5'
-                        : 'border-[#E0E0E0] hover:border-[#43AA5B]/60 bg-white'
+                        ? 'border-[#0475EE] bg-[#0475EE]/5'
+                        : 'border-[#E0E0E0] hover:border-[#0475EE]/60 bg-white'
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-bold text-[#333333]">{addr.label}</span>
                       {active && (
-                        <span className="text-[11px] font-bold text-[#2F8E47] uppercase">
+                        <span className="text-[11px] font-bold text-[#0A3768] uppercase">
                           Selecionado
                         </span>
                       )}
@@ -392,7 +392,7 @@ export function CartCheckoutView() {
                     <p className="text-xs text-[#555555] mt-1">{addr.recipient}</p>
                     <p className="text-xs text-[#777777] mt-0.5">{addr.street}</p>
                     <p className="text-xs text-[#777777] font-mono tabular-nums mt-0.5">
-                      {addr.city} - {addr.state} · CEP {addr.zipCode}
+                      {addr.city} - {addr.state} · CP {addr.zipCode}
                     </p>
                   </button>
                 );
@@ -437,7 +437,7 @@ export function CartCheckoutView() {
                 />
                 <input
                   type="text"
-                  placeholder="CEP (ex: 01310-100)"
+                  placeholder="Código Postal (ex: 1100)"
                   value={newAddress.zipCode}
                   onChange={(e) => setNewAddress((p) => ({ ...p, zipCode: e.target.value }))}
                   className="h-9 px-3 rounded-[2px] border border-[#DCDCDC] text-xs font-mono"
@@ -452,7 +452,7 @@ export function CartCheckoutView() {
                   </button>
                   <button
                     type="submit"
-                    className="h-9 px-5 rounded-full bg-[#43AA5B] hover:bg-[#2F8E47] text-white text-xs font-bold uppercase cursor-pointer"
+                    className="h-9 px-5 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase cursor-pointer"
                   >
                     Salvar Endereço
                   </button>
@@ -477,12 +477,12 @@ export function CartCheckoutView() {
                     onClick={() => setPaymentMethod(opt.id)}
                     className={`w-full text-left p-4 rounded-[3px] border flex items-center gap-4 transition-colors cursor-pointer ${
                       active
-                        ? 'border-[#43AA5B] bg-[#43AA5B]/5'
-                        : 'border-[#E0E0E0] hover:border-[#43AA5B]/60 bg-white'
+                        ? 'border-[#0475EE] bg-[#0475EE]/5'
+                        : 'border-[#E0E0E0] hover:border-[#0475EE]/60 bg-white'
                     }`}
                   >
                     <Icon
-                      className={`w-5 h-5 shrink-0 ${active ? 'text-[#43AA5B]' : 'text-[#888888]'}`}
+                      className={`w-5 h-5 shrink-0 ${active ? 'text-[#0475EE]' : 'text-[#888888]'}`}
                     />
                     <div className="flex-1">
                       <p className="text-sm font-bold text-[#333333]">{opt.label}</p>
@@ -490,10 +490,10 @@ export function CartCheckoutView() {
                     </div>
                     <span
                       className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                        active ? 'border-[#43AA5B]' : 'border-[#CCCCCC]'
+                        active ? 'border-[#0475EE]' : 'border-[#CCCCCC]'
                       }`}
                     >
-                      {active && <span className="w-2 h-2 rounded-full bg-[#43AA5B]" />}
+                      {active && <span className="w-2 h-2 rounded-full bg-[#0475EE]" />}
                     </span>
                   </button>
                 );
@@ -503,8 +503,8 @@ export function CartCheckoutView() {
         </div>
 
         {/* Right column: Sticky Order Summary */}
-        <aside className="lg:col-span-4 lg:sticky lg:top-6 bg-white border border-[#EAEAEA] rounded-[3px] p-6 space-y-5">
-          <h2 className="font-condensed text-[20px] font-bold uppercase text-[#43AA5B] pb-3 border-b border-[#EAEAEA]">
+        <aside className="lg:col-span-4 lg:sticky lg:top-[174px] bg-white border border-[#EAEAEA] rounded-[3px] p-6 space-y-5">
+          <h2 className="font-condensed text-[20px] font-bold uppercase text-[#0A3768] pb-3 border-b border-[#EAEAEA]">
             Resumo do Pedido
           </h2>
 
@@ -519,13 +519,13 @@ export function CartCheckoutView() {
               <dt>
                 Frete ({groups.length} {groups.length === 1 ? 'envio' : 'envios'})
               </dt>
-              <dd className="font-mono tabular-nums font-bold text-[#2F8E47]">
+              <dd className="font-mono tabular-nums font-bold text-[#0A3768]">
                 {totals.shippingTotal === 0 ? 'Grátis' : formatCurrency(totals.shippingTotal)}
               </dd>
             </div>
             <div className="pt-3 border-t border-[#EAEAEA] flex items-center justify-between">
               <dt className="text-base font-bold text-[#333333]">Total</dt>
-              <dd className="text-2xl font-extrabold font-mono tabular-nums text-[#43AA5B]">
+              <dd className="text-2xl font-extrabold font-mono tabular-nums text-[#0475EE]">
                 {formatCurrency(totals.grandTotal)}
               </dd>
             </div>
@@ -535,13 +535,13 @@ export function CartCheckoutView() {
             type="button"
             onClick={handleCheckout}
             disabled={!selectedAddress}
-            className="w-full h-11 rounded-full bg-[#43AA5B] hover:bg-[#2F8E47] disabled:bg-[#CCCCCC] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+            className="w-full h-11 rounded-full bg-[#0475EE] hover:bg-[#0A3768] disabled:bg-[#CCCCCC] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
           >
             Finalizar Compra
           </button>
 
           <div className="flex items-start gap-2.5 text-xs text-[#666666] leading-relaxed">
-            <ShieldCheck className="w-4 h-4 text-[#43AA5B] shrink-0 mt-0.5" />
+            <ShieldCheck className="w-4 h-4 text-[#0475EE] shrink-0 mt-0.5" />
             <span>
               Seu pagamento fica protegido pela Cellbox até você confirmar o recebimento de todos os itens.
             </span>

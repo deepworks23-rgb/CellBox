@@ -15,13 +15,14 @@ export const ORDER_STATUS_FLOW: OrderStatus[] = [
   'Entregue',
 ];
 
-export const FREE_SHIPPING_THRESHOLD = 1500;
+export const FREE_SHIPPING_THRESHOLD = 15000;
 
 export function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
+  const formatted = new Intl.NumberFormat('pt-MZ', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(value);
+  return `${formatted} MT`;
 }
 
 export function getNextOrderStatus(current: OrderStatus): OrderStatus | null {
@@ -40,18 +41,18 @@ export interface ShippingQuote {
 
 export function calculateShipping(zipCode: string, subtotal: number): ShippingQuote {
   const digits = zipCode.replace(/\D/g, '');
-  const firstDigit = digits.length > 0 ? Number(digits[0]) : 0;
+  const firstDigit = digits.length > 0 ? Number(digits[0]) : 1;
 
-  // Regional distance factor based on first digit of CEP / postal code
-  const baseStandard = firstDigit <= 3 ? 24.9 : firstDigit <= 6 ? 34.9 : 44.9;
-  const baseExpress = baseStandard + 25;
+  // Regional distance factor based on Mozambican postal zone (1xxx Maputo -> 3xxx Nampula)
+  const baseStandard = firstDigit <= 1 ? 250 : firstDigit <= 2 ? 400 : 550;
+  const baseExpress = baseStandard + 300;
   const isFreeStandard = subtotal >= FREE_SHIPPING_THRESHOLD;
 
   return {
     standardCost: isFreeStandard ? 0 : baseStandard,
     expressCost: baseExpress,
-    standardDays: firstDigit <= 3 ? '2 a 4 dias úteis' : '4 a 7 dias úteis',
-    expressDays: firstDigit <= 3 ? '1 a 2 dias úteis' : '2 a 3 dias úteis',
+    standardDays: firstDigit <= 1 ? '1 a 2 dias úteis' : '3 a 5 dias úteis',
+    expressDays: firstDigit <= 1 ? 'Mesmo dia / 24h' : '1 a 2 dias úteis',
     isFreeStandard,
   };
 }
@@ -71,7 +72,7 @@ export function groupCartBySeller(
   cart: CartItem[],
   products: Product[],
   sellers: SellerStore[],
-  zipCode = '01310-100'
+  zipCode = '1100'
 ): SellerCartGroup[] {
   const activeSellerMap = new Map<string, SellerStore>();
   for (const s of sellers) {
@@ -369,7 +370,7 @@ export function validateRegistration(input: RegistrationInput): Record<string, s
       errors.storeName = 'Informe o nome da sua loja (mínimo 3 caracteres).';
     }
     if (!input.documentId?.trim() || input.documentId.trim().length < 8) {
-      errors.documentId = 'Informe um Documento/NIF ou CNPJ válido.';
+      errors.documentId = 'Informe um NUIT / NIF válido.';
     }
     if (!input.mainCategory?.trim()) {
       errors.mainCategory = 'Selecione a categoria principal da loja.';

@@ -4,15 +4,18 @@
   --font-display: "Barlow Condensed", "DM Sans", system-ui, sans-serif;
   --font-sans: "DM Sans", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
-  --color-brand-green: #43aa5b;
-  --color-brand-green-dark: #2f8e47;
-  --color-brand-green-light: #58b96f;
-  --color-brand-cyan: #0098d8;
-  --color-brand-blue: #0070b8;
+  --color-brand-navy: #0a3768;
+  --color-brand-royal: #0475ee;
+  --color-brand-cyan: #18a3de;
+  --color-brand-aqua: #1ad6de;
+  --color-brand-tint: #eaf6fc;
   --color-brand-star: #f5a623;
 }
 
 @layer base {
+  html {
+    scroll-padding-top: 174px;
+  }
   body {
     font-family: var(--font-sans);
     background-color: #ffffff;
@@ -28,9 +31,9 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Hero gradient matching exact reference green-to-lime sweep */
+/* Hero gradient matching exact official Cellbox logo sweep: Deep Navy -> Royal Blue -> Cyan -> Aqua */
 .cellbox-hero-gradient {
-  background: linear-gradient(110deg, #169a67 0%, #31ab62 42%, #7bb84c 78%, #a6c43e 100%);
+  background: linear-gradient(110deg, #0a3768 0%, #0475ee 42%, #18a3de 76%, #1ad6de 100%);
 }
 
 /* Custom subtle scrollbars */
@@ -46,5 +49,5 @@
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #43aa5b;
+  background: #0475ee;
 }
