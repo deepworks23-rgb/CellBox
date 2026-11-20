@@ -20,6 +20,12 @@ export function viewToPath(view: AppView): string {
       return '/carrinho';
     case 'auth':
       return view.mode === 'register' ? '/cadastro' : '/login';
+    case 'forgot_password':
+      return '/esqueci-senha';
+    case 'reset_password':
+      return view.token
+        ? `/redefinir-senha?token=${encodeURIComponent(view.token)}`
+        : '/redefinir-senha';
     case 'profile': {
       if (view.tab === 'wishlist') return '/minha-conta/desejos';
       if (view.tab === 'addresses') return '/minha-conta/enderecos';
@@ -41,8 +47,16 @@ export function viewToPath(view: AppView): string {
   }
 }
 
-export function pathToView(pathname: string): AppView {
-  const clean = pathname.replace(/\/+$/, '') || '/';
+export function pathToView(pathname: string, search = ''): AppView {
+  let rawPath = pathname;
+  let rawSearch = search;
+  const queryIdx = pathname.indexOf('?');
+  if (queryIdx !== -1) {
+    rawPath = pathname.slice(0, queryIdx);
+    if (!rawSearch) rawSearch = pathname.slice(queryIdx);
+  }
+
+  const clean = rawPath.replace(/\/+$/, '') || '/';
 
   if (clean === '/') return { type: 'home' };
   if (clean === '/sobre') return { type: 'about' };
@@ -52,6 +66,12 @@ export function pathToView(pathname: string): AppView {
   if (clean === '/carrinho') return { type: 'cart' };
   if (clean === '/login' || clean === '/entrar') return { type: 'auth', mode: 'login' };
   if (clean === '/cadastro' || clean === '/registrar') return { type: 'auth', mode: 'register' };
+  if (clean === '/esqueci-senha') return { type: 'forgot_password' };
+  if (clean === '/redefinir-senha') {
+    const params = new URLSearchParams(rawSearch.startsWith('?') ? rawSearch.slice(1) : rawSearch);
+    const token = params.get('token')?.trim() || undefined;
+    return { type: 'reset_password', token };
+  }
 
   if (clean.startsWith('/produto/')) {
     const productId = decodeURIComponent(clean.slice('/produto/'.length));
@@ -110,7 +130,9 @@ export function canAccessView(view: AppView, user: Pick<User, 'role'> | null): b
     case 'cart':
       return role === null || role === 'buyer';
     case 'auth':
+    case 'forgot_password':
       return role === null;
+    case 'reset_password':
     case 'home':
     case 'about':
     case 'stores':
@@ -136,8 +158,8 @@ export function resolveAuthorizedView(
     return { view: requested, denied: false };
   }
 
-  // Authenticated user trying to visit /login or /cadastro goes quietly to their own panel
-  if (requested.type === 'auth' && user) {
+  // Authenticated user trying to visit /login, /cadastro, or /esqueci-senha goes quietly to their own panel
+  if ((requested.type === 'auth' || requested.type === 'forgot_password') && user) {
     return {
       view: getDefaultPanelForRole(user.role),
       denied: false,

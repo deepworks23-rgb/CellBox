@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import express from 'express';
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
@@ -53,6 +54,7 @@ import {
   uploadObjectToS3,
   validateImageUploadPayload,
 } from './src/server/storage.ts';
+import { isEmailServiceConfigured, sendPasswordResetEmail } from './src/server/mailer.ts';
 
 const PORT = Number(process.env.PORT) || 3000;
 const SESSION_COOKIE_NAME = 'cellbox_session';
@@ -99,6 +101,30 @@ function toPublicUser(u: StoredUser): User {
     sellerId: u.sellerId,
     createdAt: u.createdAt,
   };
+}
+
+function resolveAppBaseUrl(req: Request): string {
+  const configured = (process.env.APP_URL ?? '').trim();
+  if (configured && /^https?:\/\//i.test(configured) && !configured.includes('MY_APP_URL')) {
+    return configured.replace(/\/+$/, '');
+  }
+  const originHeader = req.headers.origin;
+  if (typeof originHeader === 'string' && /^https?:\/\//i.test(originHeader)) {
+    return originHeader.replace(/\/+$/, '');
+  }
+  const forwardedProto = (req.headers['x-forwarded-proto'] as string | undefined)
+    ?.split(',')[0]
+    ?.trim();
+  const proto = forwardedProto || req.protocol || 'http';
+  const host = (req.headers['x-forwarded-host'] as string | undefined)?.split(',')[0]?.trim() || req.get('host') || `localhost:${PORT}`;
+  return `${proto}://${host}`;
+}
+
+function maskEmail(email: string): string {
+  const [local, domain] = email.split('@');
+  if (!local || !domain) return email;
+  if (local.length <= 2) return `${local[0] ?? '*'}***@${domain}`;
+  return `${local.slice(0, 2)}${'*'.repeat(Math.min(5, Math.max(2, local.length - 2)))}@${domain}`;
 }
 
 async function getAuthenticatedUser(req: Request): Promise<StoredUser | null> {
@@ -223,6 +249,7 @@ async function startServer() {
         name?: string;
         email?: string;
         password?: string;
+        phone?: string;
         isSeller?: boolean;
         storeName?: string;
         documentId?: string;
@@ -233,6 +260,7 @@ async function startServer() {
         name: body.name ?? '',
         email: body.email ?? '',
         password: body.password ?? '',
+        phone: body.phone,
         isSeller: Boolean(body.isSeller),
         storeName: body.storeName,
         documentId: body.documentId,
@@ -245,6 +273,7 @@ async function startServer() {
       }
 
       const emailNorm = body.email!.trim().toLowerCase();
+      const phoneClean = body.phone?.trim() || undefined;
       const existing = await db.findUserByEmail(emailNorm);
       if (existing) {
         res.status(409).json({ error: 'Este e-mail já está cadastrado na Cellbox.' });
@@ -261,6 +290,7 @@ async function startServer() {
       if (body.isSeller) {
         const sellerId = `seller-${Date.now()}`;
         const storeName = body.storeName!.trim();
+        const docClean = body.documentId?.trim() || 'Pendente';
         const initials =
           storeName
             .split(/\s+/)
@@ -274,6 +304,7 @@ async function startServer() {
           name: body.name!.trim(),
           email: emailNorm,
           role: 'seller',
+          phone: phoneClean,
           sellerId,
           createdAt: today,
           passwordHash,
@@ -284,7 +315,7 @@ async function startServer() {
           ownerUserId: userId,
           name: storeName,
           slug: storeName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-          documentId: body.documentId!.trim(),
+          documentId: docClean,
           mainCategory: body.mainCategory!,
           description: `Loja parceira Cellbox especializada em ${body.mainCategory}.`,
           logoText: initials,
@@ -301,7 +332,7 @@ async function startServer() {
             bankName: 'Pendente de configuração',
             accountType: 'Conta Empresarial',
             accountNumber: '—',
-            pixOrWallet: body.documentId!.trim(),
+            pixOrWallet: phoneClean || docClean,
           },
         };
       } else {
@@ -310,6 +341,7 @@ async function startServer() {
           name: body.name!.trim(),
           email: emailNorm,
           role: 'buyer',
+          phone: phoneClean,
           createdAt: today,
           passwordHash,
         };
@@ -374,6 +406,121 @@ async function startServer() {
       }
       await db.updateUserPassword(user.id, hashPassword(newPassword));
       res.json({ ok: true });
+    })
+  );
+
+  // ── Real Password Recovery (PostgreSQL tokens + Real Email Delivery) ─────
+  app.post(
+    '/api/auth/forgot-password',
+    asyncHandler(async (req, res) => {
+      const { email } = req.body as { email?: string };
+      const normalizedEmail = (email ?? '').trim().toLowerCase();
+
+      if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+        res.status(400).json({ error: 'Informe um endereço de e-mail válido.' });
+        return;
+      }
+
+      const user = await db.findUserByEmail(normalizedEmail);
+      if (!user) {
+        res.status(404).json({
+          error: 'Não encontramos nenhuma conta registada com este e-mail.',
+        });
+        return;
+      }
+
+      if (!isEmailServiceConfigured()) {
+        res.status(503).json({
+          error:
+            'O serviço de envio de e-mail não está configurado no servidor. Configure SMTP (SMTP_HOST, SMTP_USER, SMTP_PASS) ou RESEND_API_KEY nas variáveis de ambiente.',
+        });
+        return;
+      }
+
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const expiresMinutes = 30;
+      const { tokenHash } = await db.createPasswordResetToken(user.id, rawToken, expiresMinutes);
+      const resetUrl = `${resolveAppBaseUrl(req)}/redefinir-senha?token=${encodeURIComponent(rawToken)}`;
+
+      try {
+        await sendPasswordResetEmail({
+          to: user.email,
+          userName: user.name,
+          resetUrl,
+          expiresMinutes,
+        });
+      } catch (err) {
+        await db.deletePasswordResetTokenByHash(tokenHash);
+        console.error('[Cellbox Mailer] Failed sending password reset email:', err);
+        res.status(502).json({
+          error:
+            'Não foi possível enviar o e-mail de recuperação neste momento. Verifique as credenciais SMTP/Resend e tente novamente.',
+        });
+        return;
+      }
+
+      res.json({
+        ok: true,
+        message:
+          'Enviámos um link de redefinição de senha para o seu e-mail. Verifique a caixa de entrada e a pasta de spam.',
+      });
+    })
+  );
+
+  app.get(
+    '/api/auth/reset-password/verify',
+    asyncHandler(async (req, res) => {
+      const rawToken = typeof req.query.token === 'string' ? req.query.token : '';
+      const record = await db.verifyPasswordResetToken(rawToken);
+      if (!record) {
+        res.status(400).json({
+          valid: false,
+          error: 'Este link de recuperação é inválido, expirou ou já foi utilizado.',
+        });
+        return;
+      }
+      res.json({
+        valid: true,
+        emailMasked: maskEmail(record.email),
+        expiresAt: record.expiresAt,
+      });
+    })
+  );
+
+  app.post(
+    '/api/auth/reset-password',
+    asyncHandler(async (req, res) => {
+      const { token, newPassword, confirmPassword } = req.body as {
+        token?: string;
+        newPassword?: string;
+        confirmPassword?: string;
+      };
+
+      if (!token || token.trim().length < 32) {
+        res.status(400).json({ error: 'Token de recuperação inválido.' });
+        return;
+      }
+      if (!newPassword || newPassword.length < 6) {
+        res.status(400).json({ error: 'A nova senha deve conter no mínimo 6 caracteres.' });
+        return;
+      }
+      if (confirmPassword !== undefined && newPassword !== confirmPassword) {
+        res.status(400).json({ error: 'As senhas não coincidem.' });
+        return;
+      }
+
+      const consumed = await db.consumePasswordResetToken(token, hashPassword(newPassword));
+      if (!consumed) {
+        res.status(400).json({
+          error: 'Este link de recuperação é inválido, expirou ou já foi utilizado.',
+        });
+        return;
+      }
+
+      res.json({
+        ok: true,
+        message: 'Senha redefinida com sucesso! Já pode iniciar sessão com a sua nova senha.',
+      });
     })
   );
 

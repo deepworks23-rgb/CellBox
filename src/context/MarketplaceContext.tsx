@@ -79,6 +79,7 @@ export interface RegisterPayload {
   name: string;
   email: string;
   password: string;
+  phone?: string;
   isSeller: boolean;
   storeName?: string;
   documentId?: string;
@@ -121,6 +122,17 @@ interface MarketplaceContextValue {
     currentPassword: string,
     newPassword: string
   ) => Promise<{ ok: boolean; error?: string }>;
+  requestPasswordReset: (
+    email: string
+  ) => Promise<{ ok: boolean; message?: string; error?: string }>;
+  verifyResetToken: (
+    token: string
+  ) => Promise<{ valid: boolean; emailMasked?: string; error?: string }>;
+  confirmPasswordReset: (
+    token: string,
+    newPassword: string,
+    confirmPassword: string
+  ) => Promise<{ ok: boolean; message?: string; error?: string }>;
   // Cart, Wishlist, Compare
   addToCart: (productId: string, quantity?: number) => void;
   updateCartQuantity: (productId: string, quantity: number) => void;
@@ -275,7 +287,9 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
 
   const [authReady, setAuthReady] = useState(false);
   const [view, setView] = useState<AppView>(() =>
-    typeof window !== 'undefined' ? pathToView(window.location.pathname) : { type: 'home' }
+    typeof window !== 'undefined'
+      ? pathToView(window.location.pathname, window.location.search)
+      : { type: 'home' }
   );
   const [filters, setFilters] = useState<CatalogFilters>(DEFAULT_FILTERS);
   const [appliedCouponCode, setAppliedCouponCode] = useState<string | null>(null);
@@ -294,7 +308,8 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
   const syncBrowserUrl = useCallback((target: AppView, replace = false) => {
     if (typeof window === 'undefined') return;
     const nextPath = viewToPath(target);
-    if (window.location.pathname !== nextPath) {
+    const currentFull = `${window.location.pathname}${window.location.search}`;
+    if (currentFull !== nextPath) {
       if (replace) {
         window.history.replaceState(null, '', nextPath);
       } else {
@@ -361,7 +376,7 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const onPopState = () => {
-      const requested = pathToView(window.location.pathname);
+      const requested = pathToView(window.location.pathname, window.location.search);
       const resolved = resolveAuthorizedView(requested, state.currentUser);
       setView(resolved.view);
       if (resolved.denied) {
@@ -513,6 +528,63 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
     showToast('Senha alterada com segurança!');
     return { ok: true };
   };
+
+  const requestPasswordReset = useCallback(
+    async (email: string): Promise<{ ok: boolean; message?: string; error?: string }> => {
+      const res = await apiRequest<{ ok: boolean; message?: string }>('/api/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) {
+        return {
+          ok: false,
+          error: res.data.error ?? 'Não foi possível processar o pedido de recuperação.',
+        };
+      }
+      return { ok: true, message: res.data.message };
+    },
+    []
+  );
+
+  const verifyResetToken = useCallback(
+    async (
+      token: string
+    ): Promise<{ valid: boolean; emailMasked?: string; error?: string }> => {
+      const res = await apiRequest<{ valid: boolean; emailMasked?: string }>(
+        `/api/auth/reset-password/verify?token=${encodeURIComponent(token)}`
+      );
+      if (!res.ok || !res.data.valid) {
+        return {
+          valid: false,
+          error: res.data.error ?? 'Este link de recuperação é inválido, expirou ou já foi utilizado.',
+        };
+      }
+      return { valid: true, emailMasked: res.data.emailMasked };
+    },
+    []
+  );
+
+  const confirmPasswordReset = useCallback(
+    async (
+      token: string,
+      newPassword: string,
+      confirmPassword: string
+    ): Promise<{ ok: boolean; message?: string; error?: string }> => {
+      const res = await apiRequest<{ ok: boolean; message?: string }>('/api/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ token, newPassword, confirmPassword }),
+      });
+      if (!res.ok) {
+        return {
+          ok: false,
+          error: res.data.error ?? 'Não foi possível redefinir a senha.',
+        };
+      }
+      showToast('Senha redefinida com sucesso! Já pode iniciar sessão.');
+      return { ok: true, message: res.data.message };
+    },
+    [showToast]
+  );
 
   // ── Cart, Wishlist, Compare ───────────────────────────────────────────────
   const addToCart = (productId: string, quantity = 1) => {
@@ -961,6 +1033,9 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
         logout,
         updateProfile,
         changePassword,
+        requestPasswordReset,
+        verifyResetToken,
+        confirmPasswordReset,
         addToCart,
         updateCartQuantity,
         removeFromCart,

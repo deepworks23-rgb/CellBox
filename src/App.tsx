@@ -12,6 +12,7 @@ import { SellerStoreView } from './components/SellerStoreView';
 import { CartCheckoutView } from './components/CartCheckoutView';
 import { BuyerProfileView } from './components/BuyerProfileView';
 import { AuthView } from './components/AuthView';
+import { PasswordRecoveryView } from './components/PasswordRecoveryView';
 import { SellerDashboardView } from './components/SellerDashboardView';
 import { AdminDashboardView } from './components/AdminDashboardView';
 import { CompareModal } from './components/CompareModal';
@@ -130,6 +131,10 @@ function CellboxShell() {
         );
       case 'auth':
         return <AuthView initialMode={view.mode} />;
+      case 'forgot_password':
+        return <PasswordRecoveryView mode="forgot" />;
+      case 'reset_password':
+        return <PasswordRecoveryView mode="reset" token={view.token} />;
       case 'seller_dashboard':
         return currentUser?.role === 'seller' ? (
           <SellerDashboardView initialTab={view.tab} />

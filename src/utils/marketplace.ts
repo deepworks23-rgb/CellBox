@@ -382,10 +382,58 @@ export function validateProductForm(input: ProductFormInput): Record<string, str
   return errors;
 }
 
+export interface PasswordStrengthResult {
+  score: 0 | 1 | 2 | 3 | 4;
+  label: string;
+  checks: {
+    minLength: boolean;
+    hasUpper: boolean;
+    hasLower: boolean;
+    hasNumber: boolean;
+    hasSymbol: boolean;
+  };
+}
+
+export function evaluatePasswordStrength(password: string): PasswordStrengthResult {
+  const checks = {
+    minLength: password.length >= 8,
+    hasUpper: /[A-Z]/.test(password),
+    hasLower: /[a-z]/.test(password),
+    hasNumber: /\d/.test(password),
+    hasSymbol: /[^A-Za-z0-9]/.test(password),
+  };
+
+  if (!password) {
+    return { score: 0, label: 'Digite uma senha', checks };
+  }
+
+  let points = 0;
+  if (password.length >= 6) points += 1;
+  if (checks.minLength) points += 1;
+  if (checks.hasUpper && checks.hasLower) points += 1;
+  if (checks.hasNumber) points += 1;
+  if (checks.hasSymbol) points += 1;
+
+  if (password.length < 6) {
+    return { score: 1, label: 'Muito fraca', checks };
+  }
+  if (points <= 2) {
+    return { score: 1, label: 'Fraca', checks };
+  }
+  if (points === 3) {
+    return { score: 2, label: 'Razoável', checks };
+  }
+  if (points === 4) {
+    return { score: 3, label: 'Boa', checks };
+  }
+  return { score: 4, label: 'Forte', checks };
+}
+
 export interface RegistrationInput {
   name: string;
   email: string;
   password: string;
+  phone?: string;
   isSeller: boolean;
   storeName?: string;
   documentId?: string;
@@ -403,12 +451,18 @@ export function validateRegistration(input: RegistrationInput): Record<string, s
   if (!input.password || input.password.length < 6) {
     errors.password = 'A senha deve conter no mínimo 6 caracteres.';
   }
+  if (input.phone !== undefined && input.phone.trim().length > 0) {
+    const digits = input.phone.replace(/\D/g, '');
+    if (digits.length < 7) {
+      errors.phone = 'Informe um número de telefone/WhatsApp válido.';
+    }
+  }
   if (input.isSeller) {
     if (!input.storeName?.trim() || input.storeName.trim().length < 3) {
       errors.storeName = 'Informe o nome da sua loja (mínimo 3 caracteres).';
     }
-    if (!input.documentId?.trim() || input.documentId.trim().length < 8) {
-      errors.documentId = 'Informe um NUIT / NIF válido.';
+    if (input.documentId !== undefined && input.documentId.trim().length > 0 && input.documentId.trim().length < 8) {
+      errors.documentId = 'Informe um NUIT / NIF válido (mínimo 8 dígitos).';
     }
     if (!input.mainCategory?.trim()) {
       errors.mainCategory = 'Selecione a categoria principal da loja.';

@@ -16,6 +16,15 @@ test('URL path mapping round-trips public and protected routes accurately', () =
   assert.deepEqual(pathToView('/contacto'), { type: 'contact' });
   assert.deepEqual(pathToView('/login'), { type: 'auth', mode: 'login' });
   assert.deepEqual(pathToView('/cadastro'), { type: 'auth', mode: 'register' });
+  assert.deepEqual(pathToView('/esqueci-senha'), { type: 'forgot_password' });
+  assert.deepEqual(pathToView('/redefinir-senha', '?token=abc12345'), {
+    type: 'reset_password',
+    token: 'abc12345',
+  });
+  assert.deepEqual(pathToView('/redefinir-senha?token=xyz98765'), {
+    type: 'reset_password',
+    token: 'xyz98765',
+  });
   assert.deepEqual(pathToView('/minha-conta'), { type: 'profile', tab: 'orders' });
   assert.deepEqual(pathToView('/minha-conta/desejos'), { type: 'profile', tab: 'wishlist' });
   assert.deepEqual(pathToView('/vendedor'), { type: 'seller_dashboard', tab: 'overview' });
@@ -27,6 +36,11 @@ test('URL path mapping round-trips public and protected routes accurately', () =
   assert.equal(viewToPath({ type: 'stores' }), '/lojas');
   assert.equal(viewToPath({ type: 'offers' }), '/ofertas');
   assert.equal(viewToPath({ type: 'contact' }), '/contacto');
+  assert.equal(viewToPath({ type: 'forgot_password' }), '/esqueci-senha');
+  assert.equal(
+    viewToPath({ type: 'reset_password', token: 'tok-999' }),
+    '/redefinir-senha?token=tok-999'
+  );
   assert.equal(viewToPath({ type: 'profile', tab: 'addresses' }), '/minha-conta/enderecos');
   assert.equal(viewToPath({ type: 'seller_dashboard', tab: 'orders' }), '/vendedor/pedidos');
   assert.equal(viewToPath({ type: 'admin_dashboard', tab: 'finance' }), '/admin/financeiro');

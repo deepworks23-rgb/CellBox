@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import crypto from 'node:crypto';
 import { Pool, type PoolClient, type QueryResult, type QueryResultRow } from 'pg';
 import type {
   Address,
@@ -340,6 +341,17 @@ export async function ensureDatabaseSchema(): Promise<void> {
       size_bytes INTEGER NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      token_hash TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at TIMESTAMPTZ NOT NULL,
+      used_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id
+      ON password_reset_tokens (user_id);
   `);
 }
 
@@ -518,7 +530,7 @@ export async function initDatabase(createSeed: () => SeedPayload): Promise<void>
 export async function resetDatabaseToSeed(seed: SeedPayload): Promise<void> {
   await withTransaction(async (client) => {
     await client.query(
-      'TRUNCATE TABLE users, sellers, categories, products, orders, addresses, wishlists, newsletter_subscribers, contact_messages'
+      'TRUNCATE TABLE password_reset_tokens, users, sellers, categories, products, orders, addresses, wishlists, newsletter_subscribers, contact_messages CASCADE'
     );
     await insertSeedInClient(client, seed);
   });
@@ -629,6 +641,109 @@ export async function updateUserProfile(
 
 export async function updateUserPassword(userId: string, passwordHash: string): Promise<void> {
   await query('UPDATE users SET password_hash = $2 WHERE id = $1', [userId, passwordHash]);
+}
+
+// ── Password Reset Tokens (SHA-256 hashed, single-use, expiring) ─────────────
+
+export function hashResetToken(rawToken: string): string {
+  return crypto.createHash('sha256').update(rawToken).digest('hex');
+}
+
+export async function createPasswordResetToken(
+  userId: string,
+  rawToken: string,
+  expiresInMinutes = 30
+): Promise<{ tokenHash: string; expiresAt: Date }> {
+  const tokenHash = hashResetToken(rawToken);
+  const expiresAt = new Date(Date.now() + expiresInMinutes * 60 * 1000);
+
+  await withTransaction(async (client) => {
+    // Invalidate any previous unused reset tokens for this user
+    await client.query(
+      'UPDATE password_reset_tokens SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL',
+      [userId]
+    );
+    await client.query(
+      `INSERT INTO password_reset_tokens (token_hash, user_id, expires_at)
+       VALUES ($1, $2, $3)`,
+      [tokenHash, userId, expiresAt.toISOString()]
+    );
+  });
+
+  return { tokenHash, expiresAt };
+}
+
+export async function deletePasswordResetTokenByHash(tokenHash: string): Promise<void> {
+  await query('DELETE FROM password_reset_tokens WHERE token_hash = $1', [tokenHash]);
+}
+
+export async function verifyPasswordResetToken(
+  rawToken: string
+): Promise<{ userId: string; email: string; name: string; expiresAt: string } | null> {
+  const trimmed = rawToken.trim();
+  if (!trimmed || trimmed.length < 32) return null;
+  const tokenHash = hashResetToken(trimmed);
+
+  const res = await query<{
+    user_id: string;
+    email: string;
+    name: string;
+    expires_at: Date | string;
+  }>(
+    `SELECT t.user_id, u.email, u.name, t.expires_at
+     FROM password_reset_tokens t
+     JOIN users u ON u.id = t.user_id
+     WHERE t.token_hash = $1
+       AND t.used_at IS NULL
+       AND t.expires_at > NOW()
+     LIMIT 1`,
+    [tokenHash]
+  );
+
+  const row = res.rows[0];
+  if (!row) return null;
+  return {
+    userId: String(row.user_id),
+    email: String(row.email),
+    name: String(row.name),
+    expiresAt:
+      row.expires_at instanceof Date ? row.expires_at.toISOString() : String(row.expires_at),
+  };
+}
+
+export async function consumePasswordResetToken(
+  rawToken: string,
+  newPasswordHash: string
+): Promise<boolean> {
+  const trimmed = rawToken.trim();
+  if (!trimmed || trimmed.length < 32) return false;
+  const tokenHash = hashResetToken(trimmed);
+
+  return withTransaction(async (client) => {
+    const tokenRes = await client.query<{ user_id: string }>(
+      `SELECT user_id
+       FROM password_reset_tokens
+       WHERE token_hash = $1
+         AND used_at IS NULL
+         AND expires_at > NOW()
+       FOR UPDATE`,
+      [tokenHash]
+    );
+
+    const row = tokenRes.rows[0];
+    if (!row) return false;
+
+    await client.query('UPDATE users SET password_hash = $2 WHERE id = $1', [
+      row.user_id,
+      newPasswordHash,
+    ]);
+    await client.query(
+      'UPDATE password_reset_tokens SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL',
+      [row.user_id]
+    );
+
+    return true;
+  });
 }
 
 // ── Products CRUD ────────────────────────────────────────────────────────────

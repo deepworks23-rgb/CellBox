@@ -6,6 +6,7 @@ import {
   calculatePlatformAnalytics,
   calculateSellerAnalytics,
   calculateShipping,
+  evaluatePasswordStrength,
   filterVisibleProducts,
   formatCurrency,
   getNextOrderStatus,
@@ -350,4 +351,35 @@ test('getProductDiscountPercent and calculateCouponDiscount compute savings accu
   const invalid = calculateCouponDiscount('INVALIDO', ACTIVE_COUPONS, 50000);
   assert.equal(invalid.discount, 0);
   assert.ok(invalid.error);
+});
+
+test('evaluatePasswordStrength scores passwords accurately from weak to strong', () => {
+  assert.equal(evaluatePasswordStrength('').score, 0);
+  assert.equal(evaluatePasswordStrength('abc').score, 1);
+  assert.equal(evaluatePasswordStrength('abcdef').score, 1);
+  assert.equal(evaluatePasswordStrength('Abcdef12').score, 3);
+  assert.equal(evaluatePasswordStrength('Cellbox@2026!').score, 4);
+  assert.equal(evaluatePasswordStrength('Cellbox@2026!').label, 'Forte');
+});
+
+test('validateRegistration allows seller registration with phone and optional documentId', () => {
+  const okErrors = validateRegistration({
+    name: 'Amélia Cossa',
+    email: 'amelia@lojamz.co.mz',
+    password: 'StrongPassword1!',
+    phone: '+258 84 123 4567',
+    isSeller: true,
+    storeName: 'Maputo Tech Hub',
+    mainCategory: 'Smartphones',
+  });
+  assert.deepEqual(okErrors, {});
+
+  const badPhoneErrors = validateRegistration({
+    name: 'Amélia Cossa',
+    email: 'amelia@lojamz.co.mz',
+    password: 'StrongPassword1!',
+    phone: '123',
+    isSeller: false,
+  });
+  assert.ok(badPhoneErrors.phone);
 });

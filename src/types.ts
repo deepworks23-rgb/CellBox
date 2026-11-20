@@ -19,6 +19,8 @@ export type AppView =
   | { type: 'cart' }
   | { type: 'profile'; tab?: 'orders' | 'addresses' | 'wishlist' | 'settings' }
   | { type: 'auth'; mode?: 'login' | 'register' }
+  | { type: 'forgot_password' }
+  | { type: 'reset_password'; token?: string }
   | { type: 'seller_dashboard'; tab?: 'overview' | 'products' | 'orders' | 'settings' }
   | { type: 'admin_dashboard'; tab?: 'overview' | 'sellers' | 'catalog' | 'finance' };
 
