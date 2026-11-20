@@ -45,20 +45,30 @@ export interface SeedPayload {
   commissionRate: number;
 }
 
-const connectionString = process.env.DATABASE_URL?.trim();
+function resolveConnectionString(): string | undefined {
+  return (
+    process.env.DATABASE_URL?.trim() ||
+    process.env.POSTGRES_URL?.trim() ||
+    process.env.POSTGRES_PRISMA_URL?.trim() ||
+    process.env.NEON_DATABASE_URL?.trim()
+  );
+}
 
 function createPool(): Pool {
+  const connectionString = resolveConnectionString();
   if (!connectionString) {
     throw new Error(
-      'DATABASE_URL não configurada. Defina a string de conexão PostgreSQL do Neon no arquivo .env.'
+      'DATABASE_URL não configurada. Configure DATABASE_URL (ou POSTGRES_URL) nas variáveis de ambiente da Vercel ou no arquivo .env.'
     );
   }
+
+  const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 
   const instance = new Pool({
     connectionString,
     ssl: { rejectUnauthorized: false },
-    max: 10,
-    idleTimeoutMillis: 30_000,
+    max: isServerless ? 3 : 10,
+    idleTimeoutMillis: isServerless ? 10_000 : 30_000,
     connectionTimeoutMillis: 15_000,
   });
 
@@ -76,6 +86,27 @@ export function getPool(): Pool {
     poolInstance = createPool();
   }
   return poolInstance;
+}
+
+export async function getDatabaseHealthStats(): Promise<{
+  users: number;
+  sellers: number;
+  products: number;
+  categories: number;
+}> {
+  const res = await query<{
+    users: number;
+    sellers: number;
+    products: number;
+    categories: number;
+  }>(`
+    SELECT
+      (SELECT COUNT(*)::int FROM users) AS users,
+      (SELECT COUNT(*)::int FROM sellers) AS sellers,
+      (SELECT COUNT(*)::int FROM products) AS products,
+      (SELECT COUNT(*)::int FROM categories) AS categories
+  `);
+  return res.rows[0] ?? { users: 0, sellers: 0, products: 0, categories: 0 };
 }
 
 export async function query<T extends QueryResultRow = QueryResultRow>(
