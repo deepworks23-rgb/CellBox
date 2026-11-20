@@ -46,7 +46,6 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
     updateOrderFulfillmentStatus,
     updateSellerSettings,
     navigate,
-    switchDemoRole,
   } = useMarketplace();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders' | 'settings'>(
@@ -251,6 +250,10 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
         ? 'Pendente de Aprovação'
         : 'Loja Suspensa';
 
+  if (!currentUser || currentUser.role !== 'seller') {
+    return null;
+  }
+
   return (
     <div className="max-w-[1170px] mx-auto px-4 py-6 pb-16">
       {/* Status alert banner if seller is pending or suspended */}
@@ -266,17 +269,10 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                 Status da Loja: {statusText}
               </p>
               <p className="text-xs text-amber-800 mt-0.5">
-                Você já pode cadastrar produtos e configurar sua vitrine, mas seus anúncios só ficarão públicos após aprovação do Super Admin.
+                Você já pode cadastrar produtos e configurar sua vitrine. Seus anúncios ficarão públicos assim que a verificação da loja for concluída.
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => switchDemoRole('admin')}
-            className="h-9 px-4 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase whitespace-nowrap cursor-pointer"
-          >
-            Ir para Painel Super Admin
-          </button>
         </div>
       )}
 

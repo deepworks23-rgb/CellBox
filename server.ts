@@ -55,6 +55,14 @@ interface DatabaseSchema {
   addressesByUser: Record<string, Address[]>;
   wishlistsByUser: Record<string, string[]>;
   newsletterEmails: string[];
+  contactMessages: Array<{
+    id: string;
+    name: string;
+    email: string;
+    subject: string;
+    message: string;
+    createdAt: string;
+  }>;
   commissionRate: number;
 }
 
@@ -84,6 +92,7 @@ function createSeedDatabase(): DatabaseSchema {
       'user-buyer-1': ['prod-iphone-16-pro', 'prod-macbook-pro-m3'],
     },
     newsletterEmails: [],
+    contactMessages: [],
     commissionRate: 10,
   };
 }
@@ -109,6 +118,7 @@ function loadDatabase(): DatabaseSchema {
           addressesByUser: parsed.addressesByUser ?? {},
           wishlistsByUser: parsed.wishlistsByUser ?? {},
           newsletterEmails: parsed.newsletterEmails ?? [],
+          contactMessages: parsed.contactMessages ?? [],
           commissionRate: typeof parsed.commissionRate === 'number' ? parsed.commissionRate : 10,
         };
       }
@@ -373,34 +383,6 @@ async function startServer() {
     });
   });
 
-  app.post('/api/auth/demo-switch', (req, res) => {
-    const { role } = req.body as { role?: UserRole };
-    let target: StoredUser | undefined;
-    if (role === 'buyer') {
-      target =
-        db.users.find((u) => u.id === 'user-buyer-1') ??
-        db.users.find((u) => u.role === 'buyer');
-    } else if (role === 'seller') {
-      target =
-        db.users.find((u) => u.id === 'user-seller-techzone') ??
-        db.users.find((u) => u.role === 'seller');
-    } else if (role === 'admin') {
-      target = db.users.find((u) => u.role === 'admin');
-    }
-
-    if (!target) {
-      res.status(404).json({ error: 'Perfil de demonstração não encontrado.' });
-      return;
-    }
-
-    const token = createSessionToken(target.id, SESSION_SECRET);
-    setSessionCookie(res, token);
-    res.json({
-      token,
-      ...buildBootstrapPayload(target),
-    });
-  });
-
   app.patch('/api/profile', (req, res) => {
     const user = getAuthenticatedUser(req);
     if (!user) {
@@ -441,11 +423,15 @@ async function startServer() {
     res.json({ ok: true });
   });
 
-  // ── Addresses ────────────────────────────────────────────────────────────
+  // ── Addresses (Buyer Only) ───────────────────────────────────────────────
   app.post('/api/addresses', (req, res) => {
     const user = getAuthenticatedUser(req);
     if (!user) {
       res.status(401).json({ error: 'Faça login para salvar endereços.' });
+      return;
+    }
+    if (user.role !== 'buyer') {
+      res.status(403).json({ error: 'Apenas contas de Comprador podem gerir endereços de entrega.' });
       return;
     }
     const body = req.body as Omit<Address, 'id'>;
@@ -510,11 +496,15 @@ async function startServer() {
     res.json({ addresses: filtered });
   });
 
-  // ── Wishlist ─────────────────────────────────────────────────────────────
+  // ── Wishlist (Buyer Only) ────────────────────────────────────────────────
   app.post('/api/wishlist/toggle', (req, res) => {
     const user = getAuthenticatedUser(req);
     if (!user) {
       res.status(401).json({ error: 'Faça login para salvar na lista de desejos.' });
+      return;
+    }
+    if (user.role !== 'buyer') {
+      res.status(403).json({ error: 'Apenas contas de Comprador podem usar a lista de desejos.' });
       return;
     }
     const { productId } = req.body as { productId?: string };
@@ -530,11 +520,15 @@ async function startServer() {
     res.json({ wishlist: next, added: !exists });
   });
 
-  // ── Orders ───────────────────────────────────────────────────────────────
+  // ── Orders (Buyer Only) ──────────────────────────────────────────────────
   app.post('/api/orders', (req, res) => {
     const user = getAuthenticatedUser(req);
     if (!user) {
       res.status(401).json({ error: 'Faça login para concluir seu pedido.' });
+      return;
+    }
+    if (user.role !== 'buyer') {
+      res.status(403).json({ error: 'Apenas contas de Comprador podem realizar pedidos.' });
       return;
     }
 
@@ -619,8 +613,8 @@ async function startServer() {
 
   app.patch('/api/orders/:orderId/fulfillment', (req, res) => {
     const user = getAuthenticatedUser(req);
-    if (!user || (user.role !== 'seller' && user.role !== 'admin')) {
-      res.status(403).json({ error: 'Sem permissão para atualizar status de envio.' });
+    if (!user || user.role !== 'seller') {
+      res.status(403).json({ error: 'Apenas o Vendedor responsável pode atualizar o envio.' });
       return;
     }
 
@@ -628,7 +622,14 @@ async function startServer() {
       sellerId?: string;
       nextStatus?: OrderStatus;
     };
-    if (!sellerId || !nextStatus || !ORDER_STATUS_FLOW.includes(nextStatus)) {
+    const ownsStore = db.sellers.some(
+      (s) => s.id === sellerId && (s.id === user.sellerId || s.ownerUserId === user.id)
+    );
+    if (!sellerId || !ownsStore) {
+      res.status(403).json({ error: 'Sem permissão para alterar pedidos de outra loja.' });
+      return;
+    }
+    if (!nextStatus || !ORDER_STATUS_FLOW.includes(nextStatus)) {
       res.status(400).json({ error: 'Status de envio inválido.' });
       return;
     }
@@ -647,11 +648,19 @@ async function startServer() {
     res.json({ orders: getScopedOrders(user) });
   });
 
-  // ── Products ─────────────────────────────────────────────────────────────
+  // ── Products (Seller Owned + Admin Moderation) ───────────────────────────
   app.post('/api/products', (req, res) => {
     const user = getAuthenticatedUser(req);
-    if (!user || (user.role !== 'seller' && user.role !== 'admin')) {
-      res.status(403).json({ error: 'Apenas lojistas ou administradores podem cadastrar produtos.' });
+    if (!user || user.role !== 'seller') {
+      res.status(403).json({ error: 'Apenas lojistas autenticados podem cadastrar produtos.' });
+      return;
+    }
+
+    const ownedSeller = db.sellers.find(
+      (s) => s.id === user.sellerId || s.ownerUserId === user.id
+    );
+    if (!ownedSeller) {
+      res.status(403).json({ error: 'Loja do vendedor não encontrada.' });
       return;
     }
 
@@ -686,7 +695,7 @@ async function startServer() {
 
     const created: Product = {
       id: `prod-${Date.now()}`,
-      sellerId: payload.sellerId,
+      sellerId: ownedSeller.id,
       title: payload.title.trim(),
       brand: payload.brand.trim(),
       category: payload.category,
@@ -710,12 +719,26 @@ async function startServer() {
 
   app.patch('/api/products/:id', (req, res) => {
     const user = getAuthenticatedUser(req);
-    if (!user || (user.role !== 'seller' && user.role !== 'admin')) {
-      res.status(403).json({ error: 'Sem permissão para editar produto.' });
+    if (!user || user.role !== 'seller') {
+      res.status(403).json({ error: 'Apenas o Vendedor responsável pode editar o produto.' });
+      return;
+    }
+    const target = db.products.find((p) => p.id === req.params.id);
+    if (!target) {
+      res.status(404).json({ error: 'Produto não encontrado.' });
+      return;
+    }
+    const ownsStore = db.sellers.some(
+      (s) => s.id === target.sellerId && (s.id === user.sellerId || s.ownerUserId === user.id)
+    );
+    if (!ownsStore) {
+      res.status(403).json({ error: 'Sem permissão para editar produtos de outra loja.' });
       return;
     }
     const updates = req.body as Partial<Product>;
-    db.products = db.products.map((p) => (p.id === req.params.id ? { ...p, ...updates, id: p.id } : p));
+    db.products = db.products.map((p) =>
+      p.id === req.params.id ? { ...p, ...updates, id: p.id, sellerId: p.sellerId } : p
+    );
     saveDatabase(db);
     res.json({ products: db.products });
   });
@@ -725,6 +748,20 @@ async function startServer() {
     if (!user || (user.role !== 'seller' && user.role !== 'admin')) {
       res.status(403).json({ error: 'Sem permissão para remover produto.' });
       return;
+    }
+    const target = db.products.find((p) => p.id === req.params.id);
+    if (!target) {
+      res.status(404).json({ error: 'Produto não encontrado.' });
+      return;
+    }
+    if (user.role === 'seller') {
+      const ownsStore = db.sellers.some(
+        (s) => s.id === target.sellerId && (s.id === user.sellerId || s.ownerUserId === user.id)
+      );
+      if (!ownsStore) {
+        res.status(403).json({ error: 'Sem permissão para remover produtos de outra loja.' });
+        return;
+      }
     }
     db.products = db.products.filter((p) => p.id !== req.params.id);
     for (const uid of Object.keys(db.wishlistsByUser)) {
@@ -737,8 +774,15 @@ async function startServer() {
   // ── Sellers & Admin ──────────────────────────────────────────────────────
   app.patch('/api/sellers/:id', (req, res) => {
     const user = getAuthenticatedUser(req);
-    if (!user || (user.role !== 'seller' && user.role !== 'admin')) {
-      res.status(403).json({ error: 'Sem permissão para atualizar loja.' });
+    if (!user || user.role !== 'seller') {
+      res.status(403).json({ error: 'Apenas o Vendedor proprietário pode atualizar a loja.' });
+      return;
+    }
+    const ownsStore = db.sellers.some(
+      (s) => s.id === req.params.id && (s.id === user.sellerId || s.ownerUserId === user.id)
+    );
+    if (!ownsStore) {
+      res.status(403).json({ error: 'Sem permissão para alterar outra loja.' });
       return;
     }
     const updates = req.body as {
@@ -845,20 +889,44 @@ async function startServer() {
     res.status(201).json({ ok: true, email });
   });
 
+  app.post('/api/contact', (req, res) => {
+    const { name, email, subject, message } = req.body as {
+      name?: string;
+      email?: string;
+      subject?: string;
+      message?: string;
+    };
+    if (!name?.trim() || !email?.trim() || !email.includes('@') || !message?.trim()) {
+      res.status(400).json({ error: 'Preencha nome, e-mail válido e mensagem.' });
+      return;
+    }
+    const entry = {
+      id: `msg-${Date.now()}`,
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      subject: (subject ?? 'Atendimento Geral').trim() || 'Atendimento Geral',
+      message: message.trim(),
+      createdAt: new Date().toISOString(),
+    };
+    db.contactMessages.unshift(entry);
+    saveDatabase(db);
+    res.status(201).json({ ok: true, id: entry.id });
+  });
+
   app.post('/api/reset-demo', (req, res) => {
     const user = getAuthenticatedUser(req);
     if (!user || user.role !== 'admin') {
-      res.status(403).json({ error: 'Apenas Super Admin pode restaurar os dados demo.' });
+      res.status(403).json({ error: 'Apenas Admin pode restaurar os dados da plataforma.' });
       return;
     }
     db = createSeedDatabase();
     saveDatabase(db);
-    const buyer = db.users.find((u) => u.id === 'user-buyer-1')!;
-    const token = createSessionToken(buyer.id, SESSION_SECRET);
+    const admin = db.users.find((u) => u.role === 'admin')!;
+    const token = createSessionToken(admin.id, SESSION_SECRET);
     setSessionCookie(res, token);
     res.json({
       token,
-      ...buildBootstrapPayload(buyer),
+      ...buildBootstrapPayload(admin),
     });
   });
 

@@ -10,6 +10,8 @@ export type PaymentMethod = 'credit_card' | 'pix_mobile' | 'bank_transfer';
 
 export type AppView =
   | { type: 'home' }
+  | { type: 'about' }
+  | { type: 'contact' }
   | { type: 'product'; productId: string }
   | { type: 'store'; sellerId: string }
   | { type: 'cart' }

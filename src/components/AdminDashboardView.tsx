@@ -29,6 +29,7 @@ interface AdminDashboardViewProps {
 
 export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardViewProps) {
   const {
+    currentUser,
     users,
     sellers,
     products,
@@ -41,7 +42,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
     deleteProduct,
     setCommissionRate,
     resetDemoData,
-    navigate,
+    logout,
   } = useMarketplace();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'sellers' | 'catalog' | 'finance'>(
@@ -107,6 +108,10 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
         ? 'text-amber-700'
         : 'text-rose-700';
 
+  if (!currentUser || currentUser.role !== 'admin') {
+    return null;
+  }
+
   return (
     <div className="max-w-[1170px] mx-auto px-4 py-6 pb-16">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -156,18 +161,18 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
           <div className="pt-4 border-t border-white/15 space-y-2">
             <button
               type="button"
-              onClick={() => navigate({ type: 'home' })}
-              className="w-full h-9 px-3 rounded-full bg-white/15 hover:bg-white/25 text-xs font-bold uppercase text-white cursor-pointer"
+              onClick={resetDemoData}
+              className="w-full h-9 px-3 rounded-full bg-white/10 hover:bg-white/20 text-xs font-semibold text-white inline-flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              Ver Vitrine Pública
+              <RotateCcw className="w-3.5 h-3.5" />
+              Restaurar Dados Base
             </button>
             <button
               type="button"
-              onClick={resetDemoData}
+              onClick={() => void logout()}
               className="w-full h-8 px-3 rounded-full text-xs font-medium text-white/80 hover:text-white inline-flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
-              Restaurar Dados Demo
+              Encerrar Sessão Admin
             </button>
           </div>
         </aside>

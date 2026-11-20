@@ -59,9 +59,9 @@ const INFO_MODAL_CONTENT: Record<
 
 export function Footer() {
   const {
+    currentUser,
     categories,
     navigate,
-    switchDemoRole,
     setFilters,
     subscribeNewsletter,
     showToast,
@@ -291,93 +291,193 @@ export function Footer() {
               MINHA CONTA
             </h3>
             <ul className="space-y-2 text-[12px] text-[#666666]">
-              <li>
-                <button
-                  type="button"
-                  onClick={() => navigate({ type: 'auth', mode: 'login' })}
-                  className="hover:text-[#0475EE] transition-colors cursor-pointer"
-                >
-                  Entrar / Cadastrar
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => navigate({ type: 'profile', tab: 'orders' })}
-                  className="hover:text-[#0475EE] transition-colors cursor-pointer"
-                >
-                  Meus Pedidos
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => navigate({ type: 'profile', tab: 'wishlist' })}
-                  className="hover:text-[#0475EE] transition-colors cursor-pointer"
-                >
-                  Lista de Desejos
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => navigate({ type: 'profile', tab: 'addresses' })}
-                  className="hover:text-[#0475EE] transition-colors cursor-pointer"
-                >
-                  Endereços Salvos
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => navigate({ type: 'cart' })}
-                  className="hover:text-[#0475EE] transition-colors cursor-pointer"
-                >
-                  Meu Carrinho
-                </button>
-              </li>
+              {!currentUser && (
+                <>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => navigate({ type: 'auth', mode: 'login' })}
+                      className="hover:text-[#0475EE] transition-colors cursor-pointer"
+                    >
+                      Entrar
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => navigate({ type: 'auth', mode: 'register' })}
+                      className="hover:text-[#0475EE] transition-colors cursor-pointer"
+                    >
+                      Criar Conta
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => navigate({ type: 'cart' })}
+                      className="hover:text-[#0475EE] transition-colors cursor-pointer"
+                    >
+                      Meu Carrinho
+                    </button>
+                  </li>
+                </>
+              )}
+
+              {currentUser?.role === 'buyer' && (
+                <>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => navigate({ type: 'profile', tab: 'orders' })}
+                      className="hover:text-[#0475EE] transition-colors cursor-pointer"
+                    >
+                      Meus Pedidos
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => navigate({ type: 'profile', tab: 'wishlist' })}
+                      className="hover:text-[#0475EE] transition-colors cursor-pointer"
+                    >
+                      Lista de Desejos
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => navigate({ type: 'profile', tab: 'addresses' })}
+                      className="hover:text-[#0475EE] transition-colors cursor-pointer"
+                    >
+                      Endereços Salvos
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => navigate({ type: 'profile', tab: 'settings' })}
+                      className="hover:text-[#0475EE] transition-colors cursor-pointer"
+                    >
+                      Configurações
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => navigate({ type: 'cart' })}
+                      className="hover:text-[#0475EE] transition-colors cursor-pointer"
+                    >
+                      Meu Carrinho
+                    </button>
+                  </li>
+                </>
+              )}
+
+              {currentUser?.role === 'seller' && (
+                <>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => navigate({ type: 'seller_dashboard', tab: 'overview' })}
+                      className="hover:text-[#0475EE] transition-colors cursor-pointer"
+                    >
+                      Painel do Vendedor
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => navigate({ type: 'seller_dashboard', tab: 'products' })}
+                      className="hover:text-[#0475EE] transition-colors cursor-pointer"
+                    >
+                      Meus Produtos
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => navigate({ type: 'seller_dashboard', tab: 'orders' })}
+                      className="hover:text-[#0475EE] transition-colors cursor-pointer"
+                    >
+                      Pedidos da Loja
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => navigate({ type: 'seller_dashboard', tab: 'settings' })}
+                      className="hover:text-[#0475EE] transition-colors cursor-pointer"
+                    >
+                      Configurações da Loja
+                    </button>
+                  </li>
+                </>
+              )}
+
+              {currentUser?.role === 'admin' && (
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => navigate({ type: 'admin_dashboard', tab: 'overview' })}
+                    className="hover:text-[#0475EE] transition-colors cursor-pointer"
+                  >
+                    Painel Administrativo
+                  </button>
+                </li>
+              )}
             </ul>
           </div>
 
           <div>
             <h3 className="font-condensed text-[14px] font-bold uppercase tracking-wide text-[#0A3768] mb-4">
-              PAINÉIS RBAC
+              ATENDIMENTO
             </h3>
             <ul className="space-y-2 text-[12px] text-[#666666]">
               <li>
                 <button
                   type="button"
-                  onClick={() => void switchDemoRole('buyer')}
+                  onClick={() => navigate({ type: 'about' })}
                   className="hover:text-[#0475EE] transition-colors cursor-pointer"
                 >
-                  Área do Comprador
+                  Sobre a Cellbox
                 </button>
               </li>
               <li>
                 <button
                   type="button"
-                  onClick={() => void switchDemoRole('seller')}
+                  onClick={() => {
+                    navigate({ type: 'home' });
+                    window.setTimeout(() => {
+                      document.getElementById('lojas-oficiais')?.scrollIntoView({ behavior: 'smooth' });
+                    }, 60);
+                  }}
                   className="hover:text-[#0475EE] transition-colors cursor-pointer"
                 >
-                  Painel do Vendedor
+                  Lojas Oficiais
                 </button>
               </li>
               <li>
                 <button
                   type="button"
-                  onClick={() => void switchDemoRole('admin')}
+                  onClick={() => {
+                    setFilters((prev) => ({ ...prev, sortBy: 'price_asc', category: 'Todas' }));
+                    navigate({ type: 'home' });
+                    window.setTimeout(() => {
+                      document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
+                    }, 60);
+                  }}
                   className="hover:text-[#0475EE] transition-colors cursor-pointer"
                 >
-                  Super Admin Master
+                  Ofertas
                 </button>
               </li>
               <li>
                 <button
                   type="button"
-                  onClick={() => navigate({ type: 'auth', mode: 'register' })}
-                  className="text-[#0475EE] font-semibold hover:text-[#0A3768] transition-colors cursor-pointer"
+                  onClick={() => navigate({ type: 'contact' })}
+                  className="hover:text-[#0475EE] transition-colors cursor-pointer"
                 >
-                  Quero Vender na Cellbox
+                  Contacto
                 </button>
               </li>
             </ul>

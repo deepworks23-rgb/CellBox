@@ -209,14 +209,14 @@ export function HomeView() {
   return (
     <main className="bg-white pb-12">
       <div className="max-w-[1170px] mx-auto px-4 pt-3 space-y-8">
-        {/* 1. HERO BANNER — Animated Multi-Slide Carousel + Floating Transparent Cutout Products */}
+        {/* 1. HERO BANNER — Static Container + Multi-Slide Carousel + Floating Transparent Cutout Products */}
         <section
           aria-label="Destaques principais Cellbox"
           onMouseEnter={() => setHeroPaused(true)}
           onMouseLeave={() => setHeroPaused(false)}
           onFocusCapture={() => setHeroPaused(true)}
           onBlurCapture={() => setHeroPaused(false)}
-          className="relative cellbox-hero-gradient overflow-hidden min-h-[300px] sm:min-h-[360px] flex flex-col justify-between group"
+          className="relative cellbox-hero-gradient overflow-hidden min-h-[300px] sm:min-h-[360px] flex flex-col justify-between"
         >
           {/* Left / Right Slide Arrow Controls */}
           <motion.button
@@ -329,17 +329,13 @@ export function HomeView() {
           </div>
         </section>
 
-        {/* 2. DUAL SUB-BANNER ROW — Transparent Cutouts Directly on #F1F2F4 */}
+        {/* 2. DUAL SUB-BANNER ROW — Static Banners with Transparent Cutouts Directly on #F1F2F4 */}
         <section
           aria-label="Promoções por categoria"
           className="!mt-3 grid grid-cols-1 md:grid-cols-12 gap-3"
         >
           {/* Left 1/3 Banner: NOVOS TABLETS! */}
-          <motion.div
-            whileHover={{ y: -3, boxShadow: '0 10px 24px -8px rgba(10,55,104,0.14)' }}
-            transition={SPRING_CARD}
-            className="md:col-span-4 bg-[#F1F2F4] border border-[#E7E9EC] px-5 py-5 flex items-center justify-between gap-2 overflow-hidden min-h-[146px] group"
-          >
+          <div className="md:col-span-4 bg-[#F1F2F4] border border-[#E7E9EC] px-5 py-5 flex items-center justify-between gap-2 overflow-hidden min-h-[146px]">
             <div className="min-w-0 z-10">
               <h2 className="font-condensed text-xl font-bold uppercase text-[#18A3DE] leading-tight">
                 NOVOS TABLETS!
@@ -360,16 +356,12 @@ export function HomeView() {
             <img
               src={CUTOUT_IMAGES.ipadPro}
               alt="iPad Pro M4 em oferta"
-              className="h-24 sm:h-28 w-auto max-w-[140px] object-contain shrink-0 drop-shadow-[0_10px_16px_rgba(10,55,104,0.22)] select-none pointer-events-none transition-transform duration-300 group-hover:scale-106 group-hover:-translate-y-1"
+              className="h-24 sm:h-28 w-auto max-w-[140px] object-contain shrink-0 drop-shadow-[0_10px_16px_rgba(10,55,104,0.22)] select-none pointer-events-none"
             />
-          </motion.div>
+          </div>
 
           {/* Right 2/3 Banner: OFERTA LAPTOPS */}
-          <motion.div
-            whileHover={{ y: -3, boxShadow: '0 10px 24px -8px rgba(10,55,104,0.14)' }}
-            transition={SPRING_CARD}
-            className="md:col-span-8 bg-[#F1F2F4] border border-[#E7E9EC] px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 overflow-hidden min-h-[146px] group"
-          >
+          <div className="md:col-span-8 bg-[#F1F2F4] border border-[#E7E9EC] px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 overflow-hidden min-h-[146px]">
             <div className="min-w-0 max-w-xs z-10">
               <h2 className="font-condensed text-2xl font-bold uppercase text-[#0A3768] leading-tight">
                 OFERTA LAPTOPS
@@ -395,15 +387,15 @@ export function HomeView() {
               <img
                 src={CUTOUT_IMAGES.dellXps}
                 alt="Dell XPS 15 OLED"
-                className="hidden sm:block h-24 md:h-28 w-auto object-contain -mr-5 drop-shadow-[0_10px_16px_rgba(10,55,104,0.2)] select-none pointer-events-none transition-transform duration-300 group-hover:-translate-x-1"
+                className="hidden sm:block h-24 md:h-28 w-auto object-contain -mr-5 drop-shadow-[0_10px_16px_rgba(10,55,104,0.2)] select-none pointer-events-none"
               />
               <img
                 src={CUTOUT_IMAGES.macbookPro}
                 alt="MacBook Pro M3"
-                className="h-28 md:h-32 w-auto object-contain drop-shadow-[0_12px_20px_rgba(10,55,104,0.28)] select-none pointer-events-none transition-transform duration-300 group-hover:scale-105 group-hover:-translate-y-1"
+                className="h-28 md:h-32 w-auto object-contain drop-shadow-[0_12px_20px_rgba(10,55,104,0.28)] select-none pointer-events-none"
               />
             </div>
-          </motion.div>
+          </div>
         </section>
 
         {/* 3. NOVIDADES & CATÁLOGO PRINCIPAL — 5-Column Grid + Animated Pill Category Tabs */}
@@ -663,12 +655,10 @@ export function HomeView() {
           )}
         </section>
 
-        {/* 4. WIDE MID-PAGE PROMO BANNER — Floating Cutout Products Directly on #F1F2F4 */}
-        <motion.section
+        {/* 4. WIDE MID-PAGE PROMO BANNER — Static Banner with Cutout Products Directly on #F1F2F4 */}
+        <section
           aria-label="Oferta especial de economia"
-          whileHover={{ boxShadow: '0 12px 28px -10px rgba(10,55,104,0.14)' }}
-          transition={SPRING_CARD}
-          className="bg-[#F1F2F4] border border-[#E7E9EC] px-6 sm:px-10 py-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 overflow-hidden group"
+          className="bg-[#F1F2F4] border border-[#E7E9EC] px-6 sm:px-10 py-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 overflow-hidden"
         >
           <div className="max-w-md z-10">
             <h2 className="font-condensed text-2xl sm:text-[28px] font-bold uppercase text-[#0A3768] leading-tight">
@@ -702,20 +692,20 @@ export function HomeView() {
             <img
               src={CUTOUT_IMAGES.dellXps}
               alt="Dell XPS 15 OLED"
-              className="h-24 sm:h-32 w-auto object-contain drop-shadow-[0_12px_18px_rgba(10,55,104,0.2)] select-none pointer-events-none transition-transform duration-300 group-hover:-translate-x-1"
+              className="h-24 sm:h-32 w-auto object-contain drop-shadow-[0_12px_18px_rgba(10,55,104,0.2)] select-none pointer-events-none"
             />
             <img
               src={CUTOUT_IMAGES.macbookPro}
               alt="MacBook Pro M3"
-              className="h-28 sm:h-36 w-auto object-contain -ml-4 drop-shadow-[0_14px_22px_rgba(10,55,104,0.24)] select-none pointer-events-none transition-transform duration-300 group-hover:scale-105 group-hover:-translate-y-1"
+              className="h-28 sm:h-36 w-auto object-contain -ml-4 drop-shadow-[0_14px_22px_rgba(10,55,104,0.24)] select-none pointer-events-none"
             />
             <img
               src={CUTOUT_IMAGES.galaxyS24Ultra}
               alt="Galaxy S24 Ultra"
-              className="hidden lg:block h-24 w-auto object-contain -ml-2 drop-shadow-[0_10px_16px_rgba(10,55,104,0.2)] select-none pointer-events-none transition-transform duration-300 group-hover:translate-x-1"
+              className="hidden lg:block h-24 w-auto object-contain -ml-2 drop-shadow-[0_10px_16px_rgba(10,55,104,0.2)] select-none pointer-events-none"
             />
           </div>
-        </motion.section>
+        </section>
 
         {/* 5. LOJAS OFICIAIS VERIFICADAS — Interactive Multi-Slide Carousel */}
         <section id="lojas-oficiais" aria-labelledby="heading-verified-stores" className="pt-2">

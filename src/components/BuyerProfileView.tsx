@@ -102,13 +102,13 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
     }));
   }, [currentUser]);
 
-  if (!currentUser) {
+  if (!currentUser || currentUser.role !== 'buyer') {
     return (
       <main className="max-w-2xl mx-auto px-4 py-14 text-center">
         <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-10 space-y-4">
           <LogIn className="w-10 h-10 text-[#0475EE] mx-auto" />
           <h1 className="font-condensed text-2xl font-bold uppercase text-[#0A3768]">
-            Entre na sua conta para ver seu perfil
+            Área exclusiva para Compradores
           </h1>
           <p className="text-sm text-[#666666] max-w-md mx-auto">
             Acompanhe seus pedidos em tempo real, gerencie seus endereços em Moçambique, salve favoritos e altere sua senha.

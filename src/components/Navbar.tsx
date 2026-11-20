@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
+  BarChart3,
   ChevronDown,
   Heart,
   LogIn,
@@ -39,7 +40,6 @@ export function Navbar() {
     setCompareOpen,
     filters,
     setFilters,
-    switchDemoRole,
     logout,
   } = useMarketplace();
 
@@ -114,13 +114,32 @@ export function Navbar() {
     }, 50);
   };
 
+  const goStoresSection = () => {
+    setCatDropdownOpen(false);
+    navigate({ type: 'home' });
+    window.setTimeout(() => {
+      document.getElementById('lojas-oficiais')?.scrollIntoView({ behavior: 'smooth' });
+    }, 80);
+  };
+
+  const goOffersSection = () => {
+    setCatDropdownOpen(false);
+    setFilters((prev) => ({ ...prev, sortBy: 'price_asc', category: 'Todas' }));
+    navigate({ type: 'home' });
+    window.setTimeout(() => {
+      document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
+    }, 80);
+  };
+
   const roleLabel = !currentUser
-    ? 'Visitante'
+    ? ''
     : currentUser.role === 'admin'
-      ? 'Super Admin'
+      ? 'Admin'
       : currentUser.role === 'seller'
         ? 'Vendedor'
         : 'Comprador';
+
+  const canUseCart = !currentUser || currentUser.role === 'buyer';
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white shadow-[0_2px_12px_rgba(10,55,104,0.09)]">
@@ -140,7 +159,7 @@ export function Navbar() {
 
           <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-2">
             {/* Compare quick pill if active */}
-            {compareIds.length > 0 && (
+            {canUseCart && compareIds.length > 0 && (
               <MotionButton
                 type="button"
                 hoverScale={1.04}
@@ -154,7 +173,7 @@ export function Navbar() {
               </MotionButton>
             )}
 
-            {/* Account & RBAC Switcher Dropdown */}
+            {/* Strictly Role-Isolated Account Control (Zero Demo Role Switchers) */}
             <div ref={menuRef} className="relative">
               {currentUser ? (
                 <button
@@ -162,7 +181,7 @@ export function Navbar() {
                   onClick={() => setAccountMenuOpen((o) => !o)}
                   aria-expanded={accountMenuOpen}
                   aria-haspopup="menu"
-                  aria-label="Menu de conta e perfis de acesso"
+                  aria-label="Menu da minha conta"
                   data-testid="account-menu-trigger"
                   className="h-6 px-2.5 bg-white border border-[#DCDCDC] rounded-xs text-[11px] font-medium text-[#444444] hover:border-[#0475EE] inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap transition-colors"
                 >
@@ -172,228 +191,184 @@ export function Navbar() {
                   <ChevronDown className="w-3 h-3 text-[#888888]" />
                 </button>
               ) : (
-                <div className="flex items-center gap-1.5">
-                  <MotionButton
-                    type="button"
-                    hoverScale={1.03}
-                    hoverY={0}
-                    data-testid="guest-login-btn"
-                    onClick={() => navigate({ type: 'auth', mode: 'login' })}
-                    className="h-6 px-2.5 bg-[#0475EE] hover:bg-[#0A3768] text-white rounded-xs text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer whitespace-nowrap transition-colors"
-                  >
-                    <LogIn className="w-3 h-3" />
-                    <span>Entrar / Cadastrar</span>
-                  </MotionButton>
-                  <button
-                    type="button"
-                    onClick={() => setAccountMenuOpen((o) => !o)}
-                    aria-expanded={accountMenuOpen}
-                    aria-haspopup="menu"
-                    aria-label="Menu rápido de perfis RBAC"
-                    className="h-6 px-2 bg-white border border-[#DCDCDC] hover:border-[#0475EE] rounded-xs text-[11px] font-medium text-[#555555] inline-flex items-center gap-1 cursor-pointer whitespace-nowrap"
-                  >
-                    <span>Perfis Demo</span>
-                    <ChevronDown className="w-3 h-3 text-[#888888]" />
-                  </button>
-                </div>
+                <MotionButton
+                  type="button"
+                  hoverScale={1.03}
+                  hoverY={0}
+                  data-testid="guest-login-btn"
+                  onClick={() => navigate({ type: 'auth', mode: 'login' })}
+                  className="h-6 px-3 bg-[#0475EE] hover:bg-[#0A3768] text-white rounded-xs text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer whitespace-nowrap transition-colors"
+                >
+                  <LogIn className="w-3 h-3" />
+                  <span>Entrar / Cadastrar</span>
+                </MotionButton>
               )}
 
               <AnimatePresence>
-                {accountMenuOpen && (
+                {accountMenuOpen && currentUser && (
                   <motion.div
                     role="menu"
                     initial={{ opacity: 0, y: -6, scale: 0.98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -6, scale: 0.98 }}
                     transition={{ duration: 0.14 }}
-                    className="absolute right-0 mt-1.5 w-72 bg-white text-[#333333] rounded-md border border-[#E0E0E0] shadow-xl py-2 z-50"
+                    className="absolute right-0 mt-1.5 w-64 bg-white text-[#333333] rounded-md border border-[#E0E0E0] shadow-xl py-2 z-50"
                   >
-                    {currentUser ? (
-                      <>
-                        <div className="px-4 py-2 border-b border-[#EFEFEF]">
-                          <p className="text-xs font-bold text-[#0A3768] truncate">
-                            {currentUser.name}
-                          </p>
-                          <p className="text-[11px] text-[#777777] truncate">
-                            {currentUser.email} · {roleLabel}
-                          </p>
-                        </div>
+                    <div className="px-4 py-2 border-b border-[#EFEFEF]">
+                      <p className="text-xs font-bold text-[#0A3768] truncate">
+                        {currentUser.name}
+                      </p>
+                      <p className="text-[11px] text-[#777777] truncate">
+                        {currentUser.email} · {roleLabel}
+                      </p>
+                    </div>
 
-                        <div className="py-1 border-b border-[#EFEFEF]">
-                          <button
-                            type="button"
-                            role="menuitem"
-                            onClick={() => {
-                              setAccountMenuOpen(false);
-                              navigate({ type: 'profile', tab: 'orders' });
-                            }}
-                            className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-[#444444] hover:bg-[#F0F9FD] hover:text-[#0475EE] text-left cursor-pointer"
-                          >
-                            <Package className="w-3.5 h-3.5 text-[#888888]" />
-                            Meus Pedidos
-                          </button>
-                          <button
-                            type="button"
-                            role="menuitem"
-                            onClick={() => {
-                              setAccountMenuOpen(false);
-                              navigate({ type: 'profile', tab: 'wishlist' });
-                            }}
-                            className="w-full flex items-center justify-between px-4 py-2 text-xs text-[#444444] hover:bg-[#F0F9FD] hover:text-[#0475EE] text-left cursor-pointer"
-                          >
-                            <span className="inline-flex items-center gap-2.5">
-                              <Heart className="w-3.5 h-3.5 text-[#888888]" />
-                              Lista de Desejos
-                            </span>
-                            <span className="text-[10px] font-mono text-[#888888]">
-                              {wishlist.length}
-                            </span>
-                          </button>
-                          <button
-                            type="button"
-                            role="menuitem"
-                            onClick={() => {
-                              setAccountMenuOpen(false);
-                              navigate({ type: 'profile', tab: 'addresses' });
-                            }}
-                            className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-[#444444] hover:bg-[#F0F9FD] hover:text-[#0475EE] text-left cursor-pointer"
-                          >
-                            <MapPin className="w-3.5 h-3.5 text-[#888888]" />
-                            Endereços Salvos
-                          </button>
-                          <button
-                            type="button"
-                            role="menuitem"
-                            onClick={() => {
-                              setAccountMenuOpen(false);
-                              navigate({ type: 'profile', tab: 'settings' });
-                            }}
-                            className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-[#444444] hover:bg-[#F0F9FD] hover:text-[#0475EE] text-left cursor-pointer"
-                          >
-                            <Settings className="w-3.5 h-3.5 text-[#888888]" />
-                            Configurações e Senha
-                          </button>
-                          {currentUser.role === 'seller' && (
-                            <button
-                              type="button"
-                              role="menuitem"
-                              onClick={() => {
-                                setAccountMenuOpen(false);
-                                navigate({ type: 'seller_dashboard', tab: 'overview' });
-                              }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-[#0A3768] hover:bg-[#EAF6FC] text-left cursor-pointer"
-                            >
-                              <Store className="w-3.5 h-3.5 text-[#0475EE]" />
-                              Abrir Painel do Vendedor
-                            </button>
-                          )}
-                          {currentUser.role === 'admin' && (
-                            <button
-                              type="button"
-                              role="menuitem"
-                              onClick={() => {
-                                setAccountMenuOpen(false);
-                                navigate({ type: 'admin_dashboard', tab: 'overview' });
-                              }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-[#0A3768] hover:bg-[#EAF6FC] text-left cursor-pointer"
-                            >
-                              <ShieldCheck className="w-3.5 h-3.5 text-[#0475EE]" />
-                              Abrir Painel Super Admin
-                            </button>
-                          )}
-                        </div>
-                      </>
-                    ) : (
+                    {/* BUYER ONLY MENU */}
+                    {currentUser.role === 'buyer' && (
                       <div className="py-1 border-b border-[#EFEFEF]">
                         <button
                           type="button"
                           role="menuitem"
                           onClick={() => {
                             setAccountMenuOpen(false);
-                            navigate({ type: 'auth', mode: 'login' });
+                            navigate({ type: 'profile', tab: 'orders' });
                           }}
-                          className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-[#0475EE] hover:bg-[#F0F9FD] text-left cursor-pointer"
+                          className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-[#444444] hover:bg-[#F0F9FD] hover:text-[#0475EE] text-left cursor-pointer"
                         >
-                          <LogIn className="w-3.5 h-3.5" />
-                          Entrar com E-mail e Senha
+                          <Package className="w-3.5 h-3.5 text-[#888888]" />
+                          Meus Pedidos
+                        </button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setAccountMenuOpen(false);
+                            navigate({ type: 'profile', tab: 'wishlist' });
+                          }}
+                          className="w-full flex items-center justify-between px-4 py-2 text-xs text-[#444444] hover:bg-[#F0F9FD] hover:text-[#0475EE] text-left cursor-pointer"
+                        >
+                          <span className="inline-flex items-center gap-2.5">
+                            <Heart className="w-3.5 h-3.5 text-[#888888]" />
+                            Lista de Desejos
+                          </span>
+                          <span className="text-[10px] font-mono text-[#888888]">
+                            {wishlist.length}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setAccountMenuOpen(false);
+                            navigate({ type: 'profile', tab: 'addresses' });
+                          }}
+                          className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-[#444444] hover:bg-[#F0F9FD] hover:text-[#0475EE] text-left cursor-pointer"
+                        >
+                          <MapPin className="w-3.5 h-3.5 text-[#888888]" />
+                          Endereços Salvos
+                        </button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setAccountMenuOpen(false);
+                            navigate({ type: 'profile', tab: 'settings' });
+                          }}
+                          className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-[#444444] hover:bg-[#F0F9FD] hover:text-[#0475EE] text-left cursor-pointer"
+                        >
+                          <Settings className="w-3.5 h-3.5 text-[#888888]" />
+                          Configurações e Senha
                         </button>
                       </div>
                     )}
 
-                    {/* Quick RBAC Role Switcher */}
-                    <div className="px-4 pt-2 pb-1">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-[#888888] mb-1.5">
-                        Alternar Perfil (RBAC)
-                      </p>
-                      <div className="space-y-1">
+                    {/* SELLER ONLY MENU */}
+                    {currentUser.role === 'seller' && (
+                      <div className="py-1 border-b border-[#EFEFEF]">
                         <button
                           type="button"
                           role="menuitem"
                           onClick={() => {
                             setAccountMenuOpen(false);
-                            void switchDemoRole('buyer');
+                            navigate({ type: 'seller_dashboard', tab: 'overview' });
                           }}
-                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded text-xs font-medium cursor-pointer ${
-                            currentUser?.role === 'buyer'
-                              ? 'bg-[#EAF6FC] text-[#0A3768] font-semibold'
-                              : 'text-[#555555] hover:bg-[#F7F7F7]'
-                          }`}
+                          className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-[#0A3768] hover:bg-[#F0F9FD] hover:text-[#0475EE] text-left cursor-pointer"
                         >
-                          <span>Comprador (Cliente)</span>
-                          <span className="text-[10px] text-[#888888]">Vitrine</span>
+                          <BarChart3 className="w-3.5 h-3.5 text-[#0475EE]" />
+                          Painel do Vendedor
                         </button>
                         <button
                           type="button"
                           role="menuitem"
                           onClick={() => {
                             setAccountMenuOpen(false);
-                            void switchDemoRole('seller');
+                            navigate({ type: 'seller_dashboard', tab: 'products' });
                           }}
-                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded text-xs font-medium cursor-pointer ${
-                            currentUser?.role === 'seller'
-                              ? 'bg-[#EAF6FC] text-[#0A3768] font-semibold'
-                              : 'text-[#555555] hover:bg-[#F7F7F7]'
-                          }`}
+                          className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-[#444444] hover:bg-[#F0F9FD] hover:text-[#0475EE] text-left cursor-pointer"
                         >
-                          <span>Vendedor (TechZone Store)</span>
-                          <span className="text-[10px] text-[#888888]">Painel Loja</span>
+                          <Store className="w-3.5 h-3.5 text-[#888888]" />
+                          Meus Produtos
                         </button>
                         <button
                           type="button"
                           role="menuitem"
                           onClick={() => {
                             setAccountMenuOpen(false);
-                            void switchDemoRole('admin');
+                            navigate({ type: 'seller_dashboard', tab: 'orders' });
                           }}
-                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded text-xs font-medium cursor-pointer ${
-                            currentUser?.role === 'admin'
-                              ? 'bg-[#EAF6FC] text-[#0A3768] font-semibold'
-                              : 'text-[#555555] hover:bg-[#F7F7F7]'
-                          }`}
+                          className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-[#444444] hover:bg-[#F0F9FD] hover:text-[#0475EE] text-left cursor-pointer"
                         >
-                          <span>Super Admin (Cellbox)</span>
-                          <span className="text-[10px] text-[#888888]">Gestão Master</span>
+                          <Package className="w-3.5 h-3.5 text-[#888888]" />
+                          Pedidos da Loja
+                        </button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setAccountMenuOpen(false);
+                            navigate({ type: 'seller_dashboard', tab: 'settings' });
+                          }}
+                          className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-[#444444] hover:bg-[#F0F9FD] hover:text-[#0475EE] text-left cursor-pointer"
+                        >
+                          <Settings className="w-3.5 h-3.5 text-[#888888]" />
+                          Configurações da Loja
                         </button>
                       </div>
+                    )}
+
+                    {/* ADMIN ONLY MENU */}
+                    {currentUser.role === 'admin' && (
+                      <div className="py-1 border-b border-[#EFEFEF]">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setAccountMenuOpen(false);
+                            navigate({ type: 'admin_dashboard', tab: 'overview' });
+                          }}
+                          className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-[#0A3768] hover:bg-[#EAF6FC] text-left cursor-pointer"
+                        >
+                          <ShieldCheck className="w-3.5 h-3.5 text-[#0475EE]" />
+                          Painel Administrativo
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="pt-1 px-2">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        data-testid="logout-menu-btn"
+                        onClick={() => {
+                          setAccountMenuOpen(false);
+                          void logout();
+                        }}
+                        className="w-full flex items-center gap-2 px-2.5 py-2 rounded text-xs font-semibold text-rose-600 hover:bg-rose-50 text-left cursor-pointer"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        Sair da Conta
+                      </button>
                     </div>
-
-                    {currentUser && (
-                      <div className="mt-1 pt-1 border-t border-[#EFEFEF] px-2">
-                        <button
-                          type="button"
-                          role="menuitem"
-                          data-testid="logout-menu-btn"
-                          onClick={() => {
-                            setAccountMenuOpen(false);
-                            void logout();
-                          }}
-                          className="w-full flex items-center gap-2 px-2.5 py-2 rounded text-xs font-semibold text-rose-600 hover:bg-rose-50 text-left cursor-pointer"
-                        >
-                          <LogOut className="w-3.5 h-3.5" />
-                          Sair da Conta
-                        </button>
-                      </div>
-                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -411,7 +386,7 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* 2. Main White Header Row (Official Cellbox Logo · Clean Uppercase Nav · Shopping Cart) */}
+      {/* 2. Main White Header Row (Logo · Strictly 5 Public Nav Links · Role-Appropriate Right Action) */}
       <div className="bg-white">
         <div className="max-w-[1170px] mx-auto px-4 h-[68px] flex items-center justify-between gap-4">
           <motion.button
@@ -433,9 +408,11 @@ export function Navbar() {
             />
           </motion.button>
 
+          {/* Main Public Navigation — EXCLUSIVELY: Início, Sobre, Lojas, Ofertas, Contacto */}
           <nav
             aria-label="Navegação principal"
-            className="hidden lg:flex items-center gap-7 text-[12px] font-semibold uppercase tracking-wide text-[#0A3768]/80"
+            data-testid="main-public-nav"
+            className="hidden lg:flex items-center gap-8 text-[12px] font-semibold uppercase tracking-wide text-[#0A3768]/80"
           >
             <button
               type="button"
@@ -451,90 +428,92 @@ export function Navbar() {
             </button>
             <button
               type="button"
-              onClick={() => {
-                navigate({ type: 'home' });
-                window.setTimeout(() => {
-                  document.getElementById('lojas-oficiais')?.scrollIntoView({ behavior: 'smooth' });
-                }, 60);
-              }}
-              className="hover:text-[#0475EE] transition-colors whitespace-nowrap cursor-pointer"
+              onClick={() => navigate({ type: 'about' })}
+              className={`hover:text-[#0475EE] transition-colors whitespace-nowrap cursor-pointer ${
+                view.type === 'about' ? 'text-[#0475EE] font-bold' : ''
+              }`}
             >
-              Lojas Oficiais
+              Sobre
             </button>
             <button
               type="button"
-              onClick={() => {
-                setFilters((prev) => ({ ...prev, sortBy: 'price_asc' }));
-                navigate({ type: 'home' });
-                window.setTimeout(() => {
-                  document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
-                }, 60);
-              }}
+              onClick={goStoresSection}
+              className={`hover:text-[#0475EE] transition-colors whitespace-nowrap cursor-pointer ${
+                view.type === 'store' ? 'text-[#0475EE] font-bold' : ''
+              }`}
+            >
+              Lojas
+            </button>
+            <button
+              type="button"
+              onClick={goOffersSection}
               className="hover:text-[#0475EE] transition-colors whitespace-nowrap cursor-pointer"
             >
               Ofertas
             </button>
             <button
               type="button"
-              onClick={() => void switchDemoRole('seller')}
+              onClick={() => navigate({ type: 'contact' })}
               className={`hover:text-[#0475EE] transition-colors whitespace-nowrap cursor-pointer ${
-                view.type === 'seller_dashboard' ? 'text-[#0475EE] font-bold' : ''
+                view.type === 'contact' ? 'text-[#0475EE] font-bold' : ''
               }`}
             >
-              Painel Vendedor
-            </button>
-            <button
-              type="button"
-              onClick={() => void switchDemoRole('admin')}
-              className={`hover:text-[#0475EE] transition-colors whitespace-nowrap cursor-pointer ${
-                view.type === 'admin_dashboard' ? 'text-[#0475EE] font-bold' : ''
-              }`}
-            >
-              Super Admin
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate({ type: 'auth', mode: 'register' })}
-              className={`hover:text-[#0475EE] transition-colors whitespace-nowrap cursor-pointer ${
-                view.type === 'auth' ? 'text-[#0475EE] font-bold' : ''
-              }`}
-            >
-              Venda Aqui
+              Contacto
             </button>
           </nav>
 
-          {/* Right: Shopping Cart Summary with spring-popping count badge */}
-          <motion.button
-            type="button"
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.96 }}
-            transition={SPRING_SNAPPY}
-            onClick={() => navigate({ type: 'cart' })}
-            aria-label={`Abrir carrinho (${cartCount} itens)`}
-            className="flex items-center gap-2.5 group cursor-pointer shrink-0"
-          >
-            <div className="relative">
-              <ShoppingBag className="w-7 h-7 text-[#0A3768] group-hover:text-[#0475EE] transition-colors stroke-[1.6]" />
-              <motion.span
-                key={cartCount}
-                initial={{ scale: 0.65 }}
-                animate={{ scale: 1 }}
-                transition={SPRING_POP}
-                data-testid="cart-count-badge"
-                className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-[#0475EE] text-white text-[10px] font-bold font-mono tabular-nums inline-flex items-center justify-center"
-              >
-                {cartCount}
-              </motion.span>
-            </div>
-            <div className="text-left leading-tight">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-[#555555]">
-                Meu Carrinho
-              </p>
-              <p className="text-[13px] font-bold font-mono tabular-nums text-[#0475EE]">
-                {formatCurrency(cartTotal)}
-              </p>
-            </div>
-          </motion.button>
+          {/* Right Action: Shopping Cart for Guests/Buyers, Seller Panel Button ONLY for Seller */}
+          {canUseCart ? (
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.96 }}
+              transition={SPRING_SNAPPY}
+              onClick={() => navigate({ type: 'cart' })}
+              aria-label={`Abrir carrinho (${cartCount} itens)`}
+              className="flex items-center gap-2.5 group cursor-pointer shrink-0"
+            >
+              <div className="relative">
+                <ShoppingBag className="w-7 h-7 text-[#0A3768] group-hover:text-[#0475EE] transition-colors stroke-[1.6]" />
+                <motion.span
+                  key={cartCount}
+                  initial={{ scale: 0.65 }}
+                  animate={{ scale: 1 }}
+                  transition={SPRING_POP}
+                  data-testid="cart-count-badge"
+                  className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-[#0475EE] text-white text-[10px] font-bold font-mono tabular-nums inline-flex items-center justify-center"
+                >
+                  {cartCount}
+                </motion.span>
+              </div>
+              <div className="text-left leading-tight">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-[#555555]">
+                  Meu Carrinho
+                </p>
+                <p className="text-[13px] font-bold font-mono tabular-nums text-[#0475EE]">
+                  {formatCurrency(cartTotal)}
+                </p>
+              </div>
+            </motion.button>
+          ) : currentUser?.role === 'seller' ? (
+            <MotionButton
+              type="button"
+              onClick={() => navigate({ type: 'seller_dashboard', tab: 'overview' })}
+              className="h-9 px-4 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wide inline-flex items-center gap-1.5 cursor-pointer shrink-0"
+            >
+              <Store className="w-3.5 h-3.5" />
+              Minha Loja
+            </MotionButton>
+          ) : (
+            <MotionButton
+              type="button"
+              onClick={() => navigate({ type: 'admin_dashboard', tab: 'overview' })}
+              className="h-9 px-4 rounded-full bg-[#0A3768] hover:bg-[#0475EE] text-white text-xs font-bold uppercase tracking-wide inline-flex items-center gap-1.5 cursor-pointer shrink-0"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              Painel Admin
+            </MotionButton>
+          )}
         </div>
       </div>
 
@@ -594,28 +573,56 @@ export function Navbar() {
                       {cat}
                     </button>
                   ))}
+                  {/* Mobile Public Navigation Links (strictly the 5 public links) */}
                   <div className="border-t border-[#EFEFEF] mt-1 pt-1 lg:hidden">
                     <button
                       type="button"
                       role="menuitem"
                       onClick={() => {
                         setCatDropdownOpen(false);
-                        void switchDemoRole('seller');
+                        navigate({ type: 'home' });
                       }}
                       className="w-full text-left px-4 py-2 text-xs font-semibold text-[#0A3768] hover:bg-[#F0F9FD]"
                     >
-                      Painel do Vendedor
+                      Início
                     </button>
                     <button
                       type="button"
                       role="menuitem"
                       onClick={() => {
                         setCatDropdownOpen(false);
-                        void switchDemoRole('admin');
+                        navigate({ type: 'about' });
                       }}
                       className="w-full text-left px-4 py-2 text-xs font-semibold text-[#0A3768] hover:bg-[#F0F9FD]"
                     >
-                      Painel Super Admin
+                      Sobre
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={goStoresSection}
+                      className="w-full text-left px-4 py-2 text-xs font-semibold text-[#0A3768] hover:bg-[#F0F9FD]"
+                    >
+                      Lojas
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={goOffersSection}
+                      className="w-full text-left px-4 py-2 text-xs font-semibold text-[#0A3768] hover:bg-[#F0F9FD]"
+                    >
+                      Ofertas
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setCatDropdownOpen(false);
+                        navigate({ type: 'contact' });
+                      }}
+                      className="w-full text-left px-4 py-2 text-xs font-semibold text-[#0A3768] hover:bg-[#F0F9FD]"
+                    >
+                      Contacto
                     </button>
                   </div>
                 </motion.div>

@@ -19,13 +19,17 @@ import type {
   SellerStatus,
   SellerStore,
   User,
-  UserRole,
 } from '../types';
+import {
+  getDefaultPanelForRole,
+  pathToView,
+  resolveAuthorizedView,
+  viewToPath,
+} from '../utils/rbac';
 
 const CART_STORAGE_KEY = 'cellbox_cart_v3';
 const GUEST_WISHLIST_KEY = 'cellbox_guest_wishlist_v3';
 const AUTH_TOKEN_KEY = 'cellbox_auth_token_v1';
-const LOGGED_OUT_FLAG_KEY = 'cellbox_logged_out_v1';
 
 interface MarketplaceState {
   users: User[];
@@ -108,7 +112,6 @@ interface MarketplaceContextValue {
   toast: ToastMessage | null;
   showToast: (message: string, tone?: ToastMessage['tone']) => void;
   // Real Auth & RBAC
-  switchDemoRole: (role: UserRole) => Promise<void>;
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   registerUser: (payload: RegisterPayload) => Promise<{ ok: boolean; error?: string }>;
   logout: () => Promise<void>;
@@ -157,6 +160,12 @@ interface MarketplaceContextValue {
   removeCategory: (name: string) => Promise<void>;
   setCommissionRate: (rate: number) => Promise<void>;
   subscribeNewsletter: (email: string) => Promise<{ ok: boolean; error?: string }>;
+  sendContactMessage: (payload: {
+    name: string;
+    email: string;
+    subject: string;
+    message: string;
+  }) => Promise<{ ok: boolean; error?: string }>;
   resetDemoData: () => Promise<void>;
 }
 
@@ -208,7 +217,6 @@ function setStoredToken(token: string | null) {
   try {
     if (token) {
       window.localStorage.setItem(AUTH_TOKEN_KEY, token);
-      window.localStorage.removeItem(LOGGED_OUT_FLAG_KEY);
     } else {
       window.localStorage.removeItem(AUTH_TOKEN_KEY);
     }
@@ -257,7 +265,9 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
   }));
 
   const [authReady, setAuthReady] = useState(false);
-  const [view, setView] = useState<AppView>({ type: 'home' });
+  const [view, setView] = useState<AppView>(() =>
+    typeof window !== 'undefined' ? pathToView(window.location.pathname) : { type: 'home' }
+  );
   const [filters, setFilters] = useState<CatalogFilters>(DEFAULT_FILTERS);
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [compareOpen, setCompareOpen] = useState(false);
@@ -271,9 +281,23 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
     }, 3400);
   }, []);
 
+  const syncBrowserUrl = useCallback((target: AppView, replace = false) => {
+    if (typeof window === 'undefined') return;
+    const nextPath = viewToPath(target);
+    if (window.location.pathname !== nextPath) {
+      if (replace) {
+        window.history.replaceState(null, '', nextPath);
+      } else {
+        window.history.pushState(null, '', nextPath);
+      }
+    }
+  }, []);
+
   const applyBootstrap = useCallback((payload: BootstrapResponse) => {
     if (payload.token) {
       setStoredToken(payload.token);
+    } else if (!payload.currentUser) {
+      setStoredToken(null);
     }
     setState((prev) => ({
       ...prev,
@@ -284,12 +308,12 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
       categories: payload.categories,
       orders: payload.orders,
       addresses: payload.addresses,
-      wishlist: payload.currentUser ? payload.wishlist : readGuestWishlist(),
+      wishlist: payload.currentUser?.role === 'buyer' ? payload.wishlist : readGuestWishlist(),
       commissionRate: payload.commissionRate,
     }));
   }, []);
 
-  // Hydrate live marketplace state & real session from Express backend on mount
+  // Hydrate live marketplace state & real session from Express backend on mount (no demo auto-login)
   useEffect(() => {
     let active = true;
     (async () => {
@@ -297,20 +321,6 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
         const res = await apiRequest<BootstrapResponse>('/api/bootstrap');
         if (!active) return;
         if (res.ok) {
-          const explicitlyLoggedOut = window.localStorage.getItem(LOGGED_OUT_FLAG_KEY) === '1';
-          if (!res.data.currentUser && !explicitlyLoggedOut) {
-            // Establish a real signed demo buyer session on first-ever visit
-            const demoRes = await apiRequest<BootstrapResponse>('/api/auth/demo-switch', {
-              method: 'POST',
-              body: JSON.stringify({ role: 'buyer' }),
-            });
-            if (!active) return;
-            if (demoRes.ok) {
-              applyBootstrap(demoRes.data);
-              setAuthReady(true);
-              return;
-            }
-          }
           applyBootstrap(res.data);
         }
       } catch (err) {
@@ -324,7 +334,36 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
     };
   }, [applyBootstrap]);
 
-  // Persist cart to localStorage across reloads & login switches
+  // Enforce strict RBAC route protection once authReady settles or user role changes
+  useEffect(() => {
+    if (!authReady) return;
+    const resolved = resolveAuthorizedView(view, state.currentUser);
+    if (resolved.denied || resolved.view.type !== view.type) {
+      setView(resolved.view);
+      syncBrowserUrl(resolved.view, true);
+      if (resolved.denied && resolved.reason) {
+        showToast(resolved.reason, 'warning');
+      }
+    }
+  }, [authReady, state.currentUser, view, syncBrowserUrl, showToast]);
+
+  // Guard browser back/forward navigation against unauthorized URLs
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onPopState = () => {
+      const requested = pathToView(window.location.pathname);
+      const resolved = resolveAuthorizedView(requested, state.currentUser);
+      setView(resolved.view);
+      if (resolved.denied) {
+        syncBrowserUrl(resolved.view, true);
+        if (resolved.reason) showToast(resolved.reason, 'warning');
+      }
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [state.currentUser, syncBrowserUrl, showToast]);
+
+  // Persist cart to localStorage across reloads
   useEffect(() => {
     try {
       window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(state.cart));
@@ -333,10 +372,18 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
     }
   }, [state.cart]);
 
-  const navigate = useCallback((next: AppView) => {
-    setView(next);
-    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
-  }, []);
+  const navigate = useCallback(
+    (next: AppView) => {
+      const resolved = resolveAuthorizedView(next, state.currentUser);
+      setView(resolved.view);
+      syncBrowserUrl(resolved.view, resolved.denied);
+      if (resolved.denied && resolved.reason) {
+        showToast(resolved.reason, 'warning');
+      }
+      window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+    },
+    [state.currentUser, syncBrowserUrl, showToast]
+  );
 
   const cartCount = useMemo(() => {
     return state.cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -345,29 +392,6 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
   const resetFilters = () => setFilters(DEFAULT_FILTERS);
 
   // ── Real Auth & RBAC ──────────────────────────────────────────────────────
-  const switchDemoRole = async (role: UserRole) => {
-    const res = await apiRequest<BootstrapResponse>('/api/auth/demo-switch', {
-      method: 'POST',
-      body: JSON.stringify({ role }),
-    });
-    if (!res.ok) {
-      showToast(res.data.error ?? 'Erro ao alternar perfil.', 'warning');
-      return;
-    }
-    applyBootstrap(res.data);
-
-    if (role === 'buyer') {
-      navigate({ type: 'home' });
-      showToast(`Modo Comprador ativo (${res.data.currentUser?.name})`, 'info');
-    } else if (role === 'seller') {
-      navigate({ type: 'seller_dashboard', tab: 'overview' });
-      showToast('Painel do Vendedor ativo (TechZone Store)', 'info');
-    } else {
-      navigate({ type: 'admin_dashboard', tab: 'overview' });
-      showToast('Painel Super Admin Cellbox ativo', 'info');
-    }
-  };
-
   const login = async (
     email: string,
     password: string
@@ -386,13 +410,10 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
 
     applyBootstrap(res.data);
     const user = res.data.currentUser;
-    if (user?.role === 'admin') {
-      navigate({ type: 'admin_dashboard', tab: 'overview' });
-    } else if (user?.role === 'seller') {
-      navigate({ type: 'seller_dashboard', tab: 'overview' });
-    } else {
-      navigate({ type: 'profile', tab: 'orders' });
-    }
+    const destination = getDefaultPanelForRole(user?.role ?? null);
+    setView(destination);
+    syncBrowserUrl(destination, false);
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
     showToast(`Bem-vindo(a), ${user?.name ?? ''}!`);
     return { ok: true };
   };
@@ -413,14 +434,16 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
     }
 
     applyBootstrap(res.data);
+    const destination = getDefaultPanelForRole(res.data.currentUser?.role ?? null);
+    setView(destination);
+    syncBrowserUrl(destination, false);
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
     if (payload.isSeller) {
-      navigate({ type: 'seller_dashboard', tab: 'overview' });
       showToast(
         `Loja "${payload.storeName}" cadastrada com status Pendente de Aprovação.`,
         'warning'
       );
     } else {
-      navigate({ type: 'profile', tab: 'orders' });
       showToast(`Conta criada com sucesso! Boas compras, ${res.data.currentUser?.name}.`);
     }
     return { ok: true };
@@ -428,11 +451,6 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
 
   const logout = async () => {
     setStoredToken(null);
-    try {
-      window.localStorage.setItem(LOGGED_OUT_FLAG_KEY, '1');
-    } catch {
-      // Ignore
-    }
     const res = await apiRequest<BootstrapResponse>('/api/auth/logout', {
       method: 'POST',
     });
@@ -447,7 +465,9 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
         wishlist: readGuestWishlist(),
       }));
     }
-    navigate({ type: 'home' });
+    setView({ type: 'home' });
+    syncBrowserUrl({ type: 'home' }, false);
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
     showToast('Sessão encerrada com sucesso.', 'info');
   };
 
@@ -486,6 +506,10 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
 
   // ── Cart, Wishlist, Compare ───────────────────────────────────────────────
   const addToCart = (productId: string, quantity = 1) => {
+    if (state.currentUser && state.currentUser.role !== 'buyer') {
+      showToast('Apenas contas de Comprador podem adicionar itens ao carrinho.', 'warning');
+      return;
+    }
     const product = state.products.find((p) => p.id === productId);
     if (!product) return;
 
@@ -529,6 +553,10 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
   const clearCart = () => setState((prev) => ({ ...prev, cart: [] }));
 
   const toggleWishlist = async (productId: string) => {
+    if (state.currentUser && state.currentUser.role !== 'buyer') {
+      showToast('Apenas contas de Comprador podem usar a lista de desejos.', 'warning');
+      return;
+    }
     if (!state.currentUser) {
       const exists = state.wishlist.includes(productId);
       const next = exists
@@ -791,6 +819,23 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
     return { ok: true };
   };
 
+  const sendContactMessage = async (payload: {
+    name: string;
+    email: string;
+    subject: string;
+    message: string;
+  }): Promise<{ ok: boolean; error?: string }> => {
+    const res = await apiRequest<{ ok: boolean; id: string }>('/api/contact', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      return { ok: false, error: res.data.error ?? 'Erro ao enviar mensagem.' };
+    }
+    showToast('Mensagem enviada com sucesso! Nossa equipe responderá em breve.');
+    return { ok: true };
+  };
+
   const resetDemoData = async () => {
     const res = await apiRequest<BootstrapResponse>('/api/reset-demo', {
       method: 'POST',
@@ -800,8 +845,7 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
       setState((prev) => ({ ...prev, cart: [] }));
       setFilters(DEFAULT_FILTERS);
       setCompareIds([]);
-      navigate({ type: 'home' });
-      showToast('Dados de demonstração restaurados.', 'info');
+      showToast('Dados da plataforma restaurados com sucesso.', 'info');
     }
   };
 
@@ -830,7 +874,6 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
         resetFilters,
         toast,
         showToast,
-        switchDemoRole,
         login,
         registerUser,
         logout,
@@ -857,6 +900,7 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
         removeCategory,
         setCommissionRate,
         subscribeNewsletter,
+        sendContactMessage,
         resetDemoData,
       }}
     >
