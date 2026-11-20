@@ -1,0 +1,6 @@
+{
+  "name": "Cellbox — Marketplace Multi-Vendor de Tecnologia",
+  "description": "Marketplace multi-vendor focado em smartphones, laptops, tablets, áudio e acessórios de tecnologia com painéis de Comprador, Vendedor e Super Admin.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

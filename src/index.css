@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Barlow Condensed", "DM Sans", system-ui, sans-serif;
+  --font-sans: "DM Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --color-brand-green: #43aa5b;
+  --color-brand-green-dark: #2f8e47;
+  --color-brand-green-light: #58b96f;
+  --color-brand-cyan: #0098d8;
+  --color-brand-blue: #0070b8;
+  --color-brand-star: #f5a623;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    background-color: #ffffff;
+    color: #333333;
+  }
+}
+
+.font-condensed {
+  font-family: var(--font-display);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hero gradient matching exact reference green-to-lime sweep */
+.cellbox-hero-gradient {
+  background: linear-gradient(110deg, #169a67 0%, #31ab62 42%, #7bb84c 78%, #a6c43e 100%);
+}
+
+/* Custom subtle scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f5f5f5;
+}
+::-webkit-scrollbar-thumb {
+  background: #cccccc;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #43aa5b;
+}
