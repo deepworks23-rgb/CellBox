@@ -1,7 +1,10 @@
-import { Heart, Scale, ShoppingCart, Star } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import { Check, Heart, Scale, ShoppingCart, Star } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
 import type { Product } from '../types';
 import { formatCurrency } from '../utils/marketplace';
+import { SPRING_CARD, SPRING_POP, SPRING_SNAPPY } from './MotionPrimitives';
 import { ProductImage } from './ProductImage';
 
 interface ProductCardProps {
@@ -20,23 +23,49 @@ export function ProductCard({ product, tiled = true }: ProductCardProps) {
     navigate,
   } = useMarketplace();
 
+  const [justAdded, setJustAdded] = useState(false);
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+    };
+  }, []);
+
   const seller = sellers.find((s) => s.id === product.sellerId);
   const isWished = wishlist.includes(product.id);
   const isCompared = compareIds.includes(product.id);
   const fullStars = Math.round(product.rating);
 
+  const handleAdd = () => {
+    if (product.stock <= 0) return;
+    addToCart(product.id);
+    setJustAdded(true);
+    if (timerRef.current) window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(() => setJustAdded(false), 1150);
+  };
+
   return (
-    <article
-      className={`group relative bg-white flex flex-col items-center text-center p-4 transition-all duration-200 hover:z-10 hover:shadow-[0_6px_22px_rgba(0,0,0,0.08)] ${
+    <motion.article
+      whileHover={{
+        y: -5,
+        boxShadow: '0 14px 32px -6px rgba(10, 55, 104, 0.14)',
+      }}
+      transition={SPRING_CARD}
+      data-testid={`product-card-${product.id}`}
+      className={`group relative bg-white flex flex-col items-center text-center p-4 hover:z-20 ${
         tiled
           ? 'border-r border-b border-[#EAEAEA]'
           : 'border border-[#EAEAEA] rounded-xs'
       }`}
     >
-      {/* Subtle Top-Right Action Icons (Visible on hover or when active) */}
-      <div className="absolute top-2.5 right-2.5 flex flex-col gap-1 z-10">
-        <button
+      {/* Subtle Top-Right Action Icons with tactile spring hover & click */}
+      <div className="absolute top-2.5 right-2.5 flex flex-col gap-1.5 z-10">
+        <motion.button
           type="button"
+          whileHover={{ scale: 1.12 }}
+          whileTap={{ scale: 0.85 }}
+          transition={SPRING_SNAPPY}
           onClick={() => toggleWishlist(product.id)}
           aria-label={
             isWished
@@ -46,13 +75,25 @@ export function ProductCard({ product, tiled = true }: ProductCardProps) {
           className={`w-7 h-7 rounded-full flex items-center justify-center border transition-colors cursor-pointer ${
             isWished
               ? 'bg-rose-50 border-rose-200 text-rose-500'
-              : 'bg-white/95 border-[#E5E5E5] text-[#888888] opacity-80 group-hover:opacity-100 hover:text-[#0475EE] hover:border-[#0475EE]'
+              : 'bg-white/95 border-[#E5E5E5] text-[#888888] opacity-85 group-hover:opacity-100 hover:text-[#0475EE] hover:border-[#0475EE]'
           }`}
         >
-          <Heart className={`w-3.5 h-3.5 ${isWished ? 'fill-rose-500 text-rose-500' : ''}`} />
-        </button>
-        <button
+          <motion.span
+            key={isWished ? 'wished' : 'idle'}
+            initial={{ scale: 0.7 }}
+            animate={{ scale: 1 }}
+            transition={SPRING_POP}
+            className="inline-flex"
+          >
+            <Heart className={`w-3.5 h-3.5 ${isWished ? 'fill-rose-500 text-rose-500' : ''}`} />
+          </motion.span>
+        </motion.button>
+
+        <motion.button
           type="button"
+          whileHover={{ scale: 1.12 }}
+          whileTap={{ scale: 0.85 }}
+          transition={SPRING_SNAPPY}
           onClick={() => toggleCompare(product.id)}
           aria-label={
             isCompared
@@ -62,16 +103,18 @@ export function ProductCard({ product, tiled = true }: ProductCardProps) {
           className={`w-7 h-7 rounded-full flex items-center justify-center border transition-colors cursor-pointer ${
             isCompared
               ? 'bg-[#0475EE] border-[#0475EE] text-white'
-              : 'bg-white/95 border-[#E5E5E5] text-[#888888] opacity-80 group-hover:opacity-100 hover:text-[#0475EE] hover:border-[#0475EE]'
+              : 'bg-white/95 border-[#E5E5E5] text-[#888888] opacity-85 group-hover:opacity-100 hover:text-[#0475EE] hover:border-[#0475EE]'
           }`}
         >
           <Scale className="w-3.5 h-3.5" />
-        </button>
+        </motion.button>
       </div>
 
       {/* Product Studio Image Stage */}
-      <button
+      <motion.button
         type="button"
+        whileTap={{ scale: 0.97 }}
+        transition={SPRING_SNAPPY}
         onClick={() => navigate({ type: 'product', productId: product.id })}
         aria-label={`Ver detalhes de ${product.title}`}
         className="w-full aspect-[4/3] mb-3.5 overflow-hidden bg-[#FAFAFA] flex items-center justify-center cursor-pointer"
@@ -80,9 +123,9 @@ export function ProductCard({ product, tiled = true }: ProductCardProps) {
           src={product.images[0]}
           alt={product.title}
           category={product.category}
-          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-108"
         />
-      </button>
+      </motion.button>
 
       {/* Product Title */}
       <button
@@ -129,22 +172,54 @@ export function ProductCard({ product, tiled = true }: ProductCardProps) {
         <button
           type="button"
           onClick={() => seller && navigate({ type: 'store', sellerId: seller.id })}
-          className="text-[10.5px] text-[#888888] hover:text-[#0475EE] truncate max-w-full cursor-pointer"
+          className="text-[10.5px] text-[#888888] hover:text-[#0475EE] truncate max-w-full cursor-pointer transition-colors"
         >
           {seller?.name ?? 'Cellbox'} · {product.condition}
         </button>
 
-        <button
+        <motion.button
           type="button"
           disabled={product.stock <= 0}
-          onClick={() => addToCart(product.id)}
+          whileHover={product.stock > 0 ? { scale: 1.03, y: -1 } : undefined}
+          whileTap={product.stock > 0 ? { scale: 0.95 } : undefined}
+          transition={SPRING_SNAPPY}
+          onClick={handleAdd}
           aria-label={`Adicionar ${product.title} ao carrinho`}
-          className="w-full h-8 px-3 rounded-full border border-[#0475EE] text-[#0475EE] hover:bg-[#0475EE] hover:text-white disabled:border-[#DDDDDD] disabled:text-[#AAAAAA] text-[11px] font-bold uppercase tracking-wide inline-flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap cursor-pointer"
+          className={`w-full h-8 px-3 rounded-full border text-[11px] font-bold uppercase tracking-wide inline-flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap cursor-pointer ${
+            justAdded
+              ? 'bg-[#0A3768] border-[#0A3768] text-white'
+              : 'border-[#0475EE] text-[#0475EE] hover:bg-[#0475EE] hover:text-white disabled:border-[#DDDDDD] disabled:text-[#AAAAAA]'
+          }`}
         >
-          <ShoppingCart className="w-3.5 h-3.5" />
-          <span>{product.stock > 0 ? 'Adicionar' : 'Esgotado'}</span>
-        </button>
+          <AnimatePresence mode="wait" initial={false}>
+            {justAdded ? (
+              <motion.span
+                key="added"
+                initial={{ opacity: 0, scale: 0.75 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.75 }}
+                transition={SPRING_POP}
+                className="inline-flex items-center gap-1.5"
+              >
+                <Check className="w-3.5 h-3.5 text-[#1AD6DE]" />
+                <span>Adicionado!</span>
+              </motion.span>
+            ) : (
+              <motion.span
+                key="idle"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.14 }}
+                className="inline-flex items-center gap-1.5"
+              >
+                <ShoppingCart className="w-3.5 h-3.5" />
+                <span>{product.stock > 0 ? 'Adicionar' : 'Esgotado'}</span>
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </motion.button>
       </div>
-    </article>
+    </motion.article>
   );
 }

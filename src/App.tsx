@@ -1,3 +1,4 @@
+import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import { MarketplaceProvider, useMarketplace } from './context/MarketplaceContext';
 import { Navbar } from './components/Navbar';
 import { HomeView } from './components/HomeView';
@@ -14,6 +15,13 @@ import { Footer } from './components/Footer';
 
 function CellboxShell() {
   const { view } = useMarketplace();
+
+  const viewKey =
+    view.type === 'product'
+      ? `product-${view.productId}`
+      : view.type === 'store'
+        ? `store-${view.sellerId}`
+        : view.type;
 
   const renderView = () => {
     switch (view.type) {
@@ -41,7 +49,19 @@ function CellboxShell() {
   return (
     <div className="min-h-screen flex flex-col bg-white text-[#333333]">
       <Navbar />
-      <div className="flex-1">{renderView()}</div>
+      <div className="flex-1">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={viewKey}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+          >
+            {renderView()}
+          </motion.div>
+        </AnimatePresence>
+      </div>
       <Footer />
       <CompareModal />
       <Toast />
@@ -51,8 +71,10 @@ function CellboxShell() {
 
 export default function App() {
   return (
-    <MarketplaceProvider>
-      <CellboxShell />
-    </MarketplaceProvider>
+    <MotionConfig reducedMotion="user">
+      <MarketplaceProvider>
+        <CellboxShell />
+      </MarketplaceProvider>
+    </MotionConfig>
   );
 }

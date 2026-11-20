@@ -1,9 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { motion } from 'motion/react';
 import {
   ArrowLeft,
   Building2,
   CheckCircle2,
   CreditCard,
+  LogIn,
   MapPin,
   Plus,
   ShieldCheck,
@@ -19,10 +21,12 @@ import {
   formatCurrency,
   groupCartBySeller,
 } from '../utils/marketplace';
+import { MotionButton, SPRING_CARD } from './MotionPrimitives';
 import { ProductImage } from './ProductImage';
 
 export function CartCheckoutView() {
   const {
+    currentUser,
     cart,
     products,
     sellers,
@@ -41,14 +45,21 @@ export function CartCheckoutView() {
   const [addingAddress, setAddingAddress] = useState(false);
   const [newAddress, setNewAddress] = useState({
     label: '',
-    recipient: '',
+    recipient: currentUser?.name ?? '',
     street: '',
     city: '',
     state: 'Maputo',
     zipCode: '',
   });
   const [addressError, setAddressError] = useState('');
+  const [submittingOrder, setSubmittingOrder] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
+
+  useEffect(() => {
+    if (!addresses.some((a) => a.id === selectedAddressId)) {
+      setSelectedAddressId(addresses.find((a) => a.isDefault)?.id ?? addresses[0]?.id ?? '');
+    }
+  }, [addresses, selectedAddressId]);
 
   const selectedAddress =
     addresses.find((a) => a.id === selectedAddressId) ?? addresses[0];
@@ -66,7 +77,7 @@ export function CartCheckoutView() {
 
   const totals = useMemo(() => calculateCartTotals(groups), [groups]);
 
-  const handleSaveAddress = (e: React.FormEvent) => {
+  const handleSaveAddress = async (e: React.FormEvent) => {
     e.preventDefault();
     if (
       !newAddress.label.trim() ||
@@ -78,7 +89,7 @@ export function CartCheckoutView() {
       setAddressError('Preencha todos os campos obrigatórios do endereço.');
       return;
     }
-    const created = addAddress({
+    const created = await addAddress({
       label: newAddress.label.trim(),
       recipient: newAddress.recipient.trim(),
       street: newAddress.street.trim(),
@@ -86,24 +97,47 @@ export function CartCheckoutView() {
       state: newAddress.state.trim() || 'Maputo',
       zipCode: newAddress.zipCode.trim(),
     });
-    setSelectedAddressId(created.id);
-    setAddingAddress(false);
-    setAddressError('');
-    setNewAddress({ label: '', recipient: '', street: '', city: '', state: 'Maputo', zipCode: '' });
+    if (created) {
+      setSelectedAddressId(created.id);
+      setAddingAddress(false);
+      setAddressError('');
+      setNewAddress({
+        label: '',
+        recipient: currentUser?.name ?? '',
+        street: '',
+        city: '',
+        state: 'Maputo',
+        zipCode: '',
+      });
+    }
   };
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
+    if (!currentUser) {
+      navigate({ type: 'auth', mode: 'login' });
+      return;
+    }
     if (!selectedAddress) return;
-    const order = placeOrder(selectedAddress, paymentMethod);
-    if (order) {
-      setConfirmedOrder(order);
+    setSubmittingOrder(true);
+    try {
+      const order = await placeOrder(selectedAddress, paymentMethod);
+      if (order) {
+        setConfirmedOrder(order);
+      }
+    } finally {
+      setSubmittingOrder(false);
     }
   };
 
   if (confirmedOrder) {
     return (
       <main className="max-w-3xl mx-auto px-4 py-12">
-        <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-8">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={SPRING_CARD}
+          className="bg-white border border-[#EAEAEA] rounded-[3px] p-8"
+        >
           <div className="flex items-center gap-3 text-[#0A3768]">
             <CheckCircle2 className="w-8 h-8 shrink-0 text-[#0475EE]" />
             <div>
@@ -164,22 +198,22 @@ export function CartCheckoutView() {
           </div>
 
           <div className="mt-7 flex flex-wrap gap-3">
-            <button
+            <MotionButton
               type="button"
               onClick={() => navigate({ type: 'profile', tab: 'orders' })}
               className="h-10 px-6 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
             >
               Acompanhar Meus Pedidos
-            </button>
-            <button
+            </MotionButton>
+            <MotionButton
               type="button"
               onClick={() => navigate({ type: 'home' })}
               className="h-10 px-5 rounded-full border border-[#DCDCDC] hover:border-[#0475EE] hover:text-[#0475EE] text-[#444444] text-xs font-bold uppercase tracking-wider cursor-pointer"
             >
               Continuar Comprando
-            </button>
+            </MotionButton>
           </div>
-        </div>
+        </motion.div>
       </main>
     );
   }
@@ -195,13 +229,13 @@ export function CartCheckoutView() {
           <p className="mt-2 text-sm text-[#666666] max-w-md mx-auto">
             Explore smartphones, laptops, tablets e acessórios de múltiplos vendedores em um único checkout integrado.
           </p>
-          <button
+          <MotionButton
             type="button"
             onClick={() => navigate({ type: 'home' })}
             className="mt-6 h-10 px-6 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
           >
             Explorar Vitrine Cellbox
-          </button>
+          </MotionButton>
         </div>
       </main>
     );
@@ -256,9 +290,8 @@ export function CartCheckoutView() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left column: Seller groups, Address, Payment */}
+        {/* Left column */}
         <div className="lg:col-span-8 space-y-5">
-          {/* Items Grouped by Seller */}
           {groups.map((group) => (
             <section
               key={group.seller.id}
@@ -357,107 +390,145 @@ export function CartCheckoutView() {
                   Endereço de Entrega
                 </h2>
               </div>
-              <button
-                type="button"
-                onClick={() => setAddingAddress((v) => !v)}
-                className="text-xs font-bold text-[#0475EE] hover:text-[#0A3768] inline-flex items-center gap-1 cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Novo endereço
-              </button>
+              {currentUser && (
+                <button
+                  type="button"
+                  onClick={() => setAddingAddress((v) => !v)}
+                  className="text-xs font-bold text-[#0475EE] hover:text-[#0A3768] inline-flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Novo endereço
+                </button>
+              )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {addresses.map((addr) => {
-                const active = selectedAddress?.id === addr.id;
-                return (
-                  <button
-                    key={addr.id}
-                    type="button"
-                    onClick={() => setSelectedAddressId(addr.id)}
-                    className={`text-left p-4 rounded-[3px] border transition-colors cursor-pointer ${
-                      active
-                        ? 'border-[#0475EE] bg-[#0475EE]/5'
-                        : 'border-[#E0E0E0] hover:border-[#0475EE]/60 bg-white'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-bold text-[#333333]">{addr.label}</span>
-                      {active && (
-                        <span className="text-[11px] font-bold text-[#0A3768] uppercase">
-                          Selecionado
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-[#555555] mt-1">{addr.recipient}</p>
-                    <p className="text-xs text-[#777777] mt-0.5">{addr.street}</p>
-                    <p className="text-xs text-[#777777] font-mono tabular-nums mt-0.5">
-                      {addr.city} - {addr.state} · CP {addr.zipCode}
+            {!currentUser ? (
+              <div className="p-4 bg-[#F7F9FB] border border-[#E5E7EB] rounded-[3px] flex flex-wrap items-center justify-between gap-3">
+                <p className="text-xs text-[#555555]">
+                  Faça login ou crie sua conta para selecionar seu endereço de entrega e finalizar o pedido. Seu carrinho será mantido!
+                </p>
+                <MotionButton
+                  type="button"
+                  onClick={() => navigate({ type: 'auth', mode: 'login' })}
+                  className="h-8 px-4 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-[11px] font-bold uppercase inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  Entrar Agora
+                </MotionButton>
+              </div>
+            ) : (
+              <>
+                {addresses.length === 0 && !addingAddress && (
+                  <div className="p-4 bg-[#F7F9FB] border border-[#E5E7EB] rounded-[3px] flex items-center justify-between gap-3">
+                    <p className="text-xs text-[#555555]">
+                      Você ainda não possui um endereço salvo. Cadastre um para finalizar a compra.
                     </p>
-                  </button>
-                );
-              })}
-            </div>
-
-            {addingAddress && (
-              <form
-                onSubmit={handleSaveAddress}
-                className="mt-4 pt-4 border-t border-[#EAEAEA] grid grid-cols-1 sm:grid-cols-2 gap-3"
-              >
-                {addressError && (
-                  <p className="sm:col-span-2 text-xs font-medium text-rose-600">{addressError}</p>
+                    <MotionButton
+                      type="button"
+                      onClick={() => setAddingAddress(true)}
+                      className="h-8 px-4 rounded-full bg-[#0475EE] text-white text-[11px] font-bold uppercase cursor-pointer"
+                    >
+                      + Cadastrar Endereço
+                    </MotionButton>
+                  </div>
                 )}
-                <input
-                  type="text"
-                  placeholder="Identificação (ex: Casa, Trabalho)"
-                  value={newAddress.label}
-                  onChange={(e) => setNewAddress((p) => ({ ...p, label: e.target.value }))}
-                  className="h-9 px-3 rounded-[2px] border border-[#DCDCDC] text-xs"
-                />
-                <input
-                  type="text"
-                  placeholder="Nome do destinatário"
-                  value={newAddress.recipient}
-                  onChange={(e) => setNewAddress((p) => ({ ...p, recipient: e.target.value }))}
-                  className="h-9 px-3 rounded-[2px] border border-[#DCDCDC] text-xs"
-                />
-                <input
-                  type="text"
-                  placeholder="Rua, número e complemento"
-                  value={newAddress.street}
-                  onChange={(e) => setNewAddress((p) => ({ ...p, street: e.target.value }))}
-                  className="sm:col-span-2 h-9 px-3 rounded-[2px] border border-[#DCDCDC] text-xs"
-                />
-                <input
-                  type="text"
-                  placeholder="Cidade"
-                  value={newAddress.city}
-                  onChange={(e) => setNewAddress((p) => ({ ...p, city: e.target.value }))}
-                  className="h-9 px-3 rounded-[2px] border border-[#DCDCDC] text-xs"
-                />
-                <input
-                  type="text"
-                  placeholder="Código Postal (ex: 1100)"
-                  value={newAddress.zipCode}
-                  onChange={(e) => setNewAddress((p) => ({ ...p, zipCode: e.target.value }))}
-                  className="h-9 px-3 rounded-[2px] border border-[#DCDCDC] text-xs font-mono"
-                />
-                <div className="sm:col-span-2 flex justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setAddingAddress(false)}
-                    className="h-9 px-4 rounded-full border border-[#DCDCDC] text-xs font-semibold text-[#555555] cursor-pointer"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="h-9 px-5 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase cursor-pointer"
-                  >
-                    Salvar Endereço
-                  </button>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {addresses.map((addr) => {
+                    const active = selectedAddress?.id === addr.id;
+                    return (
+                      <motion.button
+                        key={addr.id}
+                        type="button"
+                        whileHover={{ y: -2 }}
+                        whileTap={{ scale: 0.99 }}
+                        transition={SPRING_CARD}
+                        onClick={() => setSelectedAddressId(addr.id)}
+                        className={`text-left p-4 rounded-[3px] border transition-colors cursor-pointer ${
+                          active
+                            ? 'border-[#0475EE] bg-[#0475EE]/5'
+                            : 'border-[#E0E0E0] hover:border-[#0475EE]/60 bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-bold text-[#333333]">{addr.label}</span>
+                          {active && (
+                            <span className="text-[11px] font-bold text-[#0A3768] uppercase">
+                              Selecionado
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-[#555555] mt-1">{addr.recipient}</p>
+                        <p className="text-xs text-[#777777] mt-0.5">{addr.street}</p>
+                        <p className="text-xs text-[#777777] font-mono tabular-nums mt-0.5">
+                          {addr.city} - {addr.state} · CP {addr.zipCode}
+                        </p>
+                      </motion.button>
+                    );
+                  })}
                 </div>
-              </form>
+
+                {addingAddress && (
+                  <form
+                    onSubmit={handleSaveAddress}
+                    className="mt-4 pt-4 border-t border-[#EAEAEA] grid grid-cols-1 sm:grid-cols-2 gap-3"
+                  >
+                    {addressError && (
+                      <p className="sm:col-span-2 text-xs font-medium text-rose-600">{addressError}</p>
+                    )}
+                    <input
+                      type="text"
+                      placeholder="Identificação (ex: Casa, Trabalho)"
+                      value={newAddress.label}
+                      onChange={(e) => setNewAddress((p) => ({ ...p, label: e.target.value }))}
+                      className="h-9 px-3 rounded-[2px] border border-[#DCDCDC] text-xs"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Nome do destinatário"
+                      value={newAddress.recipient}
+                      onChange={(e) => setNewAddress((p) => ({ ...p, recipient: e.target.value }))}
+                      className="h-9 px-3 rounded-[2px] border border-[#DCDCDC] text-xs"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Rua, número e complemento"
+                      value={newAddress.street}
+                      onChange={(e) => setNewAddress((p) => ({ ...p, street: e.target.value }))}
+                      className="sm:col-span-2 h-9 px-3 rounded-[2px] border border-[#DCDCDC] text-xs"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Cidade"
+                      value={newAddress.city}
+                      onChange={(e) => setNewAddress((p) => ({ ...p, city: e.target.value }))}
+                      className="h-9 px-3 rounded-[2px] border border-[#DCDCDC] text-xs"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Código Postal (ex: 1100)"
+                      value={newAddress.zipCode}
+                      onChange={(e) => setNewAddress((p) => ({ ...p, zipCode: e.target.value }))}
+                      className="h-9 px-3 rounded-[2px] border border-[#DCDCDC] text-xs font-mono"
+                    />
+                    <div className="sm:col-span-2 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setAddingAddress(false)}
+                        className="h-9 px-4 rounded-full border border-[#DCDCDC] text-xs font-semibold text-[#555555] cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                      <MotionButton
+                        type="submit"
+                        className="h-9 px-5 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase cursor-pointer"
+                      >
+                        Salvar Endereço
+                      </MotionButton>
+                    </div>
+                  </form>
+                )}
+              </>
             )}
           </section>
 
@@ -471,9 +542,12 @@ export function CartCheckoutView() {
                 const Icon = opt.icon;
                 const active = paymentMethod === opt.id;
                 return (
-                  <button
+                  <motion.button
                     key={opt.id}
                     type="button"
+                    whileHover={{ y: -1 }}
+                    whileTap={{ scale: 0.99 }}
+                    transition={SPRING_CARD}
                     onClick={() => setPaymentMethod(opt.id)}
                     className={`w-full text-left p-4 rounded-[3px] border flex items-center gap-4 transition-colors cursor-pointer ${
                       active
@@ -495,7 +569,7 @@ export function CartCheckoutView() {
                     >
                       {active && <span className="w-2 h-2 rounded-full bg-[#0475EE]" />}
                     </span>
-                  </button>
+                  </motion.button>
                 );
               })}
             </div>
@@ -531,14 +605,25 @@ export function CartCheckoutView() {
             </div>
           </dl>
 
-          <button
-            type="button"
-            onClick={handleCheckout}
-            disabled={!selectedAddress}
-            className="w-full h-11 rounded-full bg-[#0475EE] hover:bg-[#0A3768] disabled:bg-[#CCCCCC] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
-          >
-            Finalizar Compra
-          </button>
+          {!currentUser ? (
+            <MotionButton
+              type="button"
+              onClick={() => navigate({ type: 'auth', mode: 'login' })}
+              className="w-full h-11 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider inline-flex items-center justify-center gap-2 transition-colors cursor-pointer"
+            >
+              <LogIn className="w-4 h-4" />
+              Entrar para Finalizar
+            </MotionButton>
+          ) : (
+            <MotionButton
+              type="button"
+              onClick={() => void handleCheckout()}
+              disabled={!selectedAddress || submittingOrder}
+              className="w-full h-11 rounded-full bg-[#0475EE] hover:bg-[#0A3768] disabled:bg-[#CCCCCC] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+            >
+              {submittingOrder ? 'Processando Pedido...' : 'Finalizar Compra'}
+            </MotionButton>
+          )}
 
           <div className="flex items-start gap-2.5 text-xs text-[#666666] leading-relaxed">
             <ShieldCheck className="w-4 h-4 text-[#0475EE] shrink-0 mt-0.5" />

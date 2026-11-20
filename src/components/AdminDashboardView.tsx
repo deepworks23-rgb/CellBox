@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Ban,
   BarChart3,
@@ -20,6 +20,7 @@ import {
   calculateSellerAnalytics,
   formatCurrency,
 } from '../utils/marketplace';
+import { MotionButton } from './MotionPrimitives';
 import { ProductImage } from './ProductImage';
 
 interface AdminDashboardViewProps {
@@ -46,10 +47,18 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
   const [activeTab, setActiveTab] = useState<'overview' | 'sellers' | 'catalog' | 'finance'>(
     initialTab
   );
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
   const [sellerFilter, setSellerFilter] = useState<'all' | SellerStatus>('all');
   const [inspectedSeller, setInspectedSeller] = useState<SellerStore | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [draftCommission, setDraftCommission] = useState<string>(String(commissionRate));
+
+  useEffect(() => {
+    setDraftCommission(String(commissionRate));
+  }, [commissionRate]);
 
   const analytics = useMemo(
     () => calculatePlatformAnalytics(orders, sellers, commissionRate),
@@ -61,18 +70,18 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
     return sellers.filter((s) => s.status === sellerFilter);
   }, [sellers, sellerFilter]);
 
-  const handleAddCategory = (e: React.FormEvent) => {
+  const handleAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (addCategory(newCategoryName)) {
+    if (await addCategory(newCategoryName)) {
       setNewCategoryName('');
     }
   };
 
-  const handleSaveCommission = (e: React.FormEvent) => {
+  const handleSaveCommission = async (e: React.FormEvent) => {
     e.preventDefault();
     const num = Number(draftCommission);
     if (Number.isFinite(num) && num >= 1 && num <= 35) {
-      setCommissionRate(num);
+      await setCommissionRate(num);
     }
   };
 
@@ -374,24 +383,24 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                               <td className="py-3.5 px-5">
                                 <div className="flex items-center justify-end gap-2">
                                   {s.status !== 'active' && (
-                                    <button
+                                    <MotionButton
                                       type="button"
-                                      onClick={() => setSellerStatus(s.id, 'active')}
+                                      onClick={() => void setSellerStatus(s.id, 'active')}
                                       className="h-8 px-3.5 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-[11px] font-bold uppercase inline-flex items-center gap-1 whitespace-nowrap cursor-pointer"
                                     >
                                       <CheckCircle2 className="w-3.5 h-3.5" />
                                       Aprovar Cadastro
-                                    </button>
+                                    </MotionButton>
                                   )}
                                   {s.status === 'active' && (
-                                    <button
+                                    <MotionButton
                                       type="button"
-                                      onClick={() => setSellerStatus(s.id, 'suspended')}
+                                      onClick={() => void setSellerStatus(s.id, 'suspended')}
                                       className="h-8 px-3.5 rounded-full border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-bold uppercase inline-flex items-center gap-1 whitespace-nowrap cursor-pointer"
                                     >
                                       <Ban className="w-3.5 h-3.5" />
                                       Suspender Loja
-                                    </button>
+                                    </MotionButton>
                                   )}
                                   <button
                                     type="button"
@@ -602,12 +611,12 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                 </div>
               </div>
 
-              <button
+              <MotionButton
                 type="submit"
                 className="h-10 px-6 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
               >
                 Aplicar Nova Taxa de Comissão
-              </button>
+              </MotionButton>
             </form>
           )}
         </main>

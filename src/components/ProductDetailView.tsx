@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { motion } from 'motion/react';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -13,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
 import { calculateShipping, formatCurrency } from '../utils/marketplace';
+import { MotionButton, SPRING_SNAPPY } from './MotionPrimitives';
 import { ProductImage } from './ProductImage';
 
 interface ProductDetailViewProps {
@@ -38,6 +40,11 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
   const [quantity, setQuantity] = useState(1);
   const [cep, setCep] = useState('1100');
   const [shippingCalculated, setShippingCalculated] = useState(true);
+
+  useEffect(() => {
+    setSelectedImageIdx(0);
+    setQuantity(1);
+  }, [productId]);
 
   if (!product) {
     return (
@@ -243,7 +250,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
 
             {/* Primary & Secondary CTAs */}
             <div className="space-y-2.5 pt-1">
-              <button
+              <MotionButton
                 type="button"
                 disabled={product.stock <= 0}
                 onClick={() => {
@@ -253,8 +260,8 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
                 className="w-full h-11 rounded-full bg-[#0475EE] hover:bg-[#0A3768] disabled:bg-[#CCCCCC] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
               >
                 Comprar Agora
-              </button>
-              <button
+              </MotionButton>
+              <MotionButton
                 type="button"
                 disabled={product.stock <= 0}
                 onClick={() => addToCart(product.id, quantity)}
@@ -262,11 +269,14 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
               >
                 <ShoppingCart className="w-4 h-4" />
                 Adicionar ao Carrinho
-              </button>
+              </MotionButton>
               <div className="grid grid-cols-2 gap-2.5 pt-1">
-                <button
+                <motion.button
                   type="button"
-                  onClick={() => toggleWishlist(product.id)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.96 }}
+                  transition={SPRING_SNAPPY}
+                  onClick={() => void toggleWishlist(product.id)}
                   className={`h-9 rounded-full border text-xs font-semibold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
                     isWished
                       ? 'border-rose-300 bg-rose-50 text-rose-700'
@@ -275,9 +285,12 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
                 >
                   <Heart className={`w-3.5 h-3.5 ${isWished ? 'fill-rose-500 text-rose-500' : ''}`} />
                   {isWished ? 'Salvo nos Desejos' : 'Lista de Desejos'}
-                </button>
-                <button
+                </motion.button>
+                <motion.button
                   type="button"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.96 }}
+                  transition={SPRING_SNAPPY}
                   onClick={() => toggleCompare(product.id)}
                   className={`h-9 rounded-full border text-xs font-semibold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
                     isCompared
@@ -287,7 +300,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
                 >
                   <Scale className="w-3.5 h-3.5" />
                   {isCompared ? 'No Comparador' : 'Comparar'}
-                </button>
+                </motion.button>
               </div>
             </div>
 

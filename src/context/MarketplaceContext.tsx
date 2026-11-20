@@ -1,12 +1,8 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
-  ASSET_IMAGES,
-  INITIAL_ADDRESSES,
   INITIAL_CATEGORIES,
-  INITIAL_ORDERS,
   INITIAL_PRODUCTS,
   INITIAL_SELLERS,
-  INITIAL_USERS,
 } from '../data/seedData';
 import type {
   Address,
@@ -25,13 +21,15 @@ import type {
   User,
   UserRole,
 } from '../types';
-import { groupCartBySeller, calculateCartTotals } from '../utils/marketplace';
 
-const STORAGE_KEY = 'cellbox_marketplace_state_v2_mzn';
+const CART_STORAGE_KEY = 'cellbox_cart_v3';
+const GUEST_WISHLIST_KEY = 'cellbox_guest_wishlist_v3';
+const AUTH_TOKEN_KEY = 'cellbox_auth_token_v1';
+const LOGGED_OUT_FLAG_KEY = 'cellbox_logged_out_v1';
 
-interface PersistedState {
+interface MarketplaceState {
   users: User[];
-  currentUserId: string;
+  currentUser: User | null;
   sellers: SellerStore[];
   products: Product[];
   categories: string[];
@@ -42,13 +40,27 @@ interface PersistedState {
   commissionRate: number;
 }
 
+interface BootstrapResponse {
+  currentUser: User | null;
+  users: User[];
+  sellers: SellerStore[];
+  products: Product[];
+  categories: string[];
+  orders: Order[];
+  addresses: Address[];
+  wishlist: string[];
+  commissionRate: number;
+  token?: string;
+  seller?: SellerStore;
+}
+
 export interface ToastMessage {
   id: number;
   message: string;
   tone: 'success' | 'info' | 'warning';
 }
 
-interface NewProductPayload {
+export interface NewProductPayload {
   sellerId: string;
   title: string;
   brand: string;
@@ -62,7 +74,7 @@ interface NewProductPayload {
   specs: ProductSpecs;
 }
 
-interface RegisterPayload {
+export interface RegisterPayload {
   name: string;
   email: string;
   password: string;
@@ -75,8 +87,9 @@ interface RegisterPayload {
 interface MarketplaceContextValue {
   view: AppView;
   navigate: (next: AppView) => void;
+  authReady: boolean;
   users: User[];
-  currentUser: User;
+  currentUser: User | null;
   sellers: SellerStore[];
   products: Product[];
   categories: string[];
@@ -94,28 +107,38 @@ interface MarketplaceContextValue {
   resetFilters: () => void;
   toast: ToastMessage | null;
   showToast: (message: string, tone?: ToastMessage['tone']) => void;
-  // Auth & RBAC
-  switchDemoRole: (role: UserRole) => void;
-  loginWithEmail: (email: string) => { ok: boolean; error?: string };
-  registerUser: (payload: RegisterPayload) => { ok: boolean; error?: string };
-  updateProfile: (updates: { name: string; phone: string }) => void;
+  // Real Auth & RBAC
+  switchDemoRole: (role: UserRole) => Promise<void>;
+  login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+  registerUser: (payload: RegisterPayload) => Promise<{ ok: boolean; error?: string }>;
+  logout: () => Promise<void>;
+  updateProfile: (updates: { name: string; phone: string }) => Promise<boolean>;
+  changePassword: (
+    currentPassword: string,
+    newPassword: string
+  ) => Promise<{ ok: boolean; error?: string }>;
   // Cart, Wishlist, Compare
   addToCart: (productId: string, quantity?: number) => void;
   updateCartQuantity: (productId: string, quantity: number) => void;
   removeFromCart: (productId: string) => void;
   clearCart: () => void;
-  toggleWishlist: (productId: string) => void;
+  toggleWishlist: (productId: string) => Promise<void>;
   toggleCompare: (productId: string) => void;
   clearCompare: () => void;
   // Addresses & Orders
-  addAddress: (addr: Omit<Address, 'id'>) => Address;
-  removeAddress: (id: string) => void;
-  placeOrder: (address: Address, paymentMethod: PaymentMethod) => Order | null;
-  updateOrderFulfillmentStatus: (orderId: string, sellerId: string, nextStatus: OrderStatus) => void;
+  addAddress: (addr: Omit<Address, 'id'>) => Promise<Address | null>;
+  setDefaultAddress: (id: string) => Promise<void>;
+  removeAddress: (id: string) => Promise<void>;
+  placeOrder: (address: Address, paymentMethod: PaymentMethod) => Promise<Order | null>;
+  updateOrderFulfillmentStatus: (
+    orderId: string,
+    sellerId: string,
+    nextStatus: OrderStatus
+  ) => Promise<void>;
   // Seller actions
-  createProduct: (payload: NewProductPayload) => Product;
-  updateProduct: (productId: string, updates: Partial<Product>) => void;
-  deleteProduct: (productId: string) => void;
+  createProduct: (payload: NewProductPayload) => Promise<Product | null>;
+  updateProduct: (productId: string, updates: Partial<Product>) => Promise<void>;
+  deleteProduct: (productId: string) => Promise<void>;
   updateSellerSettings: (
     sellerId: string,
     updates: {
@@ -127,13 +150,14 @@ interface MarketplaceContextValue {
       bannerImage: string;
       payoutInfo: SellerPayoutInfo;
     }
-  ) => void;
+  ) => Promise<void>;
   // Admin actions
-  setSellerStatus: (sellerId: string, status: SellerStatus) => void;
-  addCategory: (name: string) => boolean;
-  removeCategory: (name: string) => void;
-  setCommissionRate: (rate: number) => void;
-  resetDemoData: () => void;
+  setSellerStatus: (sellerId: string, status: SellerStatus) => Promise<void>;
+  addCategory: (name: string) => Promise<boolean>;
+  removeCategory: (name: string) => Promise<void>;
+  setCommissionRate: (rate: number) => Promise<void>;
+  subscribeNewsletter: (email: string) => Promise<{ ok: boolean; error?: string }>;
+  resetDemoData: () => Promise<void>;
 }
 
 const DEFAULT_FILTERS: CatalogFilters = {
@@ -146,85 +170,173 @@ const DEFAULT_FILTERS: CatalogFilters = {
   sortBy: 'featured',
 };
 
-function loadInitialState(): PersistedState {
-  if (typeof window !== 'undefined') {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Partial<PersistedState>;
-        if (
-          Array.isArray(parsed.products) &&
-          Array.isArray(parsed.sellers) &&
-          Array.isArray(parsed.users) &&
-          parsed.currentUserId
-        ) {
-          return {
-            users: parsed.users,
-            currentUserId: parsed.currentUserId,
-            sellers: parsed.sellers,
-            products: parsed.products,
-            categories: parsed.categories ?? INITIAL_CATEGORIES,
-            orders: parsed.orders ?? INITIAL_ORDERS,
-            cart: parsed.cart ?? [],
-            wishlist: parsed.wishlist ?? ['prod-iphone-16-pro', 'prod-macbook-pro-m3'],
-            addresses: parsed.addresses ?? INITIAL_ADDRESSES,
-            commissionRate: typeof parsed.commissionRate === 'number' ? parsed.commissionRate : 10,
-          };
-        }
-      }
-    } catch {
-      // Fallback to seed data on corrupt storage
+function readStoredCart(): CartItem[] {
+  try {
+    const raw = window.localStorage.getItem(CART_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
     }
+  } catch {
+    // Ignore invalid storage
+  }
+  return [];
+}
+
+function readGuestWishlist(): string[] {
+  try {
+    const raw = window.localStorage.getItem(GUEST_WISHLIST_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {
+    // Ignore
+  }
+  return [];
+}
+
+function getStoredToken(): string | null {
+  try {
+    return window.localStorage.getItem(AUTH_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function setStoredToken(token: string | null) {
+  try {
+    if (token) {
+      window.localStorage.setItem(AUTH_TOKEN_KEY, token);
+      window.localStorage.removeItem(LOGGED_OUT_FLAG_KEY);
+    } else {
+      window.localStorage.removeItem(AUTH_TOKEN_KEY);
+    }
+  } catch {
+    // Ignore
+  }
+}
+
+async function apiRequest<T>(
+  path: string,
+  options: RequestInit = {}
+): Promise<{ ok: boolean; status: number; data: T & { error?: string } }> {
+  const token = getStoredToken();
+  const headers = new Headers(options.headers);
+  if (!headers.has('Content-Type') && options.body) {
+    headers.set('Content-Type', 'application/json');
+  }
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
   }
 
-  return {
-    users: INITIAL_USERS,
-    currentUserId: 'user-buyer-1',
-    sellers: INITIAL_SELLERS,
-    products: INITIAL_PRODUCTS,
-    categories: INITIAL_CATEGORIES,
-    orders: INITIAL_ORDERS,
-    cart: [],
-    wishlist: ['prod-iphone-16-pro', 'prod-macbook-pro-m3'],
-    addresses: INITIAL_ADDRESSES,
-    commissionRate: 10,
-  };
+  const res = await fetch(path, {
+    ...options,
+    headers,
+    credentials: 'include',
+  });
+
+  const data = (await res.json().catch(() => ({}))) as T & { error?: string };
+  return { ok: res.ok, status: res.status, data };
 }
 
 const MarketplaceContext = createContext<MarketplaceContextValue | null>(null);
 
 export function MarketplaceProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<PersistedState>(() => loadInitialState());
+  const [state, setState] = useState<MarketplaceState>(() => ({
+    users: [],
+    currentUser: null,
+    sellers: INITIAL_SELLERS,
+    products: INITIAL_PRODUCTS,
+    categories: INITIAL_CATEGORIES,
+    orders: [],
+    cart: typeof window !== 'undefined' ? readStoredCart() : [],
+    wishlist: typeof window !== 'undefined' ? readGuestWishlist() : [],
+    addresses: [],
+    commissionRate: 10,
+  }));
+
+  const [authReady, setAuthReady] = useState(false);
   const [view, setView] = useState<AppView>({ type: 'home' });
   const [filters, setFilters] = useState<CatalogFilters>(DEFAULT_FILTERS);
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [compareOpen, setCompareOpen] = useState(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
 
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch {
-      // Ignore storage quota errors
-    }
-  }, [state]);
-
-  const showToast = (message: string, tone: ToastMessage['tone'] = 'success') => {
-    const id = Date.now();
+  const showToast = useCallback((message: string, tone: ToastMessage['tone'] = 'success') => {
+    const id = Date.now() + Math.floor(Math.random() * 1000);
     setToast({ id, message, tone });
     window.setTimeout(() => {
       setToast((prev) => (prev?.id === id ? null : prev));
     }, 3400);
-  };
+  }, []);
 
-  const navigate = (next: AppView) => {
+  const applyBootstrap = useCallback((payload: BootstrapResponse) => {
+    if (payload.token) {
+      setStoredToken(payload.token);
+    }
+    setState((prev) => ({
+      ...prev,
+      currentUser: payload.currentUser,
+      users: payload.users,
+      sellers: payload.sellers,
+      products: payload.products,
+      categories: payload.categories,
+      orders: payload.orders,
+      addresses: payload.addresses,
+      wishlist: payload.currentUser ? payload.wishlist : readGuestWishlist(),
+      commissionRate: payload.commissionRate,
+    }));
+  }, []);
+
+  // Hydrate live marketplace state & real session from Express backend on mount
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await apiRequest<BootstrapResponse>('/api/bootstrap');
+        if (!active) return;
+        if (res.ok) {
+          const explicitlyLoggedOut = window.localStorage.getItem(LOGGED_OUT_FLAG_KEY) === '1';
+          if (!res.data.currentUser && !explicitlyLoggedOut) {
+            // Establish a real signed demo buyer session on first-ever visit
+            const demoRes = await apiRequest<BootstrapResponse>('/api/auth/demo-switch', {
+              method: 'POST',
+              body: JSON.stringify({ role: 'buyer' }),
+            });
+            if (!active) return;
+            if (demoRes.ok) {
+              applyBootstrap(demoRes.data);
+              setAuthReady(true);
+              return;
+            }
+          }
+          applyBootstrap(res.data);
+        }
+      } catch (err) {
+        console.warn('[Cellbox] Failed to bootstrap from server:', err);
+      } finally {
+        if (active) setAuthReady(true);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [applyBootstrap]);
+
+  // Persist cart to localStorage across reloads & login switches
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(state.cart));
+    } catch {
+      // Ignore quota errors
+    }
+  }, [state.cart]);
+
+  const navigate = useCallback((next: AppView) => {
     setView(next);
-    window.scrollTo(0, 0);
-  };
-
-  const currentUser = useMemo(() => {
-    return state.users.find((u) => u.id === state.currentUserId) ?? state.users[0];
-  }, [state.users, state.currentUserId]);
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+  }, []);
 
   const cartCount = useMemo(() => {
     return state.cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -232,149 +344,147 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
 
   const resetFilters = () => setFilters(DEFAULT_FILTERS);
 
-  const switchDemoRole = (role: UserRole) => {
-    let targetUser: User | undefined;
-    if (role === 'buyer') {
-      targetUser = state.users.find((u) => u.id === 'user-buyer-1') ?? state.users.find((u) => u.role === 'buyer');
-    } else if (role === 'seller') {
-      targetUser =
-        state.users.find((u) => u.id === 'user-seller-techzone') ?? state.users.find((u) => u.role === 'seller');
-    } else {
-      targetUser = state.users.find((u) => u.role === 'admin');
+  // ── Real Auth & RBAC ──────────────────────────────────────────────────────
+  const switchDemoRole = async (role: UserRole) => {
+    const res = await apiRequest<BootstrapResponse>('/api/auth/demo-switch', {
+      method: 'POST',
+      body: JSON.stringify({ role }),
+    });
+    if (!res.ok) {
+      showToast(res.data.error ?? 'Erro ao alternar perfil.', 'warning');
+      return;
     }
-
-    if (!targetUser) return;
-
-    setState((prev) => ({ ...prev, currentUserId: targetUser!.id }));
+    applyBootstrap(res.data);
 
     if (role === 'buyer') {
       navigate({ type: 'home' });
-      showToast(`Modo Comprador ativo (${targetUser.name})`, 'info');
+      showToast(`Modo Comprador ativo (${res.data.currentUser?.name})`, 'info');
     } else if (role === 'seller') {
       navigate({ type: 'seller_dashboard', tab: 'overview' });
-      showToast(`Painel do Vendedor ativo (TechZone Store)`, 'info');
+      showToast('Painel do Vendedor ativo (TechZone Store)', 'info');
     } else {
       navigate({ type: 'admin_dashboard', tab: 'overview' });
-      showToast(`Painel Super Admin Cellbox ativo`, 'info');
+      showToast('Painel Super Admin Cellbox ativo', 'info');
     }
   };
 
-  const loginWithEmail = (email: string): { ok: boolean; error?: string } => {
-    const normalized = email.trim().toLowerCase();
-    const user = state.users.find((u) => u.email.toLowerCase() === normalized);
-    if (!user) {
+  const login = async (
+    email: string,
+    password: string
+  ): Promise<{ ok: boolean; error?: string }> => {
+    const res = await apiRequest<BootstrapResponse>('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!res.ok) {
       return {
         ok: false,
-        error: 'E-mail não encontrado. Utilize uma conta cadastrada ou um perfil de acesso rápido abaixo.',
+        error: res.data.error ?? 'E-mail ou senha inválidos.',
       };
     }
-    setState((prev) => ({ ...prev, currentUserId: user.id }));
-    if (user.role === 'admin') {
+
+    applyBootstrap(res.data);
+    const user = res.data.currentUser;
+    if (user?.role === 'admin') {
       navigate({ type: 'admin_dashboard', tab: 'overview' });
-    } else if (user.role === 'seller') {
+    } else if (user?.role === 'seller') {
       navigate({ type: 'seller_dashboard', tab: 'overview' });
     } else {
-      navigate({ type: 'home' });
+      navigate({ type: 'profile', tab: 'orders' });
     }
-    showToast(`Bem-vindo(a), ${user.name}!`);
+    showToast(`Bem-vindo(a), ${user?.name ?? ''}!`);
     return { ok: true };
   };
 
-  const registerUser = (payload: RegisterPayload): { ok: boolean; error?: string } => {
-    const emailNorm = payload.email.trim().toLowerCase();
-    if (state.users.some((u) => u.email.toLowerCase() === emailNorm)) {
-      return { ok: false, error: 'Este e-mail já está cadastrado na Cellbox.' };
+  const registerUser = async (
+    payload: RegisterPayload
+  ): Promise<{ ok: boolean; error?: string }> => {
+    const res = await apiRequest<BootstrapResponse>('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: res.data.error ?? 'Não foi possível concluir o cadastro.',
+      };
     }
 
-    const userId = `user-${Date.now()}`;
-    const today = new Date().toISOString().slice(0, 10);
-
+    applyBootstrap(res.data);
     if (payload.isSeller) {
-      const sellerId = `seller-${Date.now()}`;
-      const storeName = payload.storeName!.trim();
-      const initials = storeName
-        .split(/\s+/)
-        .slice(0, 2)
-        .map((w) => w[0]?.toUpperCase() ?? '')
-        .join('')
-        .slice(0, 2) || 'CB';
+      navigate({ type: 'seller_dashboard', tab: 'overview' });
+      showToast(
+        `Loja "${payload.storeName}" cadastrada com status Pendente de Aprovação.`,
+        'warning'
+      );
+    } else {
+      navigate({ type: 'profile', tab: 'orders' });
+      showToast(`Conta criada com sucesso! Boas compras, ${res.data.currentUser?.name}.`);
+    }
+    return { ok: true };
+  };
 
-      const newUser: User = {
-        id: userId,
-        name: payload.name.trim(),
-        email: emailNorm,
-        role: 'seller',
-        sellerId,
-        createdAt: today,
-      };
-
-      const newSeller: SellerStore = {
-        id: sellerId,
-        ownerUserId: userId,
-        name: storeName,
-        slug: storeName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-        documentId: payload.documentId!.trim(),
-        mainCategory: payload.mainCategory!,
-        description: `Loja parceira Cellbox especializada em ${payload.mainCategory}.`,
-        logoText: initials,
-        accentColor: '#0475EE',
-        bannerImage: ASSET_IMAGES.hero,
-        status: 'pending',
-        verified: false,
-        rating: 5.0,
-        reviewCount: 0,
-        joinedDate: today,
-        tenureLabel: 'Aguardando aprovação',
-        location: 'Maputo, Moçambique',
-        payoutInfo: {
-          bankName: 'Pendente de configuração',
-          accountType: 'Conta Empresarial',
-          accountNumber: '—',
-          pixOrWallet: payload.documentId!.trim(),
-        },
-      };
-
+  const logout = async () => {
+    setStoredToken(null);
+    try {
+      window.localStorage.setItem(LOGGED_OUT_FLAG_KEY, '1');
+    } catch {
+      // Ignore
+    }
+    const res = await apiRequest<BootstrapResponse>('/api/auth/logout', {
+      method: 'POST',
+    });
+    if (res.ok) {
+      applyBootstrap(res.data);
+    } else {
       setState((prev) => ({
         ...prev,
-        users: [...prev.users, newUser],
-        sellers: [newSeller, ...prev.sellers],
-        currentUserId: userId,
+        currentUser: null,
+        orders: [],
+        addresses: [],
+        wishlist: readGuestWishlist(),
       }));
-      navigate({ type: 'seller_dashboard', tab: 'overview' });
-      showToast(`Loja "${storeName}" cadastrada com status Pendente de Aprovação.`, 'warning');
-      return { ok: true };
     }
+    navigate({ type: 'home' });
+    showToast('Sessão encerrada com sucesso.', 'info');
+  };
 
-    const newBuyer: User = {
-      id: userId,
-      name: payload.name.trim(),
-      email: emailNorm,
-      role: 'buyer',
-      createdAt: today,
-    };
-
+  const updateProfile = async (updates: { name: string; phone: string }): Promise<boolean> => {
+    const res = await apiRequest<{ user: User }>('/api/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) {
+      showToast(res.data.error ?? 'Erro ao atualizar perfil.', 'warning');
+      return false;
+    }
     setState((prev) => ({
       ...prev,
-      users: [...prev.users, newBuyer],
-      currentUserId: userId,
+      currentUser: res.data.user,
+      users: prev.users.map((u) => (u.id === res.data.user.id ? res.data.user : u)),
     }));
-    navigate({ type: 'home' });
-    showToast(`Conta criada com sucesso! Boas compras, ${newBuyer.name}.`);
+    showToast('Dados da conta atualizados com sucesso.');
+    return true;
+  };
+
+  const changePassword = async (
+    currentPassword: string,
+    newPassword: string
+  ): Promise<{ ok: boolean; error?: string }> => {
+    const res = await apiRequest<{ ok: boolean }>('/api/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    if (!res.ok) {
+      return { ok: false, error: res.data.error ?? 'Não foi possível alterar a senha.' };
+    }
+    showToast('Senha alterada com segurança!');
     return { ok: true };
   };
 
-  const updateProfile = (updates: { name: string; phone: string }) => {
-    setState((prev) => ({
-      ...prev,
-      users: prev.users.map((u) =>
-        u.id === prev.currentUserId
-          ? { ...u, name: updates.name.trim() || u.name, phone: updates.phone.trim() }
-          : u
-      ),
-    }));
-    showToast('Dados da conta atualizados.');
-  };
-
+  // ── Cart, Wishlist, Compare ───────────────────────────────────────────────
   const addToCart = (productId: string, quantity = 1) => {
     const product = state.products.find((p) => p.id === productId);
     if (!product) return;
@@ -418,15 +528,33 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
 
   const clearCart = () => setState((prev) => ({ ...prev, cart: [] }));
 
-  const toggleWishlist = (productId: string) => {
-    const exists = state.wishlist.includes(productId);
-    setState((prev) => ({
-      ...prev,
-      wishlist: exists
-        ? prev.wishlist.filter((id) => id !== productId)
-        : [productId, ...prev.wishlist],
-    }));
-    showToast(exists ? 'Removido da lista de desejos.' : 'Salvo na lista de desejos.', 'info');
+  const toggleWishlist = async (productId: string) => {
+    if (!state.currentUser) {
+      const exists = state.wishlist.includes(productId);
+      const next = exists
+        ? state.wishlist.filter((id) => id !== productId)
+        : [productId, ...state.wishlist];
+      try {
+        window.localStorage.setItem(GUEST_WISHLIST_KEY, JSON.stringify(next));
+      } catch {
+        // Ignore
+      }
+      setState((prev) => ({ ...prev, wishlist: next }));
+      showToast(exists ? 'Removido da lista de desejos.' : 'Salvo na lista de desejos.', 'info');
+      return;
+    }
+
+    const res = await apiRequest<{ wishlist: string[]; added: boolean }>('/api/wishlist/toggle', {
+      method: 'POST',
+      body: JSON.stringify({ productId }),
+    });
+    if (res.ok) {
+      setState((prev) => ({ ...prev, wishlist: res.data.wishlist }));
+      showToast(
+        res.data.added ? 'Salvo na lista de desejos.' : 'Removido da lista de desejos.',
+        'info'
+      );
+    }
   };
 
   const toggleCompare = (productId: string) => {
@@ -444,245 +572,237 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
 
   const clearCompare = () => setCompareIds([]);
 
-  const addAddress = (addr: Omit<Address, 'id'>): Address => {
-    const created: Address = { ...addr, id: `addr-${Date.now()}` };
-    setState((prev) => ({
-      ...prev,
-      addresses: addr.isDefault
-        ? [created, ...prev.addresses.map((a) => ({ ...a, isDefault: false }))]
-        : [...prev.addresses, created],
-    }));
-    showToast('Endereço salvo com sucesso.');
-    return created;
-  };
-
-  const removeAddress = (id: string) => {
-    setState((prev) => ({
-      ...prev,
-      addresses: prev.addresses.filter((a) => a.id !== id),
-    }));
-    showToast('Endereço removido.', 'info');
-  };
-
-  const placeOrder = (address: Address, paymentMethod: PaymentMethod): Order | null => {
-    const groups = groupCartBySeller(state.cart, state.products, state.sellers, address.zipCode);
-    if (groups.length === 0) return null;
-
-    const totals = calculateCartTotals(groups);
-    const nowDate = new Date().toISOString().slice(0, 10);
-    const randomCode = Math.floor(1000 + Math.random() * 9000);
-    const orderId = `CBX-2026-${randomCode}`;
-
-    const newOrder: Order = {
-      id: orderId,
-      buyerId: currentUser.id,
-      buyerName: currentUser.name,
-      buyerEmail: currentUser.email,
-      createdAt: nowDate,
-      shippingAddress: address,
-      paymentMethod,
-      commissionRateSnapshot: state.commissionRate,
-      subtotal: totals.subtotal,
-      shippingTotal: totals.shippingTotal,
-      total: totals.grandTotal,
-      fulfillments: groups.map((g, idx) => ({
-        sellerId: g.seller.id,
-        sellerName: g.seller.name,
-        items: g.items.map((entry) => ({
-          productId: entry.product.id,
-          sellerId: g.seller.id,
-          title: entry.product.title,
-          image: entry.product.images[0] ?? ASSET_IMAGES.iphone16Pro,
-          price: entry.product.price,
-          quantity: entry.quantity,
-          condition: entry.product.condition,
-        })),
-        subtotal: g.subtotal,
-        shipping: g.shipping,
-        status: 'Pago',
-        trackingCode: `CBXMZ${randomCode}${idx + 1}MP`,
-        updatedAt: nowDate,
-      })),
-    };
-
-    // Decrement stock and increment soldCount
-    const qtyByProduct = new Map<string, number>();
-    for (const item of state.cart) {
-      qtyByProduct.set(item.productId, (qtyByProduct.get(item.productId) ?? 0) + item.quantity);
+  // ── Addresses & Orders ────────────────────────────────────────────────────
+  const addAddress = async (addr: Omit<Address, 'id'>): Promise<Address | null> => {
+    const res = await apiRequest<{ address: Address; addresses: Address[] }>('/api/addresses', {
+      method: 'POST',
+      body: JSON.stringify(addr),
+    });
+    if (!res.ok) {
+      showToast(res.data.error ?? 'Erro ao salvar endereço.', 'warning');
+      return null;
     }
-
-    setState((prev) => ({
-      ...prev,
-      orders: [newOrder, ...prev.orders],
-      cart: [],
-      products: prev.products.map((p) => {
-        const bought = qtyByProduct.get(p.id);
-        if (!bought) return p;
-        return {
-          ...p,
-          stock: Math.max(0, p.stock - bought),
-          soldCount: p.soldCount + bought,
-        };
-      }),
-    }));
-
-    showToast(`Pedido ${orderId} confirmado com sucesso!`);
-    return newOrder;
+    setState((prev) => ({ ...prev, addresses: res.data.addresses }));
+    showToast('Endereço salvo com sucesso.');
+    return res.data.address;
   };
 
-  const updateOrderFulfillmentStatus = (
+  const setDefaultAddress = async (id: string) => {
+    const res = await apiRequest<{ addresses: Address[] }>(`/api/addresses/${id}/default`, {
+      method: 'PATCH',
+    });
+    if (res.ok) {
+      setState((prev) => ({ ...prev, addresses: res.data.addresses }));
+      showToast('Endereço padrão atualizado.');
+    }
+  };
+
+  const removeAddress = async (id: string) => {
+    const res = await apiRequest<{ addresses: Address[] }>(`/api/addresses/${id}`, {
+      method: 'DELETE',
+    });
+    if (res.ok) {
+      setState((prev) => ({ ...prev, addresses: res.data.addresses }));
+      showToast('Endereço removido.', 'info');
+    }
+  };
+
+  const placeOrder = async (
+    address: Address,
+    paymentMethod: PaymentMethod
+  ): Promise<Order | null> => {
+    const res = await apiRequest<{ order: Order; products: Product[]; orders: Order[] }>(
+      '/api/orders',
+      {
+        method: 'POST',
+        body: JSON.stringify({ cart: state.cart, address, paymentMethod }),
+      }
+    );
+    if (!res.ok) {
+      showToast(res.data.error ?? 'Não foi possível concluir o pedido.', 'warning');
+      return null;
+    }
+    setState((prev) => ({
+      ...prev,
+      orders: res.data.orders,
+      products: res.data.products,
+      cart: [],
+    }));
+    showToast(`Pedido ${res.data.order.id} confirmado com sucesso!`);
+    return res.data.order;
+  };
+
+  const updateOrderFulfillmentStatus = async (
     orderId: string,
     sellerId: string,
     nextStatus: OrderStatus
   ) => {
-    const today = new Date().toISOString().slice(0, 10);
-    setState((prev) => ({
-      ...prev,
-      orders: prev.orders.map((order) => {
-        if (order.id !== orderId) return order;
-        return {
-          ...order,
-          fulfillments: order.fulfillments.map((f) =>
-            f.sellerId === sellerId ? { ...f, status: nextStatus, updatedAt: today } : f
-          ),
-        };
-      }),
-    }));
-    showToast(`Status do pedido ${orderId} atualizado para "${nextStatus}".`);
+    const res = await apiRequest<{ orders: Order[] }>(
+      `/api/orders/${encodeURIComponent(orderId)}/fulfillment`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ sellerId, nextStatus }),
+      }
+    );
+    if (res.ok) {
+      setState((prev) => ({ ...prev, orders: res.data.orders }));
+      showToast(`Status do pedido ${orderId} atualizado para "${nextStatus}".`);
+    } else {
+      showToast(res.data.error ?? 'Erro ao atualizar pedido.', 'warning');
+    }
   };
 
-  const createProduct = (payload: NewProductPayload): Product => {
-    const created: Product = {
-      id: `prod-${Date.now()}`,
-      sellerId: payload.sellerId,
-      title: payload.title.trim(),
-      brand: payload.brand.trim(),
-      category: payload.category,
-      condition: payload.condition,
-      price: payload.price,
-      originalPrice: payload.originalPrice,
-      stock: payload.stock,
-      rating: 5.0,
-      reviewCount: 0,
-      soldCount: 0,
-      images: [payload.imageUrl.trim() || ASSET_IMAGES.iphone16Pro],
-      description: payload.description.trim(),
-      specs: payload.specs,
-      createdAt: new Date().toISOString().slice(0, 10),
-    };
-
-    setState((prev) => ({
-      ...prev,
-      products: [created, ...prev.products],
-    }));
-    showToast(`Produto "${created.title}" publicado no catálogo!`);
-    return created;
+  // ── Seller & Admin Actions ────────────────────────────────────────────────
+  const createProduct = async (payload: NewProductPayload): Promise<Product | null> => {
+    const res = await apiRequest<{ product: Product; products: Product[] }>('/api/products', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      showToast(res.data.error ?? 'Erro ao publicar produto.', 'warning');
+      return null;
+    }
+    setState((prev) => ({ ...prev, products: res.data.products }));
+    showToast(`Produto "${res.data.product.title}" publicado no catálogo!`);
+    return res.data.product;
   };
 
-  const updateProduct = (productId: string, updates: Partial<Product>) => {
-    setState((prev) => ({
-      ...prev,
-      products: prev.products.map((p) => (p.id === productId ? { ...p, ...updates } : p)),
-    }));
-    showToast('Produto atualizado.');
+  const updateProduct = async (productId: string, updates: Partial<Product>) => {
+    const res = await apiRequest<{ products: Product[] }>(
+      `/api/products/${encodeURIComponent(productId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(updates),
+      }
+    );
+    if (res.ok) {
+      setState((prev) => ({ ...prev, products: res.data.products }));
+      showToast('Produto atualizado.');
+    }
   };
 
-  const deleteProduct = (productId: string) => {
-    setState((prev) => ({
-      ...prev,
-      products: prev.products.filter((p) => p.id !== productId),
-      cart: prev.cart.filter((i) => i.productId !== productId),
-      wishlist: prev.wishlist.filter((id) => id !== productId),
-    }));
-    showToast('Produto removido do catálogo.', 'info');
+  const deleteProduct = async (productId: string) => {
+    const res = await apiRequest<{ products: Product[] }>(
+      `/api/products/${encodeURIComponent(productId)}`,
+      {
+        method: 'DELETE',
+      }
+    );
+    if (res.ok) {
+      setState((prev) => ({
+        ...prev,
+        products: res.data.products,
+        cart: prev.cart.filter((i) => i.productId !== productId),
+        wishlist: prev.wishlist.filter((id) => id !== productId),
+      }));
+      showToast('Produto removido do catálogo.', 'info');
+    }
   };
 
-  const updateSellerSettings: MarketplaceContextValue['updateSellerSettings'] = (
+  const updateSellerSettings: MarketplaceContextValue['updateSellerSettings'] = async (
     sellerId,
     updates
   ) => {
-    setState((prev) => ({
-      ...prev,
-      sellers: prev.sellers.map((s) => (s.id === sellerId ? { ...s, ...updates } : s)),
-    }));
-    showToast('Configurações da loja salvas com sucesso.');
-  };
-
-  const setSellerStatus = (sellerId: string, status: SellerStatus) => {
-    const seller = state.sellers.find((s) => s.id === sellerId);
-    setState((prev) => ({
-      ...prev,
-      sellers: prev.sellers.map((s) =>
-        s.id === sellerId
-          ? {
-              ...s,
-              status,
-              verified: status === 'active' ? true : s.verified,
-              tenureLabel:
-                status === 'active' && s.tenureLabel === 'Aguardando aprovação'
-                  ? 'Nova loja verificada'
-                  : s.tenureLabel,
-            }
-          : s
-      ),
-    }));
-    if (seller) {
-      const msg =
-        status === 'active'
-          ? `Loja "${seller.name}" aprovada! Seus produtos já estão visíveis na vitrine.`
-          : status === 'suspended'
-            ? `Loja "${seller.name}" suspensa. Seus anúncios foram ocultados da vitrine.`
-            : `Status de "${seller.name}" alterado para Pendente.`;
-      showToast(msg, status === 'active' ? 'success' : 'warning');
+    const res = await apiRequest<{ sellers: SellerStore[] }>(
+      `/api/sellers/${encodeURIComponent(sellerId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(updates),
+      }
+    );
+    if (res.ok) {
+      setState((prev) => ({ ...prev, sellers: res.data.sellers }));
+      showToast('Configurações da loja salvas com sucesso.');
     }
   };
 
-  const addCategory = (name: string): boolean => {
-    const trimmed = name.trim();
-    if (!trimmed) return false;
-    if (state.categories.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
+  const setSellerStatus = async (sellerId: string, status: SellerStatus) => {
+    const seller = state.sellers.find((s) => s.id === sellerId);
+    const res = await apiRequest<{ sellers: SellerStore[] }>(
+      `/api/sellers/${encodeURIComponent(sellerId)}/status`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      }
+    );
+    if (res.ok) {
+      setState((prev) => ({ ...prev, sellers: res.data.sellers }));
+      if (seller) {
+        const msg =
+          status === 'active'
+            ? `Loja "${seller.name}" aprovada! Seus produtos já estão visíveis na vitrine.`
+            : status === 'suspended'
+              ? `Loja "${seller.name}" suspensa. Seus anúncios foram ocultados da vitrine.`
+              : `Status de "${seller.name}" alterado para Pendente.`;
+        showToast(msg, status === 'active' ? 'success' : 'warning');
+      }
+    }
+  };
+
+  const addCategory = async (name: string): Promise<boolean> => {
+    const res = await apiRequest<{ categories: string[] }>('/api/categories', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+    if (!res.ok) {
+      showToast(res.data.error ?? 'Erro ao adicionar categoria.', 'warning');
       return false;
     }
-    setState((prev) => ({
-      ...prev,
-      categories: [...prev.categories, trimmed],
-    }));
-    showToast(`Categoria "${trimmed}" adicionada.`);
+    setState((prev) => ({ ...prev, categories: res.data.categories }));
+    showToast(`Categoria "${name.trim()}" adicionada.`);
     return true;
   };
 
-  const removeCategory = (name: string) => {
-    setState((prev) => ({
-      ...prev,
-      categories: prev.categories.filter((c) => c !== name),
-    }));
-    showToast(`Categoria "${name}" removida.`, 'info');
+  const removeCategory = async (name: string) => {
+    const res = await apiRequest<{ categories: string[] }>(
+      `/api/categories/${encodeURIComponent(name)}`,
+      {
+        method: 'DELETE',
+      }
+    );
+    if (res.ok) {
+      setState((prev) => ({ ...prev, categories: res.data.categories }));
+      showToast(`Categoria "${name}" removida.`, 'info');
+    }
   };
 
-  const setCommissionRate = (rate: number) => {
-    const clamped = Math.max(1, Math.min(35, Number(rate.toFixed(1))));
-    setState((prev) => ({ ...prev, commissionRate: clamped }));
-    showToast(`Taxa de comissão padrão atualizada para ${clamped}%.`);
-  };
-
-  const resetDemoData = () => {
-    window.localStorage.removeItem(STORAGE_KEY);
-    setState({
-      users: INITIAL_USERS,
-      currentUserId: 'user-buyer-1',
-      sellers: INITIAL_SELLERS,
-      products: INITIAL_PRODUCTS,
-      categories: INITIAL_CATEGORIES,
-      orders: INITIAL_ORDERS,
-      cart: [],
-      wishlist: ['prod-iphone-16-pro', 'prod-macbook-pro-m3'],
-      addresses: INITIAL_ADDRESSES,
-      commissionRate: 10,
+  const setCommissionRate = async (rate: number) => {
+    const res = await apiRequest<{ commissionRate: number }>('/api/commission', {
+      method: 'PATCH',
+      body: JSON.stringify({ rate }),
     });
-    setFilters(DEFAULT_FILTERS);
-    setCompareIds([]);
-    navigate({ type: 'home' });
-    showToast('Dados de demonstração restaurados.', 'info');
+    if (res.ok) {
+      setState((prev) => ({ ...prev, commissionRate: res.data.commissionRate }));
+      showToast(`Taxa de comissão padrão atualizada para ${res.data.commissionRate}%.`);
+    }
+  };
+
+  const subscribeNewsletter = async (
+    email: string
+  ): Promise<{ ok: boolean; error?: string }> => {
+    const res = await apiRequest<{ ok: boolean; email: string }>('/api/newsletter', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+    if (!res.ok) {
+      return { ok: false, error: res.data.error ?? 'Erro ao assinar newsletter.' };
+    }
+    showToast(`E-mail ${res.data.email} inscrito com sucesso nas ofertas Cellbox!`);
+    return { ok: true };
+  };
+
+  const resetDemoData = async () => {
+    const res = await apiRequest<BootstrapResponse>('/api/reset-demo', {
+      method: 'POST',
+    });
+    if (res.ok) {
+      applyBootstrap(res.data);
+      setState((prev) => ({ ...prev, cart: [] }));
+      setFilters(DEFAULT_FILTERS);
+      setCompareIds([]);
+      navigate({ type: 'home' });
+      showToast('Dados de demonstração restaurados.', 'info');
+    }
   };
 
   return (
@@ -690,8 +810,9 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
       value={{
         view,
         navigate,
+        authReady,
         users: state.users,
-        currentUser,
+        currentUser: state.currentUser,
         sellers: state.sellers,
         products: state.products,
         categories: state.categories,
@@ -710,9 +831,11 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
         toast,
         showToast,
         switchDemoRole,
-        loginWithEmail,
+        login,
         registerUser,
+        logout,
         updateProfile,
+        changePassword,
         addToCart,
         updateCartQuantity,
         removeFromCart,
@@ -721,6 +844,7 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
         toggleCompare,
         clearCompare,
         addAddress,
+        setDefaultAddress,
         removeAddress,
         placeOrder,
         updateOrderFulfillmentStatus,
@@ -732,6 +856,7 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
         addCategory,
         removeCategory,
         setCommissionRate,
+        subscribeNewsletter,
         resetDemoData,
       }}
     >

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   CheckCircle2,
   Lock,
@@ -7,8 +8,54 @@ import {
   Phone,
   ShieldCheck,
   Smartphone,
+  X,
 } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
+import { MotionButton, SPRING_CARD } from './MotionPrimitives';
+
+type InfoModalKey = 'about' | 'guarantee' | 'privacy' | 'terms';
+
+const INFO_MODAL_CONTENT: Record<
+  InfoModalKey,
+  { title: string; subtitle: string; paragraphs: string[] }
+> = {
+  about: {
+    title: 'Sobre a Cellbox Moçambique',
+    subtitle: 'O marketplace especializado em tecnologia verificada',
+    paragraphs: [
+      'A Cellbox conecta consumidores em todo Moçambique às melhores lojas oficiais de smartphones, laptops, tablets, áudio e acessórios de alta performance.',
+      'Todos os lojistas passam por verificação documental (NUIT/NIF) e controle contínuo de qualidade antes de publicar produtos na vitrine.',
+      'Oferecemos checkout unificado multi-vendor em Meticais (MZN) com suporte a M-Pesa, e-Mola, cartões e transferência bancária.',
+    ],
+  },
+  guarantee: {
+    title: 'Compra Garantida Cellbox',
+    subtitle: 'Proteção total do pagamento até a entrega',
+    paragraphs: [
+      'Na Cellbox, o valor pago fica protegido em conta de garantia até você receber seu produto e confirmar que está tudo conforme o anúncio.',
+      'Você tem até 30 dias corridos para devolução gratuita caso o produto apresente qualquer divergência técnica ou defeito.',
+      'Produtos recondicionados A+ passam por inspeção de 40 pontos em laboratório parceiro e possuem 12 meses de garantia oficial.',
+    ],
+  },
+  privacy: {
+    title: 'Política de Privacidade',
+    subtitle: 'Segurança e transparência no tratamento dos seus dados',
+    paragraphs: [
+      'Suas senhas são protegidas com hash criptográfico com salt único (scrypt) e nunca são armazenadas em texto simples.',
+      'Seus dados de entrega e contato são compartilhados exclusivamente com o lojista responsável pela expedição do seu pedido.',
+      'Você pode atualizar seus dados pessoais, endereços e senha a qualquer momento na área Minha Conta > Configurações.',
+    ],
+  },
+  terms: {
+    title: 'Termos de Uso do Marketplace',
+    subtitle: 'Direitos e responsabilidades de compradores e lojistas',
+    paragraphs: [
+      'Ao utilizar a Cellbox, compradores e lojistas concordam com as regras de transparência de preços em Meticais (MT), autenticidade de produtos e prazos de expedição.',
+      'Lojistas parceiros comprometem-se a manter estoque atualizado, emitir comprovativo fiscal e atualizar os marcos de rastreio (Pago, Em Separação, Enviado, Entregue).',
+      'A equipe Super Admin da Cellbox monitora a qualidade do catálogo e pode suspender contas que violem as políticas da plataforma.',
+    ],
+  },
+};
 
 export function Footer() {
   const {
@@ -16,18 +63,32 @@ export function Footer() {
     navigate,
     switchDemoRole,
     setFilters,
+    subscribeNewsletter,
     showToast,
   } = useMarketplace();
   const [email, setEmail] = useState('');
+  const [submittingNews, setSubmittingNews] = useState(false);
+  const [subscribedEmail, setSubscribedEmail] = useState<string | null>(null);
+  const [infoModal, setInfoModal] = useState<InfoModalKey | null>(null);
 
-  const handleNewsletter = (e: React.FormEvent) => {
+  const handleNewsletter = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !email.includes('@')) {
       showToast('Digite um e-mail válido para assinar a newsletter.', 'warning');
       return;
     }
-    showToast(`E-mail ${email.trim()} inscrito com sucesso nas ofertas Cellbox!`, 'success');
-    setEmail('');
+    setSubmittingNews(true);
+    try {
+      const res = await subscribeNewsletter(email.trim());
+      if (res.ok) {
+        setSubscribedEmail(email.trim());
+        setEmail('');
+      } else if (res.error) {
+        showToast(res.error, 'warning');
+      }
+    } finally {
+      setSubmittingNews(false);
+    }
   };
 
   const quickFilter = (term: string, isCategory = false) => {
@@ -37,6 +98,9 @@ export function Footer() {
       search: isCategory ? '' : term,
     }));
     navigate({ type: 'home' });
+    window.setTimeout(() => {
+      document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
+    }, 60);
   };
 
   const quickKeywords = [
@@ -56,6 +120,8 @@ export function Footer() {
     { label: 'SSD NVMe', isCategory: false },
   ];
 
+  const activeInfo = infoModal ? INFO_MODAL_CONTENT[infoModal] : null;
+
   return (
     <footer className="mt-auto bg-white text-[#555555]">
       {/* Band 1: Full-width Official Cellbox Cyan-Blue Newsletter Bar (#18A3DE) */}
@@ -74,25 +140,29 @@ export function Footer() {
                 placeholder="Digite seu e-mail..."
                 className="h-9 flex-1 sm:w-[220px] bg-white text-[#333333] placeholder:text-[#999999] px-3 text-[12px] rounded-l-[2px] focus:outline-none"
               />
-              <button
+              <MotionButton
                 type="submit"
-                className="h-9 px-4 bg-[#0A3768] hover:bg-[#082C54] text-white text-[11px] font-bold uppercase tracking-wider rounded-r-[2px] transition-colors whitespace-nowrap cursor-pointer"
+                hoverScale={1.02}
+                hoverY={0}
+                disabled={submittingNews}
+                className="h-9 px-4 bg-[#0A3768] hover:bg-[#082C54] disabled:opacity-60 text-white text-[11px] font-bold uppercase tracking-wider rounded-r-[2px] transition-colors whitespace-nowrap cursor-pointer"
               >
-                ASSINAR
-              </button>
+                {submittingNews ? '...' : 'ASSINAR'}
+              </MotionButton>
             </form>
 
             <div className="text-center sm:text-left">
               <p className="font-condensed text-[14px] font-bold uppercase tracking-wide text-white leading-tight">
-                ASSINE NOSSA NEWSLETTER
+                {subscribedEmail ? 'INSCRIÇÃO CONFIRMADA!' : 'ASSINE NOSSA NEWSLETTER'}
               </p>
               <p className="text-[11px] text-white/90 mt-0.5">
-                Receba descontos exclusivos e lançamentos de tecnologia em Moçambique.
+                {subscribedEmail
+                  ? `Ofertas exclusivas serão enviadas para ${subscribedEmail}.`
+                  : 'Receba descontos exclusivos e lançamentos de tecnologia em Moçambique.'}
               </p>
             </div>
           </div>
 
-          {/* 4 Crisp White Square Social Buttons */}
           <div className="flex items-center gap-2 shrink-0">
             {[
               { label: 'Facebook', glyph: 'f' },
@@ -100,15 +170,17 @@ export function Footer() {
               { label: 'Instagram', glyph: 'ig' },
               { label: 'YouTube', glyph: '▶' },
             ].map((social) => (
-              <button
+              <MotionButton
                 key={social.label}
                 type="button"
+                hoverScale={1.08}
+                hoverY={-1}
                 aria-label={social.label}
-                onClick={() => showToast(`Siga a Cellbox no ${social.label}!`, 'info')}
+                onClick={() => showToast(`Siga @cellbox.mz no ${social.label}!`, 'info')}
                 className="w-8 h-8 bg-white hover:bg-[#EAF6FC] text-[#0A3768] rounded-[2px] flex items-center justify-center text-[12px] font-extrabold transition-colors cursor-pointer"
               >
                 {social.glyph}
-              </button>
+              </MotionButton>
             ))}
           </div>
         </div>
@@ -117,7 +189,6 @@ export function Footer() {
       {/* Band 2: 5-Column White Links Directory */}
       <div className="bg-white border-b border-[#EAEAEA]">
         <div className="max-w-[1170px] mx-auto px-4 py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8">
-          {/* Col 1: CONTATO */}
           <div className="lg:col-span-1">
             <h3 className="font-condensed text-[14px] font-bold uppercase tracking-wide text-[#0A3768] mb-4">
               CONTATO
@@ -157,7 +228,6 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Col 2: INSTITUCIONAL */}
           <div>
             <h3 className="font-condensed text-[14px] font-bold uppercase tracking-wide text-[#0A3768] mb-4">
               INSTITUCIONAL
@@ -166,7 +236,7 @@ export function Footer() {
               <li>
                 <button
                   type="button"
-                  onClick={() => navigate({ type: 'home' })}
+                  onClick={() => setInfoModal('about')}
                   className="hover:text-[#0475EE] transition-colors cursor-pointer"
                 >
                   Sobre a Cellbox
@@ -175,7 +245,12 @@ export function Footer() {
               <li>
                 <button
                   type="button"
-                  onClick={() => navigate({ type: 'store', sellerId: 'seller-techzone' })}
+                  onClick={() => {
+                    navigate({ type: 'home' });
+                    window.setTimeout(() => {
+                      document.getElementById('lojas-oficiais')?.scrollIntoView({ behavior: 'smooth' });
+                    }, 60);
+                  }}
                   className="hover:text-[#0475EE] transition-colors cursor-pointer"
                 >
                   Lojas Oficiais Verificadas
@@ -184,9 +259,7 @@ export function Footer() {
               <li>
                 <button
                   type="button"
-                  onClick={() =>
-                    showToast('Todas as compras possuem garantia Cellbox de 30 dias.', 'info')
-                  }
+                  onClick={() => setInfoModal('guarantee')}
                   className="hover:text-[#0475EE] transition-colors cursor-pointer"
                 >
                   Compra Garantida
@@ -195,7 +268,7 @@ export function Footer() {
               <li>
                 <button
                   type="button"
-                  onClick={() => showToast('Política de Privacidade e proteção de dados ativa.', 'info')}
+                  onClick={() => setInfoModal('privacy')}
                   className="hover:text-[#0475EE] transition-colors cursor-pointer"
                 >
                   Política de Privacidade
@@ -204,7 +277,7 @@ export function Footer() {
               <li>
                 <button
                   type="button"
-                  onClick={() => showToast('Termos de Uso do Marketplace Cellbox.', 'info')}
+                  onClick={() => setInfoModal('terms')}
                   className="hover:text-[#0475EE] transition-colors cursor-pointer"
                 >
                   Termos de Uso
@@ -213,7 +286,6 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Col 3: MINHA CONTA */}
           <div>
             <h3 className="font-condensed text-[14px] font-bold uppercase tracking-wide text-[#0A3768] mb-4">
               MINHA CONTA
@@ -267,7 +339,6 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Col 4: PAINÉIS RBAC */}
           <div>
             <h3 className="font-condensed text-[14px] font-bold uppercase tracking-wide text-[#0A3768] mb-4">
               PAINÉIS RBAC
@@ -276,7 +347,7 @@ export function Footer() {
               <li>
                 <button
                   type="button"
-                  onClick={() => switchDemoRole('buyer')}
+                  onClick={() => void switchDemoRole('buyer')}
                   className="hover:text-[#0475EE] transition-colors cursor-pointer"
                 >
                   Área do Comprador
@@ -285,7 +356,7 @@ export function Footer() {
               <li>
                 <button
                   type="button"
-                  onClick={() => switchDemoRole('seller')}
+                  onClick={() => void switchDemoRole('seller')}
                   className="hover:text-[#0475EE] transition-colors cursor-pointer"
                 >
                   Painel do Vendedor
@@ -294,7 +365,7 @@ export function Footer() {
               <li>
                 <button
                   type="button"
-                  onClick={() => switchDemoRole('admin')}
+                  onClick={() => void switchDemoRole('admin')}
                   className="hover:text-[#0475EE] transition-colors cursor-pointer"
                 >
                   Super Admin Master
@@ -312,7 +383,6 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Col 5: CATEGORIAS */}
           <div>
             <h3 className="font-condensed text-[14px] font-bold uppercase tracking-wide text-[#0A3768] mb-4">
               CATEGORIAS
@@ -334,10 +404,9 @@ export function Footer() {
         </div>
       </div>
 
-      {/* Band 3: Light Gray Trust Seals, Payment Methods & App Store Strip (#F0F2F4) */}
+      {/* Band 3: Trust Seals, Payment Methods & App Store Strip */}
       <div className="bg-[#F0F2F4] border-b border-[#E5E7EB]">
         <div className="max-w-[1170px] mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
-          {/* Left: Security Trust Badges */}
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1.5 bg-white border border-[#DCDCDC] rounded-[3px] px-2.5 py-1">
               <ShieldCheck className="w-4 h-4 text-[#0475EE]" />
@@ -359,7 +428,6 @@ export function Footer() {
             </div>
           </div>
 
-          {/* Center: Mozambican Payment Badges */}
           <div className="flex flex-wrap items-center justify-center gap-1.5">
             {[
               { label: 'M-Pesa', color: 'text-[#E60000]' },
@@ -378,9 +446,8 @@ export function Footer() {
             ))}
           </div>
 
-          {/* Right: App Store Badges */}
           <div className="flex items-center gap-2">
-            <button
+            <MotionButton
               type="button"
               onClick={() => showToast('App Cellbox para Android em breve na Google Play.', 'info')}
               className="flex items-center gap-1.5 bg-[#0A3768] hover:bg-[#0475EE] text-white px-2.5 py-1.5 rounded-[4px] transition-colors cursor-pointer"
@@ -390,8 +457,8 @@ export function Footer() {
                 <p className="text-[7px] uppercase text-white/75">DISPONÍVEL NO</p>
                 <p className="text-[10px] font-bold">Google Play</p>
               </div>
-            </button>
-            <button
+            </MotionButton>
+            <MotionButton
               type="button"
               onClick={() => showToast('App Cellbox para iOS em breve na App Store.', 'info')}
               className="flex items-center gap-1.5 bg-[#0A3768] hover:bg-[#0475EE] text-white px-2.5 py-1.5 rounded-[4px] transition-colors cursor-pointer"
@@ -401,7 +468,7 @@ export function Footer() {
                 <p className="text-[7px] uppercase text-white/75">BAIXAR NA</p>
                 <p className="text-[10px] font-bold">App Store</p>
               </div>
-            </button>
+            </MotionButton>
           </div>
         </div>
       </div>
@@ -432,6 +499,67 @@ export function Footer() {
           </p>
         </div>
       </div>
+
+      {/* Interactive Institutional Info Modal */}
+      <AnimatePresence>
+        {activeInfo && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setInfoModal(null)}
+            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="footer-info-modal-title"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: 12 }}
+              transition={SPRING_CARD}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-[4px] border border-[#E0E0E0] max-w-lg w-full p-6 shadow-2xl space-y-4"
+            >
+              <div className="flex items-start justify-between gap-4 pb-3 border-b border-[#EAEAEA]">
+                <div>
+                  <h2
+                    id="footer-info-modal-title"
+                    className="font-condensed text-[22px] font-bold uppercase text-[#0A3768]"
+                  >
+                    {activeInfo.title}
+                  </h2>
+                  <p className="text-xs text-[#18A3DE] font-semibold mt-0.5">
+                    {activeInfo.subtitle}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setInfoModal(null)}
+                  aria-label="Fechar janela informativa"
+                  className="p-1.5 rounded-[2px] text-[#666666] hover:bg-[#F1F2F4] cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="space-y-3 text-sm text-[#555555] leading-relaxed">
+                {activeInfo.paragraphs.map((p, i) => (
+                  <p key={i}>{p}</p>
+                ))}
+              </div>
+              <div className="pt-2 flex justify-end">
+                <MotionButton
+                  type="button"
+                  onClick={() => setInfoModal(null)}
+                  className="h-9 px-5 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
+                >
+                  Entendido
+                </MotionButton>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </footer>
   );
 }

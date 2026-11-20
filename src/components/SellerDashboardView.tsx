@@ -1,10 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   ArrowRight,
   BarChart3,
+  Check,
   CheckCircle2,
   Package,
+  Pencil,
   Plus,
   Search,
   Settings,
@@ -23,6 +25,7 @@ import {
   getNextOrderStatus,
   validateProductForm,
 } from '../utils/marketplace';
+import { MotionButton } from './MotionPrimitives';
 import { ProductImage } from './ProductImage';
 
 interface SellerDashboardViewProps {
@@ -38,6 +41,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
     orders,
     commissionRate,
     createProduct,
+    updateProduct,
     deleteProduct,
     updateOrderFulfillmentStatus,
     updateSellerSettings,
@@ -48,13 +52,20 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
   const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders' | 'settings'>(
     initialTab
   );
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
   const [productSearch, setProductSearch] = useState('');
   const [productCategoryFilter, setProductCategoryFilter] = useState('Todas');
   const [newProductOpen, setNewProductOpen] = useState(false);
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [editPrice, setEditPrice] = useState('');
+  const [editStock, setEditStock] = useState('');
 
   const seller =
-    sellers.find((s) => s.id === currentUser.sellerId) ??
-    sellers.find((s) => s.ownerUserId === currentUser.id) ??
+    sellers.find((s) => currentUser?.sellerId && s.id === currentUser.sellerId) ??
+    sellers.find((s) => currentUser && s.ownerUserId === currentUser.id) ??
     sellers[0];
 
   // Product Form State
@@ -90,6 +101,21 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
     accountNumber: seller.payoutInfo.accountNumber,
     pixOrWallet: seller.payoutInfo.pixOrWallet,
   });
+
+  useEffect(() => {
+    setStoreForm({
+      name: seller.name,
+      description: seller.description,
+      logoText: seller.logoText,
+      accentColor: seller.accentColor,
+      location: seller.location,
+      bannerImage: seller.bannerImage,
+      bankName: seller.payoutInfo.bankName,
+      accountType: seller.payoutInfo.accountType,
+      accountNumber: seller.payoutInfo.accountNumber,
+      pixOrWallet: seller.payoutInfo.pixOrWallet,
+    });
+  }, [seller]);
 
   const sellerProducts = useMemo(() => {
     const q = productSearch.trim().toLowerCase();
@@ -323,14 +349,14 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                 {navItems.find((i) => i.id === activeTab)?.label}
               </h1>
             </div>
-            <button
+            <MotionButton
               type="button"
               onClick={() => setNewProductOpen(true)}
               className="h-10 px-5 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider inline-flex items-center gap-2 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               Novo Produto
-            </button>
+            </MotionButton>
           </div>
 
           {/* TAB 1: VISÃO GERAL */}
@@ -488,46 +514,116 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#EAEAEA]">
-                      {sellerProducts.map((p) => (
-                        <tr key={p.id} className="hover:bg-[#F9FAFB]">
-                          <td className="py-3 px-5">
-                            <div className="flex items-center gap-3">
-                              <div className="w-12 h-9 rounded-[2px] overflow-hidden bg-white border border-[#EAEAEA] shrink-0">
-                                <ProductImage
-                                  src={p.images[0]}
-                                  alt={p.title}
-                                  category={p.category}
-                                  className="w-full h-full object-cover"
+                      {sellerProducts.map((p) => {
+                        const isEditing = editingProductId === p.id;
+                        return (
+                          <tr key={p.id} className="hover:bg-[#F9FAFB]">
+                            <td className="py-3 px-5">
+                              <div className="flex items-center gap-3">
+                                <div className="w-12 h-9 rounded-[2px] overflow-hidden bg-white border border-[#EAEAEA] shrink-0">
+                                  <ProductImage
+                                    src={p.images[0]}
+                                    alt={p.title}
+                                    category={p.category}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-semibold text-[#333333] truncate max-w-[260px]">
+                                    {p.title}
+                                  </p>
+                                  <p className="text-xs text-[#777777]">{p.brand}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-3 px-4 text-[#666666]">{p.category}</td>
+                            <td className="py-3 px-4 text-[#444444]">{p.condition}</td>
+                            <td className="py-3 px-4 text-right font-mono tabular-nums font-medium text-[#333333]">
+                              {isEditing ? (
+                                <input
+                                  type="number"
+                                  min={0}
+                                  aria-label={`Editar estoque de ${p.title}`}
+                                  value={editStock}
+                                  onChange={(e) => setEditStock(e.target.value)}
+                                  className="w-16 h-8 px-2 text-right border border-[#0475EE] rounded-[2px] text-xs font-mono"
                                 />
+                              ) : (
+                                p.stock
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-right font-mono tabular-nums font-bold text-[#0475EE]">
+                              {isEditing ? (
+                                <input
+                                  type="number"
+                                  min={1}
+                                  aria-label={`Editar preço de ${p.title}`}
+                                  value={editPrice}
+                                  onChange={(e) => setEditPrice(e.target.value)}
+                                  className="w-24 h-8 px-2 text-right border border-[#0475EE] rounded-[2px] text-xs font-mono"
+                                />
+                              ) : (
+                                formatCurrency(p.price)
+                              )}
+                            </td>
+                            <td className="py-3 px-5 text-right">
+                              <div className="inline-flex items-center gap-1">
+                                {isEditing ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      aria-label={`Salvar alterações de ${p.title}`}
+                                      onClick={() => {
+                                        const nextPrice = Number(editPrice);
+                                        const nextStock = Number(editStock);
+                                        if (nextPrice > 0 && nextStock >= 0) {
+                                          void updateProduct(p.id, {
+                                            price: nextPrice,
+                                            stock: nextStock,
+                                          });
+                                        }
+                                        setEditingProductId(null);
+                                      }}
+                                      className="p-2 text-emerald-700 hover:bg-emerald-50 rounded-[2px] cursor-pointer"
+                                    >
+                                      <Check className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      aria-label="Cancelar edição"
+                                      onClick={() => setEditingProductId(null)}
+                                      className="p-2 text-[#777777] hover:bg-[#F1F2F4] rounded-[2px] cursor-pointer"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    aria-label={`Editar ${p.title}`}
+                                    onClick={() => {
+                                      setEditingProductId(p.id);
+                                      setEditPrice(String(p.price));
+                                      setEditStock(String(p.stock));
+                                    }}
+                                    className="p-2 text-[#777777] hover:text-[#0475EE] rounded-[2px] hover:bg-[#EAF6FC] cursor-pointer"
+                                  >
+                                    <Pencil className="w-4 h-4" />
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  aria-label={`Excluir ${p.title}`}
+                                  onClick={() => void deleteProduct(p.id)}
+                                  className="p-2 text-[#999999] hover:text-rose-600 rounded-[2px] hover:bg-rose-50 cursor-pointer"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
                               </div>
-                              <div className="min-w-0">
-                                <p className="font-semibold text-[#333333] truncate max-w-[260px]">
-                                  {p.title}
-                                </p>
-                                <p className="text-xs text-[#777777]">{p.brand}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-3 px-4 text-[#666666]">{p.category}</td>
-                          <td className="py-3 px-4 text-[#444444]">{p.condition}</td>
-                          <td className="py-3 px-4 text-right font-mono tabular-nums font-medium text-[#333333]">
-                            {p.stock}
-                          </td>
-                          <td className="py-3 px-4 text-right font-mono tabular-nums font-bold text-[#0475EE]">
-                            {formatCurrency(p.price)}
-                          </td>
-                          <td className="py-3 px-5 text-right">
-                            <button
-                              type="button"
-                              aria-label={`Excluir ${p.title}`}
-                              onClick={() => deleteProduct(p.id)}
-                              className="p-2 text-[#999999] hover:text-rose-600 rounded-[2px] hover:bg-rose-50 cursor-pointer"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -574,16 +670,16 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                             </span>
                           </span>
                           {nextStatus ? (
-                            <button
+                            <MotionButton
                               type="button"
                               onClick={() =>
-                                updateOrderFulfillmentStatus(entry.orderId, seller.id, nextStatus)
+                                void updateOrderFulfillmentStatus(entry.orderId, seller.id, nextStatus)
                               }
                               className="h-8 px-4 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-[11px] font-bold uppercase inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
                             >
                               Avançar para {nextStatus}
                               <ArrowRight className="w-3.5 h-3.5" />
-                            </button>
+                            </MotionButton>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-xs font-bold text-[#0A3768]">
                               <CheckCircle2 className="w-4 h-4 text-[#0475EE]" />
@@ -749,12 +845,12 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
               </div>
 
               <div className="flex justify-end">
-                <button
+                <MotionButton
                   type="submit"
                   className="h-10 px-6 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
                 >
                   Salvar Configurações
-                </button>
+                </MotionButton>
               </div>
             </form>
           )}

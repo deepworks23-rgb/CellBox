@@ -1,46 +1,68 @@
-import React, { useState } from 'react';
-import { ShieldCheck, ShoppingBag, Store, UserCheck } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { motion } from 'motion/react';
+import {
+  Eye,
+  EyeOff,
+  KeyRound,
+  ShieldCheck,
+  ShoppingBag,
+  Store,
+  UserCheck,
+} from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
 import { validateRegistration } from '../utils/marketplace';
+import { MotionButton, SPRING_CARD } from './MotionPrimitives';
 
 interface AuthViewProps {
   initialMode?: 'login' | 'register';
 }
 
 export function AuthView({ initialMode = 'login' }: AuthViewProps) {
-  const { categories, loginWithEmail, registerUser, switchDemoRole } = useMarketplace();
+  const { categories, login, registerUser, switchDemoRole } = useMarketplace();
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
+
+  useEffect(() => {
+    setMode(initialMode);
+  }, [initialMode]);
 
   // Login state
   const [loginEmail, setLoginEmail] = useState('mariana@cellbox.co.mz');
-  const [loginPassword, setLoginPassword] = useState('••••••••');
+  const [loginPassword, setLoginPassword] = useState('cellbox123');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [loginError, setLoginError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   // Register state
   const [registerIntent, setRegisterIntent] = useState<'buyer' | 'seller'>('buyer');
   const [regName, setRegName] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
+  const [showRegPassword, setShowRegPassword] = useState(false);
   const [storeName, setStoreName] = useState('');
   const [documentId, setDocumentId] = useState('');
   const [mainCategory, setMainCategory] = useState(categories[0] ?? 'Smartphones');
   const [regErrors, setRegErrors] = useState<Record<string, string>>({});
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
-    if (!loginEmail.trim() || !loginPassword.trim()) {
+    if (!loginEmail.trim() || !loginPassword) {
       setLoginError('Preencha e-mail e senha para continuar.');
       return;
     }
-    const res = loginWithEmail(loginEmail);
-    if (!res.ok) {
-      setLoginError(res.error ?? 'Erro ao autenticar.');
+    setSubmitting(true);
+    try {
+      const res = await login(loginEmail, loginPassword);
+      if (!res.ok) {
+        setLoginError(res.error ?? 'E-mail ou senha inválidos.');
+      }
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errors = validateRegistration({
       name: regName,
@@ -56,17 +78,22 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
       return;
     }
     setRegErrors({});
-    const res = registerUser({
-      name: regName,
-      email: regEmail,
-      password: regPassword,
-      isSeller: registerIntent === 'seller',
-      storeName,
-      documentId,
-      mainCategory,
-    });
-    if (!res.ok && res.error) {
-      setRegErrors({ email: res.error });
+    setSubmitting(true);
+    try {
+      const res = await registerUser({
+        name: regName,
+        email: regEmail,
+        password: regPassword,
+        isSeller: registerIntent === 'seller',
+        storeName,
+        documentId,
+        mainCategory,
+      });
+      if (!res.ok && res.error) {
+        setRegErrors({ email: res.error });
+      }
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -74,12 +101,17 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
     <main className="max-w-[1170px] mx-auto px-4 py-8 pb-16">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left: Auth Form Card */}
-        <div className="lg:col-span-7 bg-white border border-[#EAEAEA] rounded-[3px] p-6 sm:p-8">
+        <div className="lg:col-span-7 bg-white border border-[#EAEAEA] rounded-[3px] p-6 sm:p-8 shadow-2xs">
           {/* Segmented Mode Switch */}
           <div className="grid grid-cols-2 p-1 bg-[#F1F2F4] rounded-full mb-6">
-            <button
+            <MotionButton
               type="button"
-              onClick={() => setMode('login')}
+              hoverScale={1.01}
+              hoverY={0}
+              onClick={() => {
+                setMode('login');
+                setLoginError('');
+              }}
               className={`h-9 rounded-full text-xs font-bold uppercase tracking-wide transition-colors cursor-pointer ${
                 mode === 'login'
                   ? 'bg-[#0475EE] text-white shadow-xs'
@@ -87,10 +119,15 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
               }`}
             >
               Entrar na Conta
-            </button>
-            <button
+            </MotionButton>
+            <MotionButton
               type="button"
-              onClick={() => setMode('register')}
+              hoverScale={1.01}
+              hoverY={0}
+              onClick={() => {
+                setMode('register');
+                setRegErrors({});
+              }}
               className={`h-9 rounded-full text-xs font-bold uppercase tracking-wide transition-colors cursor-pointer ${
                 mode === 'register'
                   ? 'bg-[#0475EE] text-white shadow-xs'
@@ -98,7 +135,7 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
               }`}
             >
               Criar Cadastro
-            </button>
+            </MotionButton>
           </div>
 
           {mode === 'login' ? (
@@ -108,13 +145,14 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
                   Acesse sua conta Cellbox
                 </h1>
                 <p className="text-xs text-[#777777] mt-1">
-                  Entre com suas credenciais ou teste qualquer perfil RBAC ao lado.
+                  Autenticação segura com validação real de e-mail e senha criptografada.
                 </p>
               </div>
 
               {loginError && (
                 <div
                   role="alert"
+                  data-testid="login-error-alert"
                   className="p-3 rounded-[3px] bg-rose-50 border border-rose-200 text-xs font-medium text-rose-700"
                 >
                   {loginError}
@@ -128,6 +166,7 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
                 <input
                   id="login-email"
                   type="email"
+                  autoComplete="email"
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
                   className="w-full h-10 px-3.5 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#0475EE]"
@@ -141,13 +180,24 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
                 >
                   Senha
                 </label>
-                <input
-                  id="login-password"
-                  type="password"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  className="w-full h-10 px-3.5 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#0475EE]"
-                />
+                <div className="relative">
+                  <input
+                    id="login-password"
+                    type={showLoginPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    className="w-full h-10 pl-3.5 pr-10 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#0475EE]"
+                  />
+                  <button
+                    type="button"
+                    aria-label={showLoginPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                    onClick={() => setShowLoginPassword((s) => !s)}
+                    className="absolute right-2.5 top-2.5 text-[#888888] hover:text-[#0475EE] cursor-pointer"
+                  >
+                    {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-center justify-between text-xs">
@@ -160,14 +210,47 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
                   />
                   Lembrar-me neste dispositivo
                 </label>
+                <span className="inline-flex items-center gap-1 text-[11px] text-[#777777] font-mono">
+                  <KeyRound className="w-3 h-3 text-[#18A3DE]" />
+                  Demo: cellbox123
+                </span>
               </div>
 
-              <button
+              <MotionButton
                 type="submit"
-                className="w-full h-11 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                disabled={submitting}
+                data-testid="login-submit-btn"
+                className="w-full h-11 rounded-full bg-[#0475EE] hover:bg-[#0A3768] disabled:opacity-60 text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
               >
-                Entrar
-              </button>
+                {submitting ? 'Autenticando...' : 'Entrar'}
+              </MotionButton>
+
+              {/* Clickable credential quick-fill pills */}
+              <div className="pt-3 border-t border-[#EFEFEF]">
+                <p className="text-[11px] font-bold uppercase text-[#888888] mb-2">
+                  Preencher credenciais de teste:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: 'Comprador', email: 'mariana@cellbox.co.mz' },
+                    { label: 'Vendedor', email: 'carlos@techzone.co.mz' },
+                    { label: 'Super Admin', email: 'admin@cellbox.co.mz' },
+                  ].map((cred) => (
+                    <button
+                      key={cred.email}
+                      type="button"
+                      onClick={() => {
+                        setLoginEmail(cred.email);
+                        setLoginPassword('cellbox123');
+                        setLoginError('');
+                      }}
+                      className="px-3 py-1 rounded-full bg-[#F1F2F4] hover:bg-[#EAF6FC] text-[11px] font-semibold text-[#0A3768] transition-colors cursor-pointer"
+                    >
+                      {cred.label} ({cred.email})
+                    </button>
+                  ))}
+                </div>
+              </div>
             </form>
           ) : (
             <form onSubmit={handleRegisterSubmit} className="space-y-4">
@@ -176,14 +259,17 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
                   Cadastre-se na Cellbox
                 </h1>
                 <p className="text-xs text-[#777777] mt-1">
-                  Escolha seu objetivo para criarmos a experiência certa.
+                  Escolha seu objetivo para criarmos sua conta real com sessão persistente.
                 </p>
               </div>
 
-              {/* Intent Selector: Quero Comprar vs Quero Vender na Cellbox */}
+              {/* Intent Selector */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                <button
+                <motion.button
                   type="button"
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={SPRING_CARD}
                   onClick={() => setRegisterIntent('buyer')}
                   className={`p-4 rounded-[3px] border text-left transition-colors cursor-pointer ${
                     registerIntent === 'buyer'
@@ -200,9 +286,12 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
                   <p className="text-xs text-[#777777] mt-0.5">
                     Acesso imediato à vitrine e pedidos
                   </p>
-                </button>
-                <button
+                </motion.button>
+                <motion.button
                   type="button"
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={SPRING_CARD}
                   onClick={() => setRegisterIntent('seller')}
                   className={`p-4 rounded-[3px] border text-left transition-colors cursor-pointer ${
                     registerIntent === 'seller'
@@ -219,7 +308,7 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
                   <p className="text-xs text-[#777777] mt-0.5">
                     Crie sua loja (sujeita à aprovação)
                   </p>
-                </button>
+                </motion.button>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -261,14 +350,24 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
                 <label htmlFor="reg-password" className="block text-xs font-bold text-[#444444] mb-1">
                   Senha (mín. 6 caracteres) *
                 </label>
-                <input
-                  id="reg-password"
-                  type="password"
-                  value={regPassword}
-                  onChange={(e) => setRegPassword(e.target.value)}
-                  placeholder="Crie uma senha segura"
-                  className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#0475EE]"
-                />
+                <div className="relative">
+                  <input
+                    id="reg-password"
+                    type={showRegPassword ? 'text' : 'password'}
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
+                    placeholder="Crie uma senha segura"
+                    className="w-full h-10 pl-3 pr-10 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#0475EE]"
+                  />
+                  <button
+                    type="button"
+                    aria-label={showRegPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                    onClick={() => setShowRegPassword((s) => !s)}
+                    className="absolute right-2.5 top-2.5 text-[#888888] hover:text-[#0475EE] cursor-pointer"
+                  >
+                    {showRegPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
                 {regErrors.password && (
                   <p className="text-xs text-rose-600 mt-1">{regErrors.password}</p>
                 )}
@@ -343,19 +442,23 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
                 </div>
               )}
 
-              <button
+              <MotionButton
                 type="submit"
-                className="w-full h-11 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                disabled={submitting}
+                data-testid="register-submit-btn"
+                className="w-full h-11 rounded-full bg-[#0475EE] hover:bg-[#0A3768] disabled:opacity-60 text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
               >
-                {registerIntent === 'seller'
-                  ? 'Enviar Cadastro de Vendedor'
-                  : 'Criar Conta de Comprador'}
-              </button>
+                {submitting
+                  ? 'Criando conta...'
+                  : registerIntent === 'seller'
+                    ? 'Enviar Cadastro de Vendedor'
+                    : 'Criar Conta de Comprador'}
+              </MotionButton>
             </form>
           )}
         </div>
 
-        {/* Right: Quick RBAC Access Panel (Official Cellbox Logo Gradient) */}
+        {/* Right: Quick RBAC Access Panel */}
         <aside className="lg:col-span-5 cellbox-hero-gradient text-white rounded-[3px] p-6 sm:p-7 space-y-5">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-wider text-white/85">
@@ -365,14 +468,17 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
               Teste os 3 perfis RBAC
             </h2>
             <p className="text-xs text-white/90 mt-1.5 leading-relaxed">
-              Alterne instantaneamente entre Comprador, Vendedor e Super Admin. Todas as ações (novos produtos, aprovação de lojas, pedidos) sincronizam em tempo real.
+              Alterne instantaneamente entre Comprador, Vendedor e Super Admin com sessão autenticada no servidor.
             </p>
           </div>
 
           <div className="space-y-3">
-            <button
+            <motion.button
               type="button"
-              onClick={() => switchDemoRole('buyer')}
+              whileHover={{ y: -2, scale: 1.01 }}
+              whileTap={{ scale: 0.98 }}
+              transition={SPRING_CARD}
+              onClick={() => void switchDemoRole('buyer')}
               className="w-full text-left p-4 rounded-[3px] bg-white hover:bg-[#F7F8FA] text-[#333333] transition-colors flex items-start gap-3.5 cursor-pointer shadow-xs"
             >
               <UserCheck className="w-5 h-5 text-[#18A3DE] shrink-0 mt-0.5" />
@@ -382,11 +488,14 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
                   Mariana Costa · Vitrine, comparador, carrinho multi-vendor e pedidos
                 </p>
               </div>
-            </button>
+            </motion.button>
 
-            <button
+            <motion.button
               type="button"
-              onClick={() => switchDemoRole('seller')}
+              whileHover={{ y: -2, scale: 1.01 }}
+              whileTap={{ scale: 0.98 }}
+              transition={SPRING_CARD}
+              onClick={() => void switchDemoRole('seller')}
               className="w-full text-left p-4 rounded-[3px] bg-white hover:bg-[#F7F8FA] text-[#333333] transition-colors flex items-start gap-3.5 cursor-pointer shadow-xs"
             >
               <Store className="w-5 h-5 text-[#0475EE] shrink-0 mt-0.5" />
@@ -396,11 +505,14 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
                   TechZone Store · Analytics, catálogo, estoque e expedição de pedidos
                 </p>
               </div>
-            </button>
+            </motion.button>
 
-            <button
+            <motion.button
               type="button"
-              onClick={() => switchDemoRole('admin')}
+              whileHover={{ y: -2, scale: 1.01 }}
+              whileTap={{ scale: 0.98 }}
+              transition={SPRING_CARD}
+              onClick={() => void switchDemoRole('admin')}
               className="w-full text-left p-4 rounded-[3px] bg-white hover:bg-[#F7F8FA] text-[#333333] transition-colors flex items-start gap-3.5 cursor-pointer shadow-xs"
             >
               <ShieldCheck className="w-5 h-5 text-[#0A3768] shrink-0 mt-0.5" />
@@ -410,7 +522,7 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
                   Gestor Cellbox · GMV global, aprovação da GadgetHub e taxa de comissão
                 </p>
               </div>
-            </button>
+            </motion.button>
           </div>
         </aside>
       </div>

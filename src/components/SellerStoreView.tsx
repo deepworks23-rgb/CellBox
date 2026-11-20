@@ -1,5 +1,6 @@
 import { ArrowLeft, CheckCircle2, MapPin, ShieldCheck, Star } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
+import { MotionButton } from './MotionPrimitives';
 import { ProductCard } from './ProductCard';
 
 interface SellerStoreViewProps {
@@ -16,13 +17,13 @@ export function SellerStoreView({ sellerId }: SellerStoreViewProps) {
         <h1 className="font-condensed text-2xl font-bold uppercase text-[#333333]">
           Loja não encontrada
         </h1>
-        <button
+        <MotionButton
           type="button"
           onClick={() => navigate({ type: 'home' })}
           className="mt-4 h-10 px-6 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wide cursor-pointer"
         >
           Voltar à vitrine
-        </button>
+        </MotionButton>
       </main>
     );
   }
