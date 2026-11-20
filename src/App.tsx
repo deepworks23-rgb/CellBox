@@ -4,6 +4,8 @@ import { MarketplaceProvider, useMarketplace } from './context/MarketplaceContex
 import { Navbar } from './components/Navbar';
 import { HomeView } from './components/HomeView';
 import { AboutView } from './components/AboutView';
+import { StoresView } from './components/StoresView';
+import { OffersView } from './components/OffersView';
 import { ContactView } from './components/ContactView';
 import { ProductDetailView } from './components/ProductDetailView';
 import { SellerStoreView } from './components/SellerStoreView';
@@ -108,6 +110,10 @@ function CellboxShell() {
         return <HomeView />;
       case 'about':
         return <AboutView />;
+      case 'stores':
+        return <StoresView />;
+      case 'offers':
+        return <OffersView />;
       case 'contact':
         return <ContactView />;
       case 'product':

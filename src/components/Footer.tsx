@@ -236,7 +236,7 @@ export function Footer() {
               <li>
                 <button
                   type="button"
-                  onClick={() => setInfoModal('about')}
+                  onClick={() => navigate({ type: 'about' })}
                   className="hover:text-[#0475EE] transition-colors cursor-pointer"
                 >
                   Sobre a Cellbox
@@ -245,12 +245,7 @@ export function Footer() {
               <li>
                 <button
                   type="button"
-                  onClick={() => {
-                    navigate({ type: 'home' });
-                    window.setTimeout(() => {
-                      document.getElementById('lojas-oficiais')?.scrollIntoView({ behavior: 'smooth' });
-                    }, 60);
-                  }}
+                  onClick={() => navigate({ type: 'stores' })}
                   className="hover:text-[#0475EE] transition-colors cursor-pointer"
                 >
                   Lojas Oficiais Verificadas
@@ -445,12 +440,7 @@ export function Footer() {
               <li>
                 <button
                   type="button"
-                  onClick={() => {
-                    navigate({ type: 'home' });
-                    window.setTimeout(() => {
-                      document.getElementById('lojas-oficiais')?.scrollIntoView({ behavior: 'smooth' });
-                    }, 60);
-                  }}
+                  onClick={() => navigate({ type: 'stores' })}
                   className="hover:text-[#0475EE] transition-colors cursor-pointer"
                 >
                   Lojas Oficiais
@@ -459,13 +449,7 @@ export function Footer() {
               <li>
                 <button
                   type="button"
-                  onClick={() => {
-                    setFilters((prev) => ({ ...prev, sortBy: 'price_asc', category: 'Todas' }));
-                    navigate({ type: 'home' });
-                    window.setTimeout(() => {
-                      document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
-                    }, 60);
-                  }}
+                  onClick={() => navigate({ type: 'offers' })}
                   className="hover:text-[#0475EE] transition-colors cursor-pointer"
                 >
                   Ofertas

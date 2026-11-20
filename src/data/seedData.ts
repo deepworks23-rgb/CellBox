@@ -1,4 +1,49 @@
-import type { Address, Order, Product, SellerStore, User } from '../types';
+import type { Address, Coupon, Order, Product, SellerStore, User } from '../types';
+
+export const ACTIVE_COUPONS: Coupon[] = [
+  {
+    code: 'CELLBOX10',
+    title: '10% OFF em Todo o Site',
+    description: 'Válido em compras a partir de 15.000 MT em qualquer loja oficial verificada.',
+    discountType: 'percent',
+    discountValue: 10,
+    minOrderValue: 15000,
+    validUntil: '31/12/2026',
+    active: true,
+  },
+  {
+    code: 'TECH2500',
+    title: '2.500 MT OFF em Smartphones e Laptops',
+    description: 'Desconto direto para upgrades de smartphones ou notebooks acima de 50.000 MT.',
+    discountType: 'fixed',
+    discountValue: 2500,
+    minOrderValue: 50000,
+    category: 'Smartphones',
+    validUntil: '31/12/2026',
+    active: true,
+  },
+  {
+    code: 'GAMING5',
+    title: '5% OFF em Gaming & Áudio',
+    description: 'Economize em consoles portáteis, fones ANC e acessórios a partir de 10.000 MT.',
+    discountType: 'percent',
+    discountValue: 5,
+    minOrderValue: 10000,
+    category: 'Gaming',
+    validUntil: '31/12/2026',
+    active: true,
+  },
+  {
+    code: 'BEMVINDO1000',
+    title: '1.000 MT de Boas-Vindas',
+    description: 'Cupom especial para pedidos a partir de 5.000 MT com entrega em todo Moçambique.',
+    discountType: 'fixed',
+    discountValue: 1000,
+    minOrderValue: 5000,
+    validUntil: '31/12/2026',
+    active: true,
+  },
+];
 
 export const ASSET_IMAGES = {
   hero: '/src/assets/images/hero_tech_showcase_1795166103102.jpg',

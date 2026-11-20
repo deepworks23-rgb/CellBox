@@ -12,12 +12,15 @@ import {
   ShoppingBag,
   Smartphone,
   Store,
+  Tag,
   Trash2,
+  X,
 } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
 import type { Order, PaymentMethod } from '../types';
 import {
   calculateCartTotals,
+  calculateCouponDiscount,
   formatCurrency,
   groupCartBySeller,
 } from '../utils/marketplace';
@@ -30,6 +33,10 @@ export function CartCheckoutView() {
     cart,
     products,
     sellers,
+    coupons,
+    appliedCouponCode,
+    applyCoupon,
+    removeCoupon,
     addresses,
     updateCartQuantity,
     removeFromCart,
@@ -54,6 +61,8 @@ export function CartCheckoutView() {
   const [addressError, setAddressError] = useState('');
   const [submittingOrder, setSubmittingOrder] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
+  const [couponInput, setCouponInput] = useState('');
+  const [couponError, setCouponError] = useState('');
 
   useEffect(() => {
     if (!addresses.some((a) => a.id === selectedAddressId)) {
@@ -76,6 +85,27 @@ export function CartCheckoutView() {
   );
 
   const totals = useMemo(() => calculateCartTotals(groups), [groups]);
+
+  const couponEvaluation = useMemo(
+    () => calculateCouponDiscount(appliedCouponCode, coupons, totals.subtotal),
+    [appliedCouponCode, coupons, totals.subtotal]
+  );
+
+  const finalGrandTotal = Math.max(
+    0,
+    totals.subtotal - couponEvaluation.discount + totals.shippingTotal
+  );
+
+  const handleApplyCoupon = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCouponError('');
+    const result = applyCoupon(couponInput);
+    if (!result.ok) {
+      setCouponError(result.error ?? 'Cupom inválido.');
+    } else {
+      setCouponInput('');
+    }
+  };
 
   const handleSaveAddress = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -582,6 +612,67 @@ export function CartCheckoutView() {
             Resumo do Pedido
           </h2>
 
+          {/* Coupon Code Input / Active Coupon */}
+          <div className="space-y-2 pb-3 border-b border-[#EAEAEA]">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase text-[#0A3768] inline-flex items-center gap-1.5">
+                <Tag className="w-3.5 h-3.5 text-[#0475EE]" />
+                Cupom de Desconto
+              </span>
+              <button
+                type="button"
+                onClick={() => navigate({ type: 'offers' })}
+                className="text-[11px] font-semibold text-[#0475EE] hover:underline cursor-pointer"
+              >
+                Ver cupons
+              </button>
+            </div>
+
+            {appliedCouponCode ? (
+              <div className="p-2.5 rounded-[2px] bg-[#EAF6FC] border border-[#18A3DE]/40 flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs font-mono font-bold text-[#0A3768]">
+                    {appliedCouponCode}
+                  </p>
+                  {couponEvaluation.error ? (
+                    <p className="text-[10.5px] text-amber-700 mt-0.5">
+                      {couponEvaluation.error}
+                    </p>
+                  ) : (
+                    <p className="text-[10.5px] text-emerald-700 font-medium mt-0.5">
+                      Desconto aplicado: -{formatCurrency(couponEvaluation.discount)}
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={removeCoupon}
+                  aria-label="Remover cupom"
+                  className="p-1 text-[#666666] hover:text-rose-600 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleApplyCoupon} className="flex gap-1.5">
+                <input
+                  type="text"
+                  value={couponInput}
+                  onChange={(e) => setCouponInput(e.target.value)}
+                  placeholder="Ex: CELLBOX10"
+                  className="flex-1 h-9 px-3 rounded-[2px] border border-[#DCDCDC] text-xs font-mono uppercase focus:outline-none focus:border-[#0475EE]"
+                />
+                <button
+                  type="submit"
+                  className="h-9 px-3.5 rounded-[2px] bg-[#0A3768] hover:bg-[#0475EE] text-white text-[11px] font-bold uppercase tracking-wide transition-colors cursor-pointer"
+                >
+                  Aplicar
+                </button>
+              </form>
+            )}
+            {couponError && <p className="text-[11px] text-rose-600">{couponError}</p>}
+          </div>
+
           <dl className="space-y-2.5 text-sm">
             <div className="flex items-center justify-between text-[#666666]">
               <dt>Produtos ({totals.itemCount})</dt>
@@ -589,6 +680,14 @@ export function CartCheckoutView() {
                 {formatCurrency(totals.subtotal)}
               </dd>
             </div>
+            {couponEvaluation.discount > 0 && (
+              <div className="flex items-center justify-between text-emerald-700">
+                <dt>Cupom ({appliedCouponCode})</dt>
+                <dd className="font-mono tabular-nums font-bold">
+                  -{formatCurrency(couponEvaluation.discount)}
+                </dd>
+              </div>
+            )}
             <div className="flex items-center justify-between text-[#666666]">
               <dt>
                 Frete ({groups.length} {groups.length === 1 ? 'envio' : 'envios'})
@@ -600,7 +699,7 @@ export function CartCheckoutView() {
             <div className="pt-3 border-t border-[#EAEAEA] flex items-center justify-between">
               <dt className="text-base font-bold text-[#333333]">Total</dt>
               <dd className="text-2xl font-extrabold font-mono tabular-nums text-[#0475EE]">
-                {formatCurrency(totals.grandTotal)}
+                {formatCurrency(finalGrandTotal)}
               </dd>
             </div>
           </dl>

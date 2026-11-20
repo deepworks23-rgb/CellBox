@@ -6,6 +6,10 @@ export function viewToPath(view: AppView): string {
       return '/';
     case 'about':
       return '/sobre';
+    case 'stores':
+      return '/lojas';
+    case 'offers':
+      return '/ofertas';
     case 'contact':
       return '/contacto';
     case 'product':
@@ -42,6 +46,8 @@ export function pathToView(pathname: string): AppView {
 
   if (clean === '/') return { type: 'home' };
   if (clean === '/sobre') return { type: 'about' };
+  if (clean === '/lojas') return { type: 'stores' };
+  if (clean === '/ofertas') return { type: 'offers' };
   if (clean === '/contacto' || clean === '/contato') return { type: 'contact' };
   if (clean === '/carrinho') return { type: 'cart' };
   if (clean === '/login' || clean === '/entrar') return { type: 'auth', mode: 'login' };
@@ -107,6 +113,8 @@ export function canAccessView(view: AppView, user: Pick<User, 'role'> | null): b
       return role === null;
     case 'home':
     case 'about':
+    case 'stores':
+    case 'offers':
     case 'contact':
     case 'product':
     case 'store':

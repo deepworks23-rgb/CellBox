@@ -4,6 +4,7 @@ import express from 'express';
 import type { Request, Response } from 'express';
 import { createServer as createViteServer } from 'vite';
 import {
+  ACTIVE_COUPONS,
   ASSET_IMAGES,
   INITIAL_ADDRESSES,
   INITIAL_CATEGORIES,
@@ -29,6 +30,7 @@ import type {
 } from './src/types.ts';
 import {
   calculateCartTotals,
+  calculateCouponDiscount,
   groupCartBySeller,
   ORDER_STATUS_FLOW,
   validateProductForm,
@@ -532,10 +534,11 @@ async function startServer() {
       return;
     }
 
-    const { cart, address, paymentMethod } = req.body as {
+    const { cart, address, paymentMethod, couponCode } = req.body as {
       cart?: CartItem[];
       address?: Address;
       paymentMethod?: PaymentMethod;
+      couponCode?: string;
     };
 
     if (!Array.isArray(cart) || cart.length === 0 || !address || !paymentMethod) {
@@ -550,6 +553,9 @@ async function startServer() {
     }
 
     const totals = calculateCartTotals(groups);
+    const couponResult = calculateCouponDiscount(couponCode, ACTIVE_COUPONS, totals.subtotal);
+    const discountTotal = couponResult.discount;
+    const finalTotal = Math.max(0, totals.subtotal - discountTotal + totals.shippingTotal);
     const nowDate = new Date().toISOString().slice(0, 10);
     const randomCode = Math.floor(1000 + Math.random() * 9000);
     const orderId = `CBX-2026-${randomCode}`;
@@ -564,8 +570,10 @@ async function startServer() {
       paymentMethod,
       commissionRateSnapshot: db.commissionRate,
       subtotal: totals.subtotal,
+      discountTotal: discountTotal > 0 ? discountTotal : undefined,
+      couponCode: discountTotal > 0 && couponResult.coupon ? couponResult.coupon.code : undefined,
       shippingTotal: totals.shippingTotal,
-      total: totals.grandTotal,
+      total: finalTotal,
       fulfillments: groups.map((g, idx) => ({
         sellerId: g.seller.id,
         sellerName: g.seller.name,

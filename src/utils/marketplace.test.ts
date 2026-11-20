@@ -2,16 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   calculateCartTotals,
+  calculateCouponDiscount,
   calculatePlatformAnalytics,
   calculateSellerAnalytics,
   calculateShipping,
   filterVisibleProducts,
   formatCurrency,
   getNextOrderStatus,
+  getProductDiscountPercent,
   groupCartBySeller,
   validateProductForm,
   validateRegistration,
 } from './marketplace';
+import { ACTIVE_COUPONS } from '../data/seedData';
 import type { Order, Product, SellerStore } from '../types';
 
 const mockSellers: SellerStore[] = [
@@ -330,4 +333,21 @@ test('form validations catch missing required inputs', () => {
   assert.ok(sellerRegErrors.storeName);
   assert.ok(sellerRegErrors.documentId);
   assert.ok(sellerRegErrors.mainCategory);
+});
+
+test('getProductDiscountPercent and calculateCouponDiscount compute savings accurately', () => {
+  assert.equal(getProductDiscountPercent({ price: 58900, originalPrice: 74900 }), 21);
+  assert.equal(getProductDiscountPercent({ price: 21500 }), 0);
+
+  const pctOk = calculateCouponDiscount('cellbox10', ACTIVE_COUPONS, 20000);
+  assert.equal(pctOk.discount, 2000);
+  assert.equal(pctOk.error, undefined);
+
+  const belowMin = calculateCouponDiscount('TECH2500', ACTIVE_COUPONS, 20000);
+  assert.equal(belowMin.discount, 0);
+  assert.ok(belowMin.error);
+
+  const invalid = calculateCouponDiscount('INVALIDO', ACTIVE_COUPONS, 50000);
+  assert.equal(invalid.discount, 0);
+  assert.ok(invalid.error);
 });

@@ -36,11 +36,11 @@ export function SellerStoreView({ sellerId }: SellerStoreViewProps) {
       <section className="cellbox-hero-gradient text-white rounded-[3px] p-6 sm:p-8">
         <button
           type="button"
-          onClick={() => navigate({ type: 'home' })}
+          onClick={() => navigate({ type: 'stores' })}
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-white/85 hover:text-white mb-5 cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          Voltar para Cellbox
+          Voltar para todas as lojas
         </button>
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">

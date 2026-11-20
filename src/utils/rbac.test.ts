@@ -11,6 +11,8 @@ import {
 test('URL path mapping round-trips public and protected routes accurately', () => {
   assert.deepEqual(pathToView('/'), { type: 'home' });
   assert.deepEqual(pathToView('/sobre'), { type: 'about' });
+  assert.deepEqual(pathToView('/lojas'), { type: 'stores' });
+  assert.deepEqual(pathToView('/ofertas'), { type: 'offers' });
   assert.deepEqual(pathToView('/contacto'), { type: 'contact' });
   assert.deepEqual(pathToView('/login'), { type: 'auth', mode: 'login' });
   assert.deepEqual(pathToView('/cadastro'), { type: 'auth', mode: 'register' });
@@ -22,6 +24,8 @@ test('URL path mapping round-trips public and protected routes accurately', () =
   assert.deepEqual(pathToView('/admin/vendedores'), { type: 'admin_dashboard', tab: 'sellers' });
 
   assert.equal(viewToPath({ type: 'about' }), '/sobre');
+  assert.equal(viewToPath({ type: 'stores' }), '/lojas');
+  assert.equal(viewToPath({ type: 'offers' }), '/ofertas');
   assert.equal(viewToPath({ type: 'contact' }), '/contacto');
   assert.equal(viewToPath({ type: 'profile', tab: 'addresses' }), '/minha-conta/enderecos');
   assert.equal(viewToPath({ type: 'seller_dashboard', tab: 'orders' }), '/vendedor/pedidos');
@@ -31,6 +35,8 @@ test('URL path mapping round-trips public and protected routes accurately', () =
 test('Guest visitors cannot access buyer profile, seller dashboard, or admin dashboard', () => {
   assert.equal(canAccessView({ type: 'home' }, null), true);
   assert.equal(canAccessView({ type: 'about' }, null), true);
+  assert.equal(canAccessView({ type: 'stores' }, null), true);
+  assert.equal(canAccessView({ type: 'offers' }, null), true);
   assert.equal(canAccessView({ type: 'contact' }, null), true);
   assert.equal(canAccessView({ type: 'cart' }, null), true);
 

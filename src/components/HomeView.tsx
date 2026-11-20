@@ -710,12 +710,21 @@ export function HomeView() {
         {/* 5. LOJAS OFICIAIS VERIFICADAS — Interactive Multi-Slide Carousel */}
         <section id="lojas-oficiais" aria-labelledby="heading-verified-stores" className="pt-2">
           <div className="flex items-center justify-between gap-4 pb-4">
-            <h2
-              id="heading-verified-stores"
-              className="font-condensed text-[22px] font-bold uppercase tracking-wide text-[#0A3768]"
-            >
-              LOJAS OFICIAIS VERIFICADAS
-            </h2>
+            <div className="flex items-baseline gap-4">
+              <h2
+                id="heading-verified-stores"
+                className="font-condensed text-[22px] font-bold uppercase tracking-wide text-[#0A3768]"
+              >
+                LOJAS OFICIAIS VERIFICADAS
+              </h2>
+              <button
+                type="button"
+                onClick={() => navigate({ type: 'stores' })}
+                className="text-xs font-bold text-[#0475EE] hover:text-[#0A3768] transition-colors cursor-pointer"
+              >
+                Ver todas as lojas →
+              </button>
+            </div>
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1.5">
                 {Array.from({ length: totalStoreSlides }).map((_, idx) => (

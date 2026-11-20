@@ -11,6 +11,8 @@ export type PaymentMethod = 'credit_card' | 'pix_mobile' | 'bank_transfer';
 export type AppView =
   | { type: 'home' }
   | { type: 'about' }
+  | { type: 'stores' }
+  | { type: 'offers' }
   | { type: 'contact' }
   | { type: 'product'; productId: string }
   | { type: 'store'; sellerId: string }
@@ -19,6 +21,18 @@ export type AppView =
   | { type: 'auth'; mode?: 'login' | 'register' }
   | { type: 'seller_dashboard'; tab?: 'overview' | 'products' | 'orders' | 'settings' }
   | { type: 'admin_dashboard'; tab?: 'overview' | 'sellers' | 'catalog' | 'finance' };
+
+export interface Coupon {
+  code: string;
+  title: string;
+  description: string;
+  discountType: 'percent' | 'fixed';
+  discountValue: number;
+  minOrderValue: number;
+  category?: string;
+  validUntil: string;
+  active: boolean;
+}
 
 export interface Address {
   id: string;
@@ -135,6 +149,8 @@ export interface Order {
   paymentMethod: PaymentMethod;
   commissionRateSnapshot: number;
   subtotal: number;
+  discountTotal?: number;
+  couponCode?: string;
   shippingTotal: number;
   total: number;
   fulfillments: OrderSellerFulfillment[];

@@ -1,6 +1,7 @@
 import type {
   CartItem,
   CatalogFilters,
+  Coupon,
   Order,
   OrderStatus,
   Product,
@@ -23,6 +24,43 @@ export function formatCurrency(value: number): string {
     maximumFractionDigits: 2,
   }).format(value);
   return `${formatted} MT`;
+}
+
+export function getProductDiscountPercent(product: Pick<Product, 'price' | 'originalPrice'>): number {
+  if (!product.originalPrice || product.originalPrice <= product.price) return 0;
+  return Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
+}
+
+export function calculateCouponDiscount(
+  couponCode: string | null | undefined,
+  coupons: Coupon[],
+  subtotal: number
+): { coupon: Coupon | null; discount: number; error?: string } {
+  const normalized = (couponCode ?? '').trim().toUpperCase();
+  if (!normalized) return { coupon: null, discount: 0 };
+
+  const coupon = coupons.find((c) => c.active && c.code.toUpperCase() === normalized) ?? null;
+  if (!coupon) {
+    return { coupon: null, discount: 0, error: 'Cupom inválido ou expirado.' };
+  }
+
+  if (subtotal < coupon.minOrderValue) {
+    return {
+      coupon,
+      discount: 0,
+      error: `Pedido mínimo de ${formatCurrency(coupon.minOrderValue)} para usar ${coupon.code}.`,
+    };
+  }
+
+  const rawDiscount =
+    coupon.discountType === 'percent'
+      ? Math.round(subtotal * (coupon.discountValue / 100))
+      : coupon.discountValue;
+
+  return {
+    coupon,
+    discount: Math.min(subtotal, Math.max(0, rawDiscount)),
+  };
 }
 
 export function getNextOrderStatus(current: OrderStatus): OrderStatus | null {

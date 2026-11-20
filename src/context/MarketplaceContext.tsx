@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
+  ACTIVE_COUPONS,
   INITIAL_CATEGORIES,
   INITIAL_PRODUCTS,
   INITIAL_SELLERS,
@@ -9,6 +10,7 @@ import type {
   AppView,
   CartItem,
   CatalogFilters,
+  Coupon,
   Order,
   OrderStatus,
   PaymentMethod,
@@ -97,6 +99,10 @@ interface MarketplaceContextValue {
   sellers: SellerStore[];
   products: Product[];
   categories: string[];
+  coupons: Coupon[];
+  appliedCouponCode: string | null;
+  applyCoupon: (code: string) => { ok: boolean; error?: string };
+  removeCoupon: () => void;
   orders: Order[];
   cart: CartItem[];
   cartCount: number;
@@ -132,7 +138,11 @@ interface MarketplaceContextValue {
   addAddress: (addr: Omit<Address, 'id'>) => Promise<Address | null>;
   setDefaultAddress: (id: string) => Promise<void>;
   removeAddress: (id: string) => Promise<void>;
-  placeOrder: (address: Address, paymentMethod: PaymentMethod) => Promise<Order | null>;
+  placeOrder: (
+    address: Address,
+    paymentMethod: PaymentMethod,
+    couponCode?: string | null
+  ) => Promise<Order | null>;
   updateOrderFulfillmentStatus: (
     orderId: string,
     sellerId: string,
@@ -269,6 +279,7 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
     typeof window !== 'undefined' ? pathToView(window.location.pathname) : { type: 'home' }
   );
   const [filters, setFilters] = useState<CatalogFilters>(DEFAULT_FILTERS);
+  const [appliedCouponCode, setAppliedCouponCode] = useState<string | null>(null);
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [compareOpen, setCompareOpen] = useState(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
@@ -600,6 +611,29 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
 
   const clearCompare = () => setCompareIds([]);
 
+  const applyCoupon = useCallback(
+    (code: string): { ok: boolean; error?: string } => {
+      const normalized = code.trim().toUpperCase();
+      if (!normalized) {
+        return { ok: false, error: 'Digite um código de cupom.' };
+      }
+      const match = ACTIVE_COUPONS.find((c) => c.active && c.code.toUpperCase() === normalized);
+      if (!match) {
+        showToast('Cupom inválido ou expirado.', 'warning');
+        return { ok: false, error: 'Cupom inválido ou expirado.' };
+      }
+      setAppliedCouponCode(match.code);
+      showToast(`Cupom ${match.code} ativado! O desconto será aplicado no carrinho.`);
+      return { ok: true };
+    },
+    [showToast]
+  );
+
+  const removeCoupon = useCallback(() => {
+    setAppliedCouponCode(null);
+    showToast('Cupom removido do carrinho.', 'info');
+  }, [showToast]);
+
   // ── Addresses & Orders ────────────────────────────────────────────────────
   const addAddress = async (addr: Omit<Address, 'id'>): Promise<Address | null> => {
     const res = await apiRequest<{ address: Address; addresses: Address[] }>('/api/addresses', {
@@ -637,19 +671,27 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
 
   const placeOrder = async (
     address: Address,
-    paymentMethod: PaymentMethod
+    paymentMethod: PaymentMethod,
+    couponCode?: string | null
   ): Promise<Order | null> => {
+    const codeToSend = couponCode !== undefined ? couponCode : appliedCouponCode;
     const res = await apiRequest<{ order: Order; products: Product[]; orders: Order[] }>(
       '/api/orders',
       {
         method: 'POST',
-        body: JSON.stringify({ cart: state.cart, address, paymentMethod }),
+        body: JSON.stringify({
+          cart: state.cart,
+          address,
+          paymentMethod,
+          couponCode: codeToSend ?? undefined,
+        }),
       }
     );
     if (!res.ok) {
       showToast(res.data.error ?? 'Não foi possível concluir o pedido.', 'warning');
       return null;
     }
+    setAppliedCouponCode(null);
     setState((prev) => ({
       ...prev,
       orders: res.data.orders,
@@ -860,6 +902,10 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
         sellers: state.sellers,
         products: state.products,
         categories: state.categories,
+        coupons: ACTIVE_COUPONS,
+        appliedCouponCode,
+        applyCoupon,
+        removeCoupon,
         orders: state.orders,
         cart: state.cart,
         cartCount,

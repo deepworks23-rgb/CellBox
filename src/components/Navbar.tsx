@@ -114,21 +114,14 @@ export function Navbar() {
     }, 50);
   };
 
-  const goStoresSection = () => {
+  const goStoresPage = () => {
     setCatDropdownOpen(false);
-    navigate({ type: 'home' });
-    window.setTimeout(() => {
-      document.getElementById('lojas-oficiais')?.scrollIntoView({ behavior: 'smooth' });
-    }, 80);
+    navigate({ type: 'stores' });
   };
 
-  const goOffersSection = () => {
+  const goOffersPage = () => {
     setCatDropdownOpen(false);
-    setFilters((prev) => ({ ...prev, sortBy: 'price_asc', category: 'Todas' }));
-    navigate({ type: 'home' });
-    window.setTimeout(() => {
-      document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
-    }, 80);
+    navigate({ type: 'offers' });
   };
 
   const roleLabel = !currentUser
@@ -437,17 +430,19 @@ export function Navbar() {
             </button>
             <button
               type="button"
-              onClick={goStoresSection}
+              onClick={goStoresPage}
               className={`hover:text-[#0475EE] transition-colors whitespace-nowrap cursor-pointer ${
-                view.type === 'store' ? 'text-[#0475EE] font-bold' : ''
+                view.type === 'stores' || view.type === 'store' ? 'text-[#0475EE] font-bold' : ''
               }`}
             >
               Lojas
             </button>
             <button
               type="button"
-              onClick={goOffersSection}
-              className="hover:text-[#0475EE] transition-colors whitespace-nowrap cursor-pointer"
+              onClick={goOffersPage}
+              className={`hover:text-[#0475EE] transition-colors whitespace-nowrap cursor-pointer ${
+                view.type === 'offers' ? 'text-[#0475EE] font-bold' : ''
+              }`}
             >
               Ofertas
             </button>
@@ -600,7 +595,7 @@ export function Navbar() {
                     <button
                       type="button"
                       role="menuitem"
-                      onClick={goStoresSection}
+                      onClick={goStoresPage}
                       className="w-full text-left px-4 py-2 text-xs font-semibold text-[#0A3768] hover:bg-[#F0F9FD]"
                     >
                       Lojas
@@ -608,7 +603,7 @@ export function Navbar() {
                     <button
                       type="button"
                       role="menuitem"
-                      onClick={goOffersSection}
+                      onClick={goOffersPage}
                       className="w-full text-left px-4 py-2 text-xs font-semibold text-[#0A3768] hover:bg-[#F0F9FD]"
                     >
                       Ofertas
