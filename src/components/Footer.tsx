@@ -2,15 +2,14 @@ import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   CheckCircle2,
-  Lock,
   Mail,
   MapPin,
   Phone,
   ShieldCheck,
-  Smartphone,
   X,
 } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
+import { AppStoreBadgeIcon, PaymentBadgeLogo, type PaymentMethodBrand } from './BrandLogo';
 import { MotionButton, SPRING_CARD } from './MotionPrimitives';
 
 type InfoModalKey = 'about' | 'guarantee' | 'privacy' | 'terms';
@@ -488,69 +487,85 @@ export function Footer() {
         </div>
       </div>
 
-      {/* Band 3: Trust Seals, Payment Methods & App Store Strip */}
-      <div className="bg-[#F0F2F4] border-b border-[#E5E7EB]">
-        <div className="max-w-[1170px] mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5 bg-white border border-[#DCDCDC] rounded-[3px] px-2.5 py-1">
-              <ShieldCheck className="w-4 h-4 text-[#0475EE]" />
-              <div className="leading-none">
-                <p className="text-[10px] font-extrabold text-[#0A3768] tracking-tight">
+      {/* Band 3: Trust Seals, Official Payment Logos & Official App Store Badges */}
+      <div
+        data-testid="footer-trust-payment-bar"
+        className="bg-[#F0F2F4] border-b border-[#E5E7EB]"
+      >
+        <div className="max-w-[1170px] mx-auto px-4 py-4 flex flex-col lg:flex-row items-center justify-between gap-4">
+          {/* Trust Seals */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            <div className="h-8 flex items-center gap-1.5 bg-white border border-[#DCDCDC] rounded-[3px] px-2.5 shadow-2xs">
+              <ShieldCheck className="w-4 h-4 text-[#0475EE] shrink-0" />
+              <div className="leading-tight">
+                <p className="text-[9.5px] font-extrabold text-[#0A3768] tracking-tight whitespace-nowrap">
                   SITE VERIFICADO
                 </p>
-                <p className="text-[8px] text-[#777777] uppercase">SSL 256-BIT</p>
+                <p className="text-[7.5px] text-[#777777] uppercase whitespace-nowrap">
+                  SSL 256-BIT
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 bg-white border border-[#DCDCDC] rounded-[3px] px-2.5 py-1">
-              <CheckCircle2 className="w-4 h-4 text-[#18A3DE]" />
-              <div className="leading-none">
-                <p className="text-[10px] font-extrabold text-[#0A3768] tracking-tight">
+            <div className="h-8 flex items-center gap-1.5 bg-white border border-[#DCDCDC] rounded-[3px] px-2.5 shadow-2xs">
+              <CheckCircle2 className="w-4 h-4 text-[#18A3DE] shrink-0" />
+              <div className="leading-tight">
+                <p className="text-[9.5px] font-extrabold text-[#0A3768] tracking-tight whitespace-nowrap">
                   COMPRA SEGURA
                 </p>
-                <p className="text-[8px] text-[#777777] uppercase">GARANTIA CELLBOX</p>
+                <p className="text-[7.5px] text-[#777777] uppercase whitespace-nowrap">
+                  GARANTIA CELLBOX
+                </p>
               </div>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-1.5">
-            {[
-              { label: 'M-Pesa', color: 'text-[#E60000]' },
-              { label: 'e-Mola', color: 'text-[#F59E0B]' },
-              { label: 'VISA', color: 'text-[#0A3768]' },
-              { label: 'MasterCard', color: 'text-[#EB001B]' },
-              { label: 'Millennium bim', color: 'text-[#0475EE]' },
-              { label: 'BCI', color: 'text-[#18A3DE]' },
-            ].map((pm) => (
+          {/* Official Payment Methods */}
+          <div
+            aria-label="Métodos de pagamento aceites"
+            className="flex flex-wrap items-center justify-center gap-2"
+          >
+            {(
+              [
+                { id: 'mpesa', title: 'M-Pesa Vodacom' },
+                { id: 'emola', title: 'e-Mola Movitel' },
+                { id: 'visa', title: 'Visa' },
+                { id: 'mastercard', title: 'Mastercard' },
+                { id: 'millennium', title: 'Millennium bim' },
+                { id: 'bci', title: 'BCI Moçambique' },
+              ] as Array<{ id: PaymentMethodBrand; title: string }>
+            ).map((pm) => (
               <span
-                key={pm.label}
-                className={`inline-flex items-center justify-center bg-white border border-[#DCDCDC] rounded-[3px] px-2.5 h-7 text-[10px] font-extrabold tracking-tight ${pm.color}`}
+                key={pm.id}
+                title={pm.title}
+                className="h-8 px-2.5 inline-flex items-center justify-center bg-white border border-[#DCDCDC] rounded-[3px] shadow-2xs"
               >
-                {pm.label}
+                <PaymentBadgeLogo brand={pm.id} />
               </span>
             ))}
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Official App Store Badges */}
+          <div className="flex items-center gap-2 shrink-0">
             <MotionButton
               type="button"
               onClick={() => showToast('App Cellbox para Android em breve na Google Play.', 'info')}
-              className="flex items-center gap-1.5 bg-[#0A3768] hover:bg-[#0475EE] text-white px-2.5 py-1.5 rounded-[4px] transition-colors cursor-pointer"
+              className="h-9 px-3 flex items-center gap-2 bg-[#0A3768] hover:bg-[#0475EE] text-white rounded-[4px] transition-colors cursor-pointer whitespace-nowrap"
             >
-              <Smartphone className="w-4 h-4 text-[#1AD6DE]" />
-              <div className="text-left leading-none">
-                <p className="text-[7px] uppercase text-white/75">DISPONÍVEL NO</p>
-                <p className="text-[10px] font-bold">Google Play</p>
+              <AppStoreBadgeIcon store="google_play" />
+              <div className="text-left leading-tight">
+                <p className="text-[7px] uppercase tracking-wide text-white/75">DISPONÍVEL NO</p>
+                <p className="text-[10.5px] font-bold">Google Play</p>
               </div>
             </MotionButton>
             <MotionButton
               type="button"
               onClick={() => showToast('App Cellbox para iOS em breve na App Store.', 'info')}
-              className="flex items-center gap-1.5 bg-[#0A3768] hover:bg-[#0475EE] text-white px-2.5 py-1.5 rounded-[4px] transition-colors cursor-pointer"
+              className="h-9 px-3 flex items-center gap-2 bg-[#0A3768] hover:bg-[#0475EE] text-white rounded-[4px] transition-colors cursor-pointer whitespace-nowrap"
             >
-              <Lock className="w-4 h-4 text-white" />
-              <div className="text-left leading-none">
-                <p className="text-[7px] uppercase text-white/75">BAIXAR NA</p>
-                <p className="text-[10px] font-bold">App Store</p>
+              <AppStoreBadgeIcon store="app_store" />
+              <div className="text-left leading-tight">
+                <p className="text-[7px] uppercase tracking-wide text-white/75">BAIXAR NA</p>
+                <p className="text-[10.5px] font-bold">App Store</p>
               </div>
             </MotionButton>
           </div>
