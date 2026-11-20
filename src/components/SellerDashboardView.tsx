@@ -93,19 +93,20 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
 
   // Store settings form
   const [storeForm, setStoreForm] = useState({
-    name: seller.name,
-    description: seller.description,
-    logoText: seller.logoText,
-    accentColor: seller.accentColor,
-    location: seller.location,
-    bannerImage: seller.bannerImage,
-    bankName: seller.payoutInfo.bankName,
-    accountType: seller.payoutInfo.accountType,
-    accountNumber: seller.payoutInfo.accountNumber,
-    pixOrWallet: seller.payoutInfo.pixOrWallet,
+    name: seller?.name ?? '',
+    description: seller?.description ?? '',
+    logoText: seller?.logoText ?? '',
+    accentColor: seller?.accentColor ?? '#0475EE',
+    location: seller?.location ?? '',
+    bannerImage: seller?.bannerImage ?? '',
+    bankName: seller?.payoutInfo.bankName ?? '',
+    accountType: seller?.payoutInfo.accountType ?? '',
+    accountNumber: seller?.payoutInfo.accountNumber ?? '',
+    pixOrWallet: seller?.payoutInfo.pixOrWallet ?? '',
   });
 
   useEffect(() => {
+    if (!seller) return;
     setStoreForm({
       name: seller.name,
       description: seller.description,
@@ -121,6 +122,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
   }, [seller]);
 
   const sellerProducts = useMemo(() => {
+    if (!seller) return [];
     const q = productSearch.trim().toLowerCase();
     return products.filter((p) => {
       if (p.sellerId !== seller.id) return false;
@@ -130,9 +132,10 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
       }
       return true;
     });
-  }, [products, seller.id, productSearch, productCategoryFilter]);
+  }, [products, seller, productSearch, productCategoryFilter]);
 
   const sellerOrders = useMemo(() => {
+    if (!seller) return [];
     const list: Array<{
       orderId: string;
       buyerName: string;
@@ -155,11 +158,20 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
       }
     }
     return list;
-  }, [orders, seller.id]);
+  }, [orders, seller]);
 
   const analytics = useMemo(
-    () => calculateSellerAnalytics(seller.id, orders, commissionRate),
-    [seller.id, orders, commissionRate]
+    () =>
+      seller
+        ? calculateSellerAnalytics(seller.id, orders, commissionRate)
+        : {
+            monthlySales: 0,
+            availableBalance: 0,
+            pendingOrdersCount: 0,
+            totalOrdersCount: 0,
+            itemsSold: 0,
+          },
+    [seller, orders, commissionRate]
   );
 
   const handleCreateProduct = (e: React.FormEvent) => {
@@ -278,13 +290,13 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
   ];
 
   const statusText =
-    seller.status === 'active'
+    seller?.status === 'active'
       ? 'Loja Ativa'
-      : seller.status === 'pending'
+      : seller?.status === 'pending'
         ? 'Pendente de Aprovação'
         : 'Loja Suspensa';
 
-  if (!currentUser || currentUser.role !== 'seller') {
+  if (!currentUser || currentUser.role !== 'seller' || !seller) {
     return null;
   }
 

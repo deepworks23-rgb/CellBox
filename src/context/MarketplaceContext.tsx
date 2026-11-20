@@ -1,10 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import {
-  ACTIVE_COUPONS,
-  INITIAL_CATEGORIES,
-  INITIAL_PRODUCTS,
-  INITIAL_SELLERS,
-} from '../data/seedData';
+import { ACTIVE_COUPONS } from '../data/seedData';
 import type {
   Address,
   AppView,
@@ -268,9 +263,9 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
   const [state, setState] = useState<MarketplaceState>(() => ({
     users: [],
     currentUser: null,
-    sellers: INITIAL_SELLERS,
-    products: INITIAL_PRODUCTS,
-    categories: INITIAL_CATEGORIES,
+    sellers: [],
+    products: [],
+    categories: [],
     orders: [],
     cart: typeof window !== 'undefined' ? readStoredCart() : [],
     wishlist: typeof window !== 'undefined' ? readGuestWishlist() : [],

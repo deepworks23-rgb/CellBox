@@ -1,0 +1,1182 @@
+import 'dotenv/config';
+import { Pool, type PoolClient, type QueryResult, type QueryResultRow } from 'pg';
+import type {
+  Address,
+  Order,
+  OrderStatus,
+  Product,
+  SellerPayoutInfo,
+  SellerStatus,
+  SellerStore,
+  User,
+} from '../types.ts';
+
+export interface StoredUser extends User {
+  passwordHash: string;
+}
+
+export interface ContactMessageRecord {
+  id: string;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  createdAt: string;
+}
+
+export interface UploadedAssetRecord {
+  key: string;
+  bucket: string;
+  ownerUserId: string;
+  originalName: string;
+  contentType: string;
+  sizeBytes: number;
+}
+
+export interface SeedPayload {
+  users: StoredUser[];
+  sellers: SellerStore[];
+  products: Product[];
+  categories: string[];
+  orders: Order[];
+  addressesByUser: Record<string, Address[]>;
+  wishlistsByUser: Record<string, string[]>;
+  commissionRate: number;
+}
+
+const connectionString = process.env.DATABASE_URL?.trim();
+
+function createPool(): Pool {
+  if (!connectionString) {
+    throw new Error(
+      'DATABASE_URL não configurada. Defina a string de conexão PostgreSQL do Neon no arquivo .env.'
+    );
+  }
+
+  const instance = new Pool({
+    connectionString,
+    ssl: { rejectUnauthorized: false },
+    max: 10,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 15_000,
+  });
+
+  instance.on('error', (err) => {
+    console.error('[Cellbox PostgreSQL] Unexpected idle client error:', err.message);
+  });
+
+  return instance;
+}
+
+let poolInstance: Pool | null = null;
+
+export function getPool(): Pool {
+  if (!poolInstance) {
+    poolInstance = createPool();
+  }
+  return poolInstance;
+}
+
+export async function query<T extends QueryResultRow = QueryResultRow>(
+  text: string,
+  params?: unknown[]
+): Promise<QueryResult<T>> {
+  return getPool().query<T>(text, params);
+}
+
+export async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  const client = await getPool().connect();
+  try {
+    await client.query('BEGIN');
+    const result = await fn(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+export async function closeDatabasePool(): Promise<void> {
+  if (poolInstance) {
+    await poolInstance.end();
+    poolInstance = null;
+  }
+}
+
+// ── Row Mappers ──────────────────────────────────────────────────────────────
+
+function mapUserRow(r: QueryResultRow): StoredUser {
+  return {
+    id: String(r.id),
+    name: String(r.name),
+    email: String(r.email),
+    role: r.role,
+    phone: r.phone ? String(r.phone) : undefined,
+    sellerId: r.seller_id ? String(r.seller_id) : undefined,
+    createdAt: String(r.created_at),
+    passwordHash: String(r.password_hash),
+  };
+}
+
+function mapSellerRow(r: QueryResultRow): SellerStore {
+  return {
+    id: String(r.id),
+    ownerUserId: String(r.owner_user_id),
+    name: String(r.name),
+    slug: String(r.slug),
+    documentId: String(r.document_id),
+    mainCategory: String(r.main_category),
+    description: String(r.description),
+    logoText: String(r.logo_text),
+    accentColor: String(r.accent_color),
+    bannerImage: String(r.banner_image),
+    status: r.status,
+    verified: Boolean(r.verified),
+    rating: Number(r.rating),
+    reviewCount: Number(r.review_count),
+    joinedDate: String(r.joined_date),
+    tenureLabel: String(r.tenure_label),
+    location: String(r.location),
+    payoutInfo: r.payout_info as SellerPayoutInfo,
+  };
+}
+
+function mapProductRow(r: QueryResultRow): Product {
+  return {
+    id: String(r.id),
+    sellerId: String(r.seller_id),
+    title: String(r.title),
+    brand: String(r.brand),
+    category: String(r.category),
+    condition: r.condition,
+    price: Number(r.price),
+    originalPrice:
+      r.original_price !== null && r.original_price !== undefined
+        ? Number(r.original_price)
+        : undefined,
+    stock: Number(r.stock),
+    rating: Number(r.rating),
+    reviewCount: Number(r.review_count),
+    soldCount: Number(r.sold_count),
+    isFlashDeal: Boolean(r.is_flash_deal),
+    isBestSeller: Boolean(r.is_best_seller),
+    images: Array.isArray(r.images) ? r.images : [],
+    description: String(r.description),
+    specs: r.specs ?? {},
+    createdAt: String(r.created_at),
+  };
+}
+
+function mapOrderRow(r: QueryResultRow): Order {
+  return {
+    id: String(r.id),
+    buyerId: String(r.buyer_id),
+    buyerName: String(r.buyer_name),
+    buyerEmail: String(r.buyer_email),
+    createdAt: String(r.created_at),
+    shippingAddress: r.shipping_address as Address,
+    paymentMethod: r.payment_method,
+    commissionRateSnapshot: Number(r.commission_rate_snapshot),
+    subtotal: Number(r.subtotal),
+    discountTotal:
+      r.discount_total !== null && r.discount_total !== undefined
+        ? Number(r.discount_total)
+        : undefined,
+    couponCode: r.coupon_code ? String(r.coupon_code) : undefined,
+    shippingTotal: Number(r.shipping_total),
+    total: Number(r.total),
+    fulfillments: Array.isArray(r.fulfillments) ? r.fulfillments : [],
+  };
+}
+
+function mapAddressRow(r: QueryResultRow): Address {
+  return {
+    id: String(r.id),
+    label: String(r.label),
+    recipient: String(r.recipient),
+    street: String(r.street),
+    city: String(r.city),
+    state: String(r.state),
+    zipCode: String(r.zip_code),
+    isDefault: Boolean(r.is_default),
+  };
+}
+
+// ── Schema Initialization & Idempotent Seeding ───────────────────────────────
+
+export async function ensureDatabaseSchema(): Promise<void> {
+  await query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL UNIQUE,
+      role TEXT NOT NULL,
+      phone TEXT,
+      seller_id TEXT,
+      password_hash TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS sellers (
+      id TEXT PRIMARY KEY,
+      owner_user_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      slug TEXT NOT NULL,
+      document_id TEXT NOT NULL,
+      main_category TEXT NOT NULL,
+      description TEXT NOT NULL,
+      logo_text TEXT NOT NULL,
+      accent_color TEXT NOT NULL,
+      banner_image TEXT NOT NULL,
+      status TEXT NOT NULL,
+      verified BOOLEAN NOT NULL DEFAULT FALSE,
+      rating DOUBLE PRECISION NOT NULL DEFAULT 5.0,
+      review_count INTEGER NOT NULL DEFAULT 0,
+      joined_date TEXT NOT NULL,
+      tenure_label TEXT NOT NULL,
+      location TEXT NOT NULL,
+      payout_info JSONB NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS categories (
+      name TEXT PRIMARY KEY,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS products (
+      id TEXT PRIMARY KEY,
+      seller_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      brand TEXT NOT NULL,
+      category TEXT NOT NULL,
+      condition TEXT NOT NULL,
+      price DOUBLE PRECISION NOT NULL,
+      original_price DOUBLE PRECISION,
+      stock INTEGER NOT NULL DEFAULT 0,
+      rating DOUBLE PRECISION NOT NULL DEFAULT 5.0,
+      review_count INTEGER NOT NULL DEFAULT 0,
+      sold_count INTEGER NOT NULL DEFAULT 0,
+      is_flash_deal BOOLEAN NOT NULL DEFAULT FALSE,
+      is_best_seller BOOLEAN NOT NULL DEFAULT FALSE,
+      images JSONB NOT NULL,
+      description TEXT NOT NULL,
+      specs JSONB NOT NULL,
+      badge TEXT,
+      created_at TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    );
+
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS is_flash_deal BOOLEAN NOT NULL DEFAULT FALSE;
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS is_best_seller BOOLEAN NOT NULL DEFAULT FALSE;
+
+    CREATE TABLE IF NOT EXISTS orders (
+      id TEXT PRIMARY KEY,
+      buyer_id TEXT NOT NULL,
+      buyer_name TEXT NOT NULL,
+      buyer_email TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      shipping_address JSONB NOT NULL,
+      payment_method TEXT NOT NULL,
+      commission_rate_snapshot DOUBLE PRECISION NOT NULL,
+      subtotal DOUBLE PRECISION NOT NULL,
+      discount_total DOUBLE PRECISION,
+      coupon_code TEXT,
+      shipping_total DOUBLE PRECISION NOT NULL,
+      total DOUBLE PRECISION NOT NULL,
+      fulfillments JSONB NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS addresses (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      label TEXT NOT NULL,
+      recipient TEXT NOT NULL,
+      street TEXT NOT NULL,
+      city TEXT NOT NULL,
+      state TEXT NOT NULL,
+      zip_code TEXT NOT NULL,
+      is_default BOOLEAN NOT NULL DEFAULT FALSE,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS wishlists (
+      user_id TEXT NOT NULL,
+      product_id TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (user_id, product_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS newsletter_subscribers (
+      email TEXT PRIMARY KEY,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS contact_messages (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      message TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS platform_settings (
+      key TEXT PRIMARY KEY,
+      value JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS uploaded_assets (
+      key TEXT PRIMARY KEY,
+      bucket TEXT NOT NULL,
+      owner_user_id TEXT NOT NULL,
+      original_name TEXT NOT NULL,
+      content_type TEXT NOT NULL,
+      size_bytes INTEGER NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+}
+
+async function insertSeedInClient(client: PoolClient, seed: SeedPayload): Promise<void> {
+  for (const u of seed.users) {
+    await client.query(
+      `INSERT INTO users (id, name, email, role, phone, seller_id, password_hash, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [u.id, u.name, u.email, u.role, u.phone ?? null, u.sellerId ?? null, u.passwordHash, u.createdAt]
+    );
+  }
+
+  for (let i = 0; i < seed.sellers.length; i++) {
+    const s = seed.sellers[i];
+    await client.query(
+      `INSERT INTO sellers (
+        id, owner_user_id, name, slug, document_id, main_category, description,
+        logo_text, accent_color, banner_image, status, verified, rating,
+        review_count, joined_date, tenure_label, location, payout_info, sort_order
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7,
+        $8, $9, $10, $11, $12, $13,
+        $14, $15, $16, $17, $18::jsonb, $19
+      )`,
+      [
+        s.id,
+        s.ownerUserId,
+        s.name,
+        s.slug,
+        s.documentId,
+        s.mainCategory,
+        s.description,
+        s.logoText,
+        s.accentColor,
+        s.bannerImage,
+        s.status,
+        s.verified,
+        s.rating,
+        s.reviewCount,
+        s.joinedDate,
+        s.tenureLabel,
+        s.location,
+        JSON.stringify(s.payoutInfo),
+        i,
+      ]
+    );
+  }
+
+  for (let i = 0; i < seed.categories.length; i++) {
+    await client.query(
+      'INSERT INTO categories (name, sort_order) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING',
+      [seed.categories[i], i]
+    );
+  }
+
+  for (let i = 0; i < seed.products.length; i++) {
+    const p = seed.products[i];
+    await client.query(
+      `INSERT INTO products (
+        id, seller_id, title, brand, category, condition, price, original_price,
+        stock, rating, review_count, sold_count, is_flash_deal, is_best_seller,
+        images, description, specs, created_at, sort_order
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8,
+        $9, $10, $11, $12, $13, $14,
+        $15::jsonb, $16, $17::jsonb, $18, $19
+      )`,
+      [
+        p.id,
+        p.sellerId,
+        p.title,
+        p.brand,
+        p.category,
+        p.condition,
+        p.price,
+        p.originalPrice ?? null,
+        p.stock,
+        p.rating,
+        p.reviewCount,
+        p.soldCount,
+        Boolean(p.isFlashDeal),
+        Boolean(p.isBestSeller),
+        JSON.stringify(p.images),
+        p.description,
+        JSON.stringify(p.specs ?? {}),
+        p.createdAt,
+        i,
+      ]
+    );
+  }
+
+  for (let i = 0; i < seed.orders.length; i++) {
+    const o = seed.orders[i];
+    await client.query(
+      `INSERT INTO orders (
+        id, buyer_id, buyer_name, buyer_email, created_at, shipping_address,
+        payment_method, commission_rate_snapshot, subtotal, discount_total,
+        coupon_code, shipping_total, total, fulfillments, sort_order
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6::jsonb,
+        $7, $8, $9, $10,
+        $11, $12, $13, $14::jsonb, $15
+      )`,
+      [
+        o.id,
+        o.buyerId,
+        o.buyerName,
+        o.buyerEmail,
+        o.createdAt,
+        JSON.stringify(o.shippingAddress),
+        o.paymentMethod,
+        o.commissionRateSnapshot,
+        o.subtotal,
+        o.discountTotal ?? null,
+        o.couponCode ?? null,
+        o.shippingTotal,
+        o.total,
+        JSON.stringify(o.fulfillments),
+        i,
+      ]
+    );
+  }
+
+  for (const [userId, addresses] of Object.entries(seed.addressesByUser)) {
+    for (let i = 0; i < addresses.length; i++) {
+      const a = addresses[i];
+      await client.query(
+        `INSERT INTO addresses (
+          id, user_id, label, recipient, street, city, state, zip_code, is_default, sort_order
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [a.id, userId, a.label, a.recipient, a.street, a.city, a.state, a.zipCode, a.isDefault, i]
+      );
+    }
+  }
+
+  for (const [userId, productIds] of Object.entries(seed.wishlistsByUser)) {
+    for (let i = 0; i < productIds.length; i++) {
+      await client.query(
+        `INSERT INTO wishlists (user_id, product_id, sort_order)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (user_id, product_id) DO NOTHING`,
+        [userId, productIds[i], i]
+      );
+    }
+  }
+
+  await client.query(
+    `INSERT INTO platform_settings (key, value, updated_at)
+     VALUES ('commissionRate', $1::jsonb, NOW())
+     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+    [JSON.stringify(seed.commissionRate)]
+  );
+}
+
+export async function initDatabase(createSeed: () => SeedPayload): Promise<void> {
+  await ensureDatabaseSchema();
+  const countRes = await query<{ count: number }>('SELECT COUNT(*)::int AS count FROM users');
+  if ((countRes.rows[0]?.count ?? 0) === 0) {
+    const seed = createSeed();
+    await withTransaction((client) => insertSeedInClient(client, seed));
+    console.log('[Cellbox PostgreSQL] Schema created and initial data seeded.');
+  } else {
+    const stats = await query<{ users: number; products: number; sellers: number }>(`
+      SELECT
+        (SELECT COUNT(*)::int FROM users) AS users,
+        (SELECT COUNT(*)::int FROM products) AS products,
+        (SELECT COUNT(*)::int FROM sellers) AS sellers
+    `);
+    const row = stats.rows[0];
+    console.log(
+      `[Cellbox PostgreSQL] Connected to Neon (${row.users} users, ${row.sellers} sellers, ${row.products} products).`
+    );
+  }
+}
+
+export async function resetDatabaseToSeed(seed: SeedPayload): Promise<void> {
+  await withTransaction(async (client) => {
+    await client.query(
+      'TRUNCATE TABLE users, sellers, categories, products, orders, addresses, wishlists, newsletter_subscribers, contact_messages'
+    );
+    await insertSeedInClient(client, seed);
+  });
+}
+
+// ── Users & Authentication CRUD ──────────────────────────────────────────────
+
+export async function findUserById(id: string): Promise<StoredUser | null> {
+  const res = await query('SELECT * FROM users WHERE id = $1 LIMIT 1', [id]);
+  return res.rows[0] ? mapUserRow(res.rows[0]) : null;
+}
+
+export async function findUserByEmail(email: string): Promise<StoredUser | null> {
+  const res = await query('SELECT * FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1', [
+    email.trim(),
+  ]);
+  return res.rows[0] ? mapUserRow(res.rows[0]) : null;
+}
+
+export async function listUsers(): Promise<StoredUser[]> {
+  const res = await query('SELECT * FROM users ORDER BY created_at ASC, id ASC');
+  return res.rows.map(mapUserRow);
+}
+
+export async function createUserAccount(
+  user: StoredUser,
+  seller?: SellerStore
+): Promise<{ user: StoredUser; seller?: SellerStore }> {
+  return withTransaction(async (client) => {
+    await client.query(
+      `INSERT INTO users (id, name, email, role, phone, seller_id, password_hash, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        user.id,
+        user.name,
+        user.email,
+        user.role,
+        user.phone ?? null,
+        user.sellerId ?? null,
+        user.passwordHash,
+        user.createdAt,
+      ]
+    );
+
+    if (seller) {
+      const minOrderRes = await client.query<{ min_order: number | null }>(
+        'SELECT MIN(sort_order) AS min_order FROM sellers'
+      );
+      const nextSortOrder = (minOrderRes.rows[0]?.min_order ?? 0) - 1;
+
+      await client.query(
+        `INSERT INTO sellers (
+          id, owner_user_id, name, slug, document_id, main_category, description,
+          logo_text, accent_color, banner_image, status, verified, rating,
+          review_count, joined_date, tenure_label, location, payout_info, sort_order
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7,
+          $8, $9, $10, $11, $12, $13,
+          $14, $15, $16, $17, $18::jsonb, $19
+        )`,
+        [
+          seller.id,
+          seller.ownerUserId,
+          seller.name,
+          seller.slug,
+          seller.documentId,
+          seller.mainCategory,
+          seller.description,
+          seller.logoText,
+          seller.accentColor,
+          seller.bannerImage,
+          seller.status,
+          seller.verified,
+          seller.rating,
+          seller.reviewCount,
+          seller.joinedDate,
+          seller.tenureLabel,
+          seller.location,
+          JSON.stringify(seller.payoutInfo),
+          nextSortOrder,
+        ]
+      );
+    }
+
+    return { user, seller };
+  });
+}
+
+export async function updateUserProfile(
+  userId: string,
+  updates: { name?: string; phone?: string }
+): Promise<StoredUser | null> {
+  const existing = await findUserById(userId);
+  if (!existing) return null;
+  const nextName =
+    typeof updates.name === 'string' && updates.name.trim().length >= 2
+      ? updates.name.trim()
+      : existing.name;
+  const nextPhone =
+    typeof updates.phone === 'string' ? updates.phone.trim() : existing.phone ?? null;
+
+  const res = await query(
+    'UPDATE users SET name = $2, phone = $3 WHERE id = $1 RETURNING *',
+    [userId, nextName, nextPhone]
+  );
+  return res.rows[0] ? mapUserRow(res.rows[0]) : null;
+}
+
+export async function updateUserPassword(userId: string, passwordHash: string): Promise<void> {
+  await query('UPDATE users SET password_hash = $2 WHERE id = $1', [userId, passwordHash]);
+}
+
+// ── Products CRUD ────────────────────────────────────────────────────────────
+
+export async function listProducts(filters?: {
+  category?: string;
+  sellerId?: string;
+  search?: string;
+}): Promise<Product[]> {
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+
+  if (filters?.category && filters.category !== 'Todas') {
+    params.push(filters.category);
+    conditions.push(`category = $${params.length}`);
+  }
+  if (filters?.sellerId) {
+    params.push(filters.sellerId);
+    conditions.push(`seller_id = $${params.length}`);
+  }
+  if (filters?.search && filters.search.trim()) {
+    params.push(`%${filters.search.trim()}%`);
+    conditions.push(
+      `(title ILIKE $${params.length} OR brand ILIKE $${params.length} OR description ILIKE $${params.length})`
+    );
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const res = await query(
+    `SELECT * FROM products ${whereClause} ORDER BY sort_order ASC, created_at DESC, id ASC`,
+    params
+  );
+  return res.rows.map(mapProductRow);
+}
+
+export async function findProductById(id: string): Promise<Product | null> {
+  const res = await query('SELECT * FROM products WHERE id = $1 LIMIT 1', [id]);
+  return res.rows[0] ? mapProductRow(res.rows[0]) : null;
+}
+
+export async function createProduct(product: Product): Promise<Product> {
+  const minRes = await query<{ min_order: number | null }>(
+    'SELECT MIN(sort_order) AS min_order FROM products'
+  );
+  const sortOrder = (minRes.rows[0]?.min_order ?? 0) - 1;
+
+  const res = await query(
+    `INSERT INTO products (
+      id, seller_id, title, brand, category, condition, price, original_price,
+      stock, rating, review_count, sold_count, is_flash_deal, is_best_seller,
+      images, description, specs, created_at, sort_order
+    ) VALUES (
+      $1, $2, $3, $4, $5, $6, $7, $8,
+      $9, $10, $11, $12, $13, $14,
+      $15::jsonb, $16, $17::jsonb, $18, $19
+    ) RETURNING *`,
+    [
+      product.id,
+      product.sellerId,
+      product.title,
+      product.brand,
+      product.category,
+      product.condition,
+      product.price,
+      product.originalPrice ?? null,
+      product.stock,
+      product.rating,
+      product.reviewCount,
+      product.soldCount,
+      Boolean(product.isFlashDeal),
+      Boolean(product.isBestSeller),
+      JSON.stringify(product.images),
+      product.description,
+      JSON.stringify(product.specs ?? {}),
+      product.createdAt,
+      sortOrder,
+    ]
+  );
+  return mapProductRow(res.rows[0]);
+}
+
+export async function updateProduct(
+  id: string,
+  updates: Partial<Product>
+): Promise<Product | null> {
+  const existing = await findProductById(id);
+  if (!existing) return null;
+
+  const merged: Product = {
+    ...existing,
+    ...updates,
+    id: existing.id,
+    sellerId: existing.sellerId,
+  };
+
+  const res = await query(
+    `UPDATE products SET
+      title = $2,
+      brand = $3,
+      category = $4,
+      condition = $5,
+      price = $6,
+      original_price = $7,
+      stock = $8,
+      rating = $9,
+      review_count = $10,
+      sold_count = $11,
+      is_flash_deal = $12,
+      is_best_seller = $13,
+      images = $14::jsonb,
+      description = $15,
+      specs = $16::jsonb
+     WHERE id = $1
+     RETURNING *`,
+    [
+      merged.id,
+      merged.title,
+      merged.brand,
+      merged.category,
+      merged.condition,
+      merged.price,
+      merged.originalPrice ?? null,
+      merged.stock,
+      merged.rating,
+      merged.reviewCount,
+      merged.soldCount,
+      Boolean(merged.isFlashDeal),
+      Boolean(merged.isBestSeller),
+      JSON.stringify(merged.images),
+      merged.description,
+      JSON.stringify(merged.specs ?? {}),
+    ]
+  );
+  return res.rows[0] ? mapProductRow(res.rows[0]) : null;
+}
+
+export async function deleteProduct(id: string): Promise<boolean> {
+  return withTransaction(async (client) => {
+    await client.query('DELETE FROM wishlists WHERE product_id = $1', [id]);
+    const res = await client.query('DELETE FROM products WHERE id = $1', [id]);
+    return (res.rowCount ?? 0) > 0;
+  });
+}
+
+// ── Sellers CRUD ─────────────────────────────────────────────────────────────
+
+export async function listSellers(): Promise<SellerStore[]> {
+  const res = await query('SELECT * FROM sellers ORDER BY sort_order ASC, id ASC');
+  return res.rows.map(mapSellerRow);
+}
+
+export async function findSellerOwnedBy(
+  userId: string,
+  sellerId?: string
+): Promise<SellerStore | null> {
+  const res = await query(
+    'SELECT * FROM sellers WHERE id = $1 OR owner_user_id = $2 LIMIT 1',
+    [sellerId ?? '', userId]
+  );
+  return res.rows[0] ? mapSellerRow(res.rows[0]) : null;
+}
+
+export async function doesUserOwnSeller(
+  targetSellerId: string,
+  userId: string,
+  userSellerId?: string
+): Promise<boolean> {
+  const res = await query(
+    'SELECT 1 FROM sellers WHERE id = $1 AND (id = $2 OR owner_user_id = $3) LIMIT 1',
+    [targetSellerId, userSellerId ?? '', userId]
+  );
+  return res.rowCount !== null && res.rowCount > 0;
+}
+
+export async function updateSellerSettings(
+  sellerId: string,
+  updates: {
+    name: string;
+    description: string;
+    logoText: string;
+    accentColor: string;
+    location: string;
+    bannerImage: string;
+    payoutInfo: SellerPayoutInfo;
+  }
+): Promise<SellerStore | null> {
+  const res = await query(
+    `UPDATE sellers SET
+      name = $2,
+      description = $3,
+      logo_text = $4,
+      accent_color = $5,
+      location = $6,
+      banner_image = $7,
+      payout_info = $8::jsonb
+     WHERE id = $1
+     RETURNING *`,
+    [
+      sellerId,
+      updates.name,
+      updates.description,
+      updates.logoText,
+      updates.accentColor,
+      updates.location,
+      updates.bannerImage,
+      JSON.stringify(updates.payoutInfo),
+    ]
+  );
+  return res.rows[0] ? mapSellerRow(res.rows[0]) : null;
+}
+
+export async function updateSellerStatus(
+  sellerId: string,
+  status: SellerStatus
+): Promise<SellerStore | null> {
+  const res = await query(
+    `UPDATE sellers SET
+      status = $2,
+      verified = CASE WHEN $2 = 'active' THEN TRUE ELSE verified END,
+      tenure_label = CASE
+        WHEN $2 = 'active' AND tenure_label = 'Aguardando aprovação' THEN 'Nova loja verificada'
+        ELSE tenure_label
+      END
+     WHERE id = $1
+     RETURNING *`,
+    [sellerId, status]
+  );
+  return res.rows[0] ? mapSellerRow(res.rows[0]) : null;
+}
+
+// ── Categories CRUD ──────────────────────────────────────────────────────────
+
+export async function listCategories(): Promise<string[]> {
+  const res = await query<{ name: string }>(
+    'SELECT name FROM categories ORDER BY sort_order ASC, name ASC'
+  );
+  return res.rows.map((r) => r.name);
+}
+
+export async function addCategory(name: string): Promise<boolean> {
+  const existing = await query('SELECT 1 FROM categories WHERE LOWER(name) = LOWER($1) LIMIT 1', [
+    name,
+  ]);
+  if (existing.rowCount && existing.rowCount > 0) return false;
+
+  const maxRes = await query<{ max_order: number | null }>(
+    'SELECT MAX(sort_order) AS max_order FROM categories'
+  );
+  const nextOrder = (maxRes.rows[0]?.max_order ?? -1) + 1;
+  await query('INSERT INTO categories (name, sort_order) VALUES ($1, $2)', [name, nextOrder]);
+  return true;
+}
+
+export async function removeCategory(name: string): Promise<void> {
+  await query('DELETE FROM categories WHERE name = $1', [name]);
+}
+
+// ── Orders CRUD (Transactional) ──────────────────────────────────────────────
+
+export async function listOrders(): Promise<Order[]> {
+  const res = await query('SELECT * FROM orders ORDER BY sort_order ASC, created_at DESC, id DESC');
+  return res.rows.map(mapOrderRow);
+}
+
+export async function listScopedOrders(user: StoredUser | null): Promise<Order[]> {
+  if (!user) return [];
+  const allOrders = await listOrders();
+  if (user.role === 'admin') return allOrders;
+  if (user.role === 'seller') {
+    const sellerRows = await query<{ id: string }>(
+      'SELECT id FROM sellers WHERE id = $1 OR owner_user_id = $2',
+      [user.sellerId ?? '', user.id]
+    );
+    const sellerIds = new Set(sellerRows.rows.map((r) => r.id));
+    return allOrders.filter(
+      (o) => o.buyerId === user.id || o.fulfillments.some((f) => sellerIds.has(f.sellerId))
+    );
+  }
+  return allOrders.filter((o) => o.buyerId === user.id);
+}
+
+export async function createOrderAndUpdateStock(
+  order: Order,
+  qtyByProduct: Map<string, number>
+): Promise<Order> {
+  return withTransaction(async (client) => {
+    const minRes = await client.query<{ min_order: number | null }>(
+      'SELECT MIN(sort_order) AS min_order FROM orders'
+    );
+    const sortOrder = (minRes.rows[0]?.min_order ?? 0) - 1;
+
+    await client.query(
+      `INSERT INTO orders (
+        id, buyer_id, buyer_name, buyer_email, created_at, shipping_address,
+        payment_method, commission_rate_snapshot, subtotal, discount_total,
+        coupon_code, shipping_total, total, fulfillments, sort_order
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6::jsonb,
+        $7, $8, $9, $10,
+        $11, $12, $13, $14::jsonb, $15
+      )`,
+      [
+        order.id,
+        order.buyerId,
+        order.buyerName,
+        order.buyerEmail,
+        order.createdAt,
+        JSON.stringify(order.shippingAddress),
+        order.paymentMethod,
+        order.commissionRateSnapshot,
+        order.subtotal,
+        order.discountTotal ?? null,
+        order.couponCode ?? null,
+        order.shippingTotal,
+        order.total,
+        JSON.stringify(order.fulfillments),
+        sortOrder,
+      ]
+    );
+
+    for (const [productId, bought] of qtyByProduct.entries()) {
+      await client.query(
+        `UPDATE products
+         SET stock = GREATEST(0, stock - $2),
+             sold_count = sold_count + $2
+         WHERE id = $1`,
+        [productId, bought]
+      );
+    }
+
+    return order;
+  });
+}
+
+export async function updateOrderFulfillmentStatus(
+  orderId: string,
+  sellerId: string,
+  nextStatus: OrderStatus,
+  updatedAt: string
+): Promise<Order | null> {
+  const res = await query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [orderId]);
+  if (!res.rows[0]) return null;
+  const order = mapOrderRow(res.rows[0]);
+  const updatedFulfillments = order.fulfillments.map((f) =>
+    f.sellerId === sellerId ? { ...f, status: nextStatus, updatedAt } : f
+  );
+
+  const updated = await query(
+    'UPDATE orders SET fulfillments = $2::jsonb WHERE id = $1 RETURNING *',
+    [orderId, JSON.stringify(updatedFulfillments)]
+  );
+  return updated.rows[0] ? mapOrderRow(updated.rows[0]) : null;
+}
+
+// ── Addresses CRUD ───────────────────────────────────────────────────────────
+
+export async function listAddressesByUser(userId: string): Promise<Address[]> {
+  const res = await query(
+    'SELECT * FROM addresses WHERE user_id = $1 ORDER BY is_default DESC, sort_order ASC, id ASC',
+    [userId]
+  );
+  return res.rows.map(mapAddressRow);
+}
+
+export async function createAddress(
+  userId: string,
+  address: Address
+): Promise<{ created: Address; addresses: Address[] }> {
+  await withTransaction(async (client) => {
+    const existingRes = await client.query<{ count: number }>(
+      'SELECT COUNT(*)::int AS count FROM addresses WHERE user_id = $1',
+      [userId]
+    );
+    const shouldBeDefault = address.isDefault || (existingRes.rows[0]?.count ?? 0) === 0;
+    address.isDefault = shouldBeDefault;
+
+    if (shouldBeDefault) {
+      await client.query('UPDATE addresses SET is_default = FALSE WHERE user_id = $1', [userId]);
+    }
+
+    const orderRes = await client.query<{ min_order: number | null; max_order: number | null }>(
+      'SELECT MIN(sort_order) AS min_order, MAX(sort_order) AS max_order FROM addresses WHERE user_id = $1',
+      [userId]
+    );
+    const sortOrder = shouldBeDefault
+      ? (orderRes.rows[0]?.min_order ?? 0) - 1
+      : (orderRes.rows[0]?.max_order ?? -1) + 1;
+
+    await client.query(
+      `INSERT INTO addresses (
+        id, user_id, label, recipient, street, city, state, zip_code, is_default, sort_order
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [
+        address.id,
+        userId,
+        address.label,
+        address.recipient,
+        address.street,
+        address.city,
+        address.state,
+        address.zipCode,
+        address.isDefault,
+        sortOrder,
+      ]
+    );
+  });
+
+  const addresses = await listAddressesByUser(userId);
+  return { created: address, addresses };
+}
+
+export async function setDefaultAddress(
+  userId: string,
+  addressId: string
+): Promise<Address[] | null> {
+  const exists = await query('SELECT 1 FROM addresses WHERE id = $1 AND user_id = $2 LIMIT 1', [
+    addressId,
+    userId,
+  ]);
+  if (!exists.rowCount) return null;
+
+  await withTransaction(async (client) => {
+    await client.query('UPDATE addresses SET is_default = (id = $2) WHERE user_id = $1', [
+      userId,
+      addressId,
+    ]);
+  });
+
+  return listAddressesByUser(userId);
+}
+
+export async function deleteAddress(userId: string, addressId: string): Promise<Address[]> {
+  await withTransaction(async (client) => {
+    await client.query('DELETE FROM addresses WHERE id = $1 AND user_id = $2', [
+      addressId,
+      userId,
+    ]);
+    const remaining = await client.query<{ id: string; is_default: boolean }>(
+      'SELECT id, is_default FROM addresses WHERE user_id = $1 ORDER BY sort_order ASC, id ASC',
+      [userId]
+    );
+    if (remaining.rows.length > 0 && !remaining.rows.some((r) => r.is_default)) {
+      await client.query('UPDATE addresses SET is_default = TRUE WHERE id = $1', [
+        remaining.rows[0].id,
+      ]);
+    }
+  });
+
+  return listAddressesByUser(userId);
+}
+
+// ── Wishlist CRUD ────────────────────────────────────────────────────────────
+
+export async function listWishlistByUser(userId: string): Promise<string[]> {
+  const res = await query<{ product_id: string }>(
+    'SELECT product_id FROM wishlists WHERE user_id = $1 ORDER BY sort_order ASC',
+    [userId]
+  );
+  return res.rows.map((r) => r.product_id);
+}
+
+export async function toggleWishlistItem(
+  userId: string,
+  productId: string
+): Promise<{ wishlist: string[]; added: boolean }> {
+  const exists = await query(
+    'SELECT 1 FROM wishlists WHERE user_id = $1 AND product_id = $2 LIMIT 1',
+    [userId, productId]
+  );
+
+  let added = false;
+  if (exists.rowCount && exists.rowCount > 0) {
+    await query('DELETE FROM wishlists WHERE user_id = $1 AND product_id = $2', [
+      userId,
+      productId,
+    ]);
+  } else {
+    const minRes = await query<{ min_order: number | null }>(
+      'SELECT MIN(sort_order) AS min_order FROM wishlists WHERE user_id = $1',
+      [userId]
+    );
+    const sortOrder = (minRes.rows[0]?.min_order ?? 0) - 1;
+    await query(
+      `INSERT INTO wishlists (user_id, product_id, sort_order)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (user_id, product_id) DO NOTHING`,
+      [userId, productId, sortOrder]
+    );
+    added = true;
+  }
+
+  const wishlist = await listWishlistByUser(userId);
+  return { wishlist, added };
+}
+
+// ── Settings, Newsletter, Contact & Uploaded Assets ──────────────────────────
+
+export async function getCommissionRate(): Promise<number> {
+  const res = await query<{ value: unknown }>(
+    "SELECT value FROM platform_settings WHERE key = 'commissionRate' LIMIT 1"
+  );
+  const raw = res.rows[0]?.value;
+  return typeof raw === 'number' && Number.isFinite(raw) ? raw : 10;
+}
+
+export async function setCommissionRate(rate: number): Promise<number> {
+  const clamped = Math.max(1, Math.min(35, Number(rate.toFixed(1))));
+  await query(
+    `INSERT INTO platform_settings (key, value, updated_at)
+     VALUES ('commissionRate', $1::jsonb, NOW())
+     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+    [JSON.stringify(clamped)]
+  );
+  return clamped;
+}
+
+export async function addNewsletterSubscriber(email: string): Promise<void> {
+  await query(
+    'INSERT INTO newsletter_subscribers (email) VALUES ($1) ON CONFLICT (email) DO NOTHING',
+    [email]
+  );
+}
+
+export async function createContactMessage(entry: ContactMessageRecord): Promise<void> {
+  await query(
+    `INSERT INTO contact_messages (id, name, email, subject, message, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [entry.id, entry.name, entry.email, entry.subject, entry.message, entry.createdAt]
+  );
+}
+
+export async function recordUploadedAsset(asset: UploadedAssetRecord): Promise<void> {
+  await query(
+    `INSERT INTO uploaded_assets (key, bucket, owner_user_id, original_name, content_type, size_bytes)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (key) DO UPDATE SET
+       bucket = EXCLUDED.bucket,
+       owner_user_id = EXCLUDED.owner_user_id,
+       original_name = EXCLUDED.original_name,
+       content_type = EXCLUDED.content_type,
+       size_bytes = EXCLUDED.size_bytes`,
+    [
+      asset.key,
+      asset.bucket,
+      asset.ownerUserId,
+      asset.originalName,
+      asset.contentType,
+      asset.sizeBytes,
+    ]
+  );
+}
