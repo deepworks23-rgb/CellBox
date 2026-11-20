@@ -17,34 +17,34 @@ import { BrandLogo, type PartnerBrandName } from './BrandLogo';
 
 const HERO_SLIDES = [
   {
-    kicker: 'LANÇAMENTO CELLBOX',
-    title: 'OS MELHORES SMARTPHONES E TECH EM 2026',
-    subtitle:
-      'As melhores ofertas em iPhone 16 Pro, Galaxy S24 Ultra, MacBooks e acessórios de lojas oficiais verificadas em Moçambique.',
+    kicker: 'Lançamento Oficial',
+    title: 'iPhone 16 Pro & Tech 2026',
+    subtitle: 'Smartphones e acessórios de lojas verificadas com entrega em todo Moçambique.',
+    highlight: 'A partir de 98.500 MT · Garantia oficial de 12 meses',
     productId: 'prod-iphone-16-pro',
     cta: 'VER OFERTA',
-    image: CUTOUT_IMAGES.iphone16Pro,
-    secondaryImage: CUTOUT_IMAGES.sonyHeadphones,
+    image: CUTOUT_IMAGES.heroSmartphones,
+    imageAlt: 'Smartphones iPhone 16 Pro em titânio natural',
   },
   {
-    kicker: 'ESTAÇÃO PRO',
-    title: 'LAPTOPS DE ALTA PERFORMANCE M3 & OLED',
-    subtitle:
-      'MacBook Pro 14" M3 Pro e Dell XPS 15 OLED com garantia oficial e entrega grátis acima de 15.000 MT.',
+    kicker: 'Estação Pro',
+    title: 'Laptops M3 Pro & OLED',
+    subtitle: 'Performance profissional para trabalho criativo com frete grátis acima de 15.000 MT.',
+    highlight: 'A partir de 129.900 MT · Envio segurado',
     productId: 'prod-macbook-pro-m3',
     cta: 'CONFERIR LAPTOPS',
-    image: CUTOUT_IMAGES.macbookPro,
-    secondaryImage: CUTOUT_IMAGES.dellXps,
+    image: CUTOUT_IMAGES.heroLaptop,
+    imageAlt: 'Laptop Pro Space Black com tela de alto brilho',
   },
   {
-    kicker: 'GAMING & ÁUDIO HI-RES',
-    title: 'CONSOLES PORTÁTEIS E FONES COM ANC',
-    subtitle:
-      'Desempenho portátil com ROG Ally X e carregamento rápido GaN 140W com envio imediato.',
+    kicker: 'Gaming & Áudio',
+    title: 'Consoles & Fones ANC',
+    subtitle: 'Desempenho portátil com ROG Ally X e cancelamento de ruído de estúdio.',
+    highlight: 'A partir de 21.500 MT · Envio imediato',
     productId: 'prod-rog-ally-x',
     cta: 'EXPLORAR GAMING',
-    image: CUTOUT_IMAGES.gamingHandheld,
-    secondaryImage: CUTOUT_IMAGES.ganCharger,
+    image: CUTOUT_IMAGES.heroGamingAudio,
+    imageAlt: 'Console portátil gaming e headphone wireless com cancelamento de ruído',
   },
 ];
 
@@ -210,101 +210,98 @@ export function HomeView() {
   return (
     <main className="bg-white pb-12">
       <div className="max-w-[1170px] mx-auto px-4 pt-3 space-y-8">
-        {/* 1. HERO BANNER — Static Container + Multi-Slide Carousel + Floating Transparent Cutout Products */}
+        {/* 1. HERO BANNER — Static Container + Crisp Aligned Split Layout + Clean Transparent Cutout */}
         <section
           aria-label="Destaques principais Cellbox"
           onMouseEnter={() => setHeroPaused(true)}
           onMouseLeave={() => setHeroPaused(false)}
           onFocusCapture={() => setHeroPaused(true)}
           onBlurCapture={() => setHeroPaused(false)}
-          className="relative cellbox-hero-gradient overflow-hidden min-h-[300px] sm:min-h-[360px] flex flex-col justify-between"
+          className="relative cellbox-hero-gradient overflow-hidden rounded-[3px] min-h-[340px] sm:min-h-[380px] flex flex-col justify-between"
         >
-          {/* Left / Right Slide Arrow Controls */}
-          <motion.button
+          {/* Subtle architectural light geometry for depth */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 opacity-20"
+            style={{
+              backgroundImage:
+                'radial-gradient(circle at 82% 18%, rgba(255,255,255,0.45) 0%, transparent 38%), radial-gradient(circle at 12% 90%, rgba(26,214,222,0.35) 0%, transparent 42%)',
+            }}
+          />
+
+          {/* Left / Right Slide Arrow Controls positioned cleanly in outer gutters */}
+          <button
             type="button"
             aria-label="Slide anterior"
-            whileHover={{ scale: 1.08 }}
-            whileTap={{ scale: 0.9 }}
-            transition={SPRING_SNAPPY}
             onClick={() => goHeroSlide(heroIdx - 1, -1)}
-            className="absolute left-2.5 sm:left-3.5 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#0A3768]/45 hover:bg-[#0A3768]/80 text-white inline-flex items-center justify-center backdrop-blur-xs transition-colors cursor-pointer"
+            className="absolute left-2.5 sm:left-4 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-[#072850]/55 hover:bg-[#072850]/85 border border-white/15 text-white inline-flex items-center justify-center transition-colors cursor-pointer"
           >
             <ChevronLeft className="w-5 h-5" />
-          </motion.button>
-          <motion.button
+          </button>
+          <button
             type="button"
             aria-label="Próximo slide"
-            whileHover={{ scale: 1.08 }}
-            whileTap={{ scale: 0.9 }}
-            transition={SPRING_SNAPPY}
             onClick={() => goHeroSlide(heroIdx + 1, 1)}
-            className="absolute right-2.5 sm:right-3.5 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#0A3768]/45 hover:bg-[#0A3768]/80 text-white inline-flex items-center justify-center backdrop-blur-xs transition-colors cursor-pointer"
+            className="absolute right-2.5 sm:right-4 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-[#072850]/55 hover:bg-[#072850]/85 border border-white/15 text-white inline-flex items-center justify-center transition-colors cursor-pointer"
           >
             <ChevronRight className="w-5 h-5" />
-          </motion.button>
+          </button>
 
           <div className="relative flex-1 flex items-center">
             <AnimatePresence mode="popLayout" initial={false}>
               <motion.div
                 key={activeSlide.title}
-                initial={{ opacity: 0, x: heroDirection * 32 }}
+                initial={{ opacity: 0, x: heroDirection * 24 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: heroDirection * -32 }}
-                transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
-                className="w-full grid grid-cols-1 md:grid-cols-12 items-center gap-4 px-11 sm:px-14 py-8 sm:py-9"
+                exit={{ opacity: 0, x: heroDirection * -24 }}
+                transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                className="w-full grid grid-cols-1 md:grid-cols-12 items-center gap-6 md:gap-8 px-14 sm:px-16 lg:px-20 pt-8 pb-6 sm:py-9"
               >
-              {/* Left Copy */}
-              <div className="md:col-span-7 text-white z-10 min-w-0">
-                <p className="font-condensed text-sm sm:text-base tracking-widest uppercase text-[#B7EBF2] font-semibold">
-                  {activeSlide.kicker}
-                </p>
-                <h1 className="font-condensed text-3xl sm:text-5xl font-bold uppercase tracking-tight leading-[1.05] text-white mt-1.5">
-                  {activeSlide.title}
-                </h1>
-                <p className="mt-3 text-xs sm:text-sm text-white/90 max-w-md leading-relaxed">
-                  {activeSlide.subtitle}
-                </p>
-                <div className="mt-5 flex flex-wrap items-center gap-3">
-                  <MotionButton
-                    type="button"
-                    onClick={() => navigate({ type: 'product', productId: activeSlide.productId })}
-                    className="h-9 px-5 rounded-full bg-white text-[#0A3768] hover:bg-[#EAF6FC] text-xs font-bold uppercase tracking-wide transition-colors cursor-pointer shadow-sm"
-                  >
-                    {activeSlide.cta}
-                  </MotionButton>
-                  <MotionButton
-                    type="button"
-                    onClick={() => {
-                      document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
-                    }}
-                    className="h-9 px-4 rounded-full border border-white/75 text-white hover:bg-white/15 text-xs font-semibold uppercase tracking-wide transition-colors cursor-pointer"
-                  >
-                    Explorar Catálogo
-                  </MotionButton>
+                {/* Left Copy Column — Tightly Aligned Vertical Axis */}
+                <div className="md:col-span-6 flex flex-col items-start text-left text-white z-10 min-w-0">
+                  <p className="text-[11px] sm:text-xs font-bold tracking-[0.16em] uppercase text-[#B7F2FA]">
+                    {activeSlide.kicker}
+                  </p>
+                  <h1 className="font-condensed text-[34px] sm:text-[46px] lg:text-[52px] font-bold uppercase tracking-tight leading-[1.02] text-white mt-2 max-w-[440px] [text-wrap:balance]">
+                    {activeSlide.title}
+                  </h1>
+                  <p className="mt-3 text-[13px] sm:text-[15px] text-white/90 max-w-[420px] leading-relaxed">
+                    {activeSlide.subtitle}
+                  </p>
+                  <p className="mt-2.5 text-xs font-medium text-[#C8F5FC] tabular-nums">
+                    {activeSlide.highlight}
+                  </p>
+                  <div className="mt-6 flex flex-wrap items-center gap-3">
+                    <MotionButton
+                      type="button"
+                      onClick={() => navigate({ type: 'product', productId: activeSlide.productId })}
+                      className="h-10 px-6 rounded-full bg-white text-[#0A3768] hover:bg-[#EAF6FC] text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer shadow-sm whitespace-nowrap shrink-0"
+                    >
+                      {activeSlide.cta}
+                    </MotionButton>
+                    <MotionButton
+                      type="button"
+                      onClick={() => {
+                        document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                      className="h-10 px-5 rounded-full border border-white/75 text-white hover:bg-white/15 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                    >
+                      Ver Catálogo
+                    </MotionButton>
+                  </div>
                 </div>
-              </div>
 
-              {/* Right Visual Showcase: Pure Transparent Background Cutouts Floating Over Gradient */}
-              <div className="md:col-span-5 flex items-center justify-center md:justify-end z-10 min-w-0">
-                <div className="relative flex items-end justify-center gap-2 sm:gap-4 h-[210px] sm:h-[260px]">
-                  <motion.img
-                    src={activeSlide.secondaryImage}
-                    alt="Acessório destaque Cellbox"
-                    initial={{ opacity: 0, y: 14, scale: 0.94 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={{ ...SPRING_CARD, delay: 0.08 }}
-                    className="hidden sm:block max-h-[175px] w-auto object-contain -mr-5 mb-2 drop-shadow-[0_18px_24px_rgba(10,55,104,0.42)] select-none pointer-events-none"
-                  />
-                  <motion.img
-                    src={activeSlide.image}
-                    alt={activeSlide.title}
-                    initial={{ opacity: 0, y: 18, scale: 0.92 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={SPRING_CARD}
-                    className="max-h-[210px] sm:max-h-[255px] w-auto object-contain drop-shadow-[0_22px_30px_rgba(10,55,104,0.48)] select-none pointer-events-none"
-                  />
+                {/* Right Product Stage — Single Clean Balanced Transparent Cutout */}
+                <div className="md:col-span-6 flex items-center justify-center z-10 min-w-0">
+                  <div className="w-full h-[210px] sm:h-[260px] lg:h-[290px] flex items-center justify-center px-2">
+                    <img
+                      src={activeSlide.image}
+                      alt={activeSlide.imageAlt}
+                      referrerPolicy="no-referrer"
+                      className="max-h-full max-w-full w-auto h-auto object-contain drop-shadow-[0_22px_28px_rgba(7,40,80,0.45)] select-none pointer-events-none"
+                    />
+                  </div>
                 </div>
-              </div>
               </motion.div>
             </AnimatePresence>
           </div>
@@ -312,18 +309,16 @@ export function HomeView() {
           {/* Centered Slider Indicator Dots */}
           <div className="pb-4 flex items-center justify-center gap-2 z-10">
             {HERO_SLIDES.map((s, idx) => (
-              <motion.button
+              <button
                 key={s.title}
                 type="button"
                 aria-label={`Slide ${idx + 1}: ${s.kicker}`}
                 aria-pressed={heroIdx === idx}
-                whileHover={{ scale: 1.2 }}
-                whileTap={{ scale: 0.85 }}
                 onClick={() => goHeroSlide(idx)}
-                className={`h-2.5 rounded-full transition-all cursor-pointer ${
+                className={`h-2 rounded-full transition-all cursor-pointer ${
                   heroIdx === idx
                     ? 'w-7 bg-white shadow-xs'
-                    : 'w-2.5 bg-white/45 hover:bg-white/80'
+                    : 'w-2 bg-white/45 hover:bg-white/80'
                 }`}
               />
             ))}
