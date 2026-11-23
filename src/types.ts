@@ -215,6 +215,17 @@ export interface Order {
   fulfillments: OrderSellerFulfillment[];
 }
 
+export interface Review {
+  id: string;
+  targetType: 'seller' | 'product';
+  targetId: string;
+  userId: string;
+  userName: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
 export interface CatalogFilters {
   search: string;
   category: string;

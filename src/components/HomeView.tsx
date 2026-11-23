@@ -115,22 +115,17 @@ export function HomeView() {
     safePageIdx * ITEMS_PER_PAGE + ITEMS_PER_PAGE
   );
 
-  // Build Official Stores & Partner Highlight cards for interactive multi-slide showcase
+  // Build Official Stores Showcase (apenas lojas ativas reais)
   const storeShowcaseCards = useMemo(() => {
-    const storeCards = activeSellers.map((store, idx) => {
+    return activeSellers.map((store, idx) => {
       const storeProductCount = products.filter((p) => p.sellerId === store.id).length;
-      const coverImg =
-        idx % 3 === 0
-          ? ASSET_IMAGES.hero
-          : idx % 3 === 1
-            ? ASSET_IMAGES.iphone16Pro
-            : ASSET_IMAGES.sonyHeadphones;
+      const coverImg = store.bannerImage || store.logoUrl || ASSET_IMAGES.hero;
 
       return {
         id: store.id,
         title: `${store.name} — ${store.mainCategory}`,
         meta: `${store.location} · ${storeProductCount} produtos`,
-        rating: store.rating,
+        rating: store.reviewCount > 0 ? store.rating : null,
         description: store.description,
         image: coverImg,
         ctaLabel: 'VISITAR LOJA',
@@ -138,56 +133,7 @@ export function HomeView() {
         onAction: () => navigate({ type: 'store', sellerId: store.id }),
       };
     });
-
-    const partnerProgramCards = [
-      {
-        id: 'partner-sell',
-        title: 'Venda na Cellbox — Programa Parceiro Oficial',
-        meta: 'Cadastro rápido · Painel completo · Repasse via M-Pesa / Banco',
-        rating: null as number | null,
-        description:
-          'Cadastre sua loja de eletrônicos, gerencie estoque e pedidos em tempo real e alcance milhares de compradores em Moçambique.',
-        image: ASSET_IMAGES.gamingHandheld,
-        ctaLabel: 'QUERO VENDER',
-        primary: false,
-        onAction: () => navigate({ type: 'auth', mode: 'register' }),
-      },
-      {
-        id: 'partner-refurb',
-        title: 'Laboratório Certificado Cellbox A+ — Garantia 12 Meses',
-        meta: 'Inspeção de 40 pontos · Bateria acima de 92% · Maputo & Beira',
-        rating: 4.9,
-        description:
-          'Smartphones e laptops recondicionados com laudo técnico, peças originais e devolução facilitada em até 30 dias.',
-        image: ASSET_IMAGES.macbookPro,
-        ctaLabel: 'VER SEMINOVOS A+',
-        primary: true,
-        onAction: () => {
-          setFilters((prev) => ({ ...prev, category: 'Todas', condition: 'Recondicionado' }));
-          setPageIdx(0);
-          document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
-        },
-      },
-      {
-        id: 'partner-express',
-        title: 'Entrega Expressa Moçambique — Frete Grátis > 15.000 MT',
-        meta: 'Maputo · Matola · Beira · Nampula · Rastreio em tempo real',
-        rating: 4.9,
-        description:
-          'Receba eletrônicos lacrados com código de rastreamento em todas as províncias e pagamento protegido via M-Pesa, e-Mola ou Cartão.',
-        image: ASSET_IMAGES.dellXps,
-        ctaLabel: 'VER MAIS VENDIDOS',
-        primary: false,
-        onAction: () => {
-          setFilters((prev) => ({ ...prev, sortBy: 'best_selling', category: 'Todas' }));
-          setPageIdx(0);
-          document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
-        },
-      },
-    ];
-
-    return [...storeCards, ...partnerProgramCards];
-  }, [activeSellers, products, navigate, setFilters]);
+  }, [activeSellers, products, navigate]);
 
   const STORES_PER_SLIDE = 3;
   const totalStoreSlides = Math.max(1, Math.ceil(storeShowcaseCards.length / STORES_PER_SLIDE));

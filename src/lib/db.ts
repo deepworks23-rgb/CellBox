@@ -7,6 +7,7 @@ import type {
   Order,
   OrderStatus,
   Product,
+  Review,
   SellerActivationStatus,
   SellerKycInfo,
   SellerPayoutInfo,
@@ -1390,7 +1391,7 @@ export async function updateSellerKyc(
 
   const updatedActivation: SellerActivationStatus = {
     ...currentActivation,
-    kycCompleted: kyc.status === 'verified' || kyc.status === 'pending',
+    kycCompleted: kyc.status === 'verified',
   };
 
   const isFullyReady =
@@ -1398,7 +1399,7 @@ export async function updateSellerKyc(
     updatedActivation.kycCompleted &&
     updatedActivation.feePaid;
 
-  const nextStatus = isFullyReady ? 'active' : seller.status;
+  const nextStatus = isFullyReady ? 'active' : (seller.status === 'active' ? 'active' : 'pending');
   const nextVerified = isFullyReady;
   const nextTenure = isFullyReady ? 'Loja Verificada' : seller.tenureLabel;
 
@@ -1604,8 +1605,10 @@ export async function updateSellerStatus(
     `UPDATE sellers SET
       status = $2,
       verified = CASE WHEN $2 = 'active' THEN TRUE ELSE verified END,
+      kyc = CASE WHEN $2 = 'active' THEN jsonb_set(COALESCE(kyc, '{}'::jsonb), '{status}', '"verified"') ELSE kyc END,
+      activation = CASE WHEN $2 = 'active' THEN jsonb_set(COALESCE(activation, '{}'::jsonb), '{kycCompleted}', 'true') ELSE activation END,
       tenure_label = CASE
-        WHEN $2 = 'active' AND tenure_label = 'Aguardando aprovação' THEN 'Nova loja verificada'
+        WHEN $2 = 'active' THEN 'Loja Oficial Verificada'
         ELSE tenure_label
       END
      WHERE id = $1
@@ -1613,6 +1616,64 @@ export async function updateSellerStatus(
     [sellerId, status]
   );
   return res.rows[0] ? mapSellerRow(res.rows[0]) : null;
+}
+
+// ── Reviews CRUD & Aggregations ──────────────────────────────────────────
+
+export async function listReviews(targetType: 'seller' | 'product', targetId: string): Promise<Review[]> {
+  const res = await query(
+    `SELECT * FROM reviews WHERE target_type = $1 AND target_id = $2 ORDER BY created_at DESC`,
+    [targetType, targetId]
+  );
+  return res.rows.map((r: any) => ({
+    id: String(r.id),
+    targetType: r.target_type as 'seller' | 'product',
+    targetId: String(r.target_id),
+    userId: String(r.user_id),
+    userName: String(r.user_name),
+    rating: Number(r.rating),
+    comment: String(r.comment),
+    createdAt: String(r.created_at),
+  }));
+}
+
+export async function createReview(review: Review): Promise<Review> {
+  await query(
+    `INSERT INTO reviews (id, target_type, target_id, user_id, user_name, rating, comment, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [
+      review.id,
+      review.targetType,
+      review.targetId,
+      review.userId,
+      review.userName,
+      review.rating,
+      review.comment,
+      review.createdAt,
+    ]
+  );
+
+  const aggRes = await query<{ avg_rating: string | number; cnt: string | number }>(
+    `SELECT COALESCE(AVG(rating), 0) AS avg_rating, COUNT(*)::int AS cnt
+     FROM reviews WHERE target_type = $1 AND target_id = $2`,
+    [review.targetType, review.targetId]
+  );
+  const avgRating = Number(Number(aggRes.rows[0]?.avg_rating ?? 0).toFixed(1));
+  const reviewCount = Number(aggRes.rows[0]?.cnt ?? 0);
+
+  if (review.targetType === 'seller') {
+    await query(
+      `UPDATE sellers SET rating = $2, review_count = $3 WHERE id = $1`,
+      [review.targetId, avgRating, reviewCount]
+    );
+  } else if (review.targetType === 'product') {
+    await query(
+      `UPDATE products SET rating = $2, review_count = $3 WHERE id = $1`,
+      [review.targetId, avgRating, reviewCount]
+    );
+  }
+
+  return review;
 }
 
 // ── Categories CRUD ──────────────────────────────────────────────────────────

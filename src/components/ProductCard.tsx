@@ -136,23 +136,29 @@ export function ProductCard({ product, tiled = true }: ProductCardProps) {
         {product.title}
       </button>
 
-      {/* 5 Golden Stars + Review Count */}
-      <div className="mt-1.5 flex items-center justify-center gap-1">
-        <div className="flex items-center gap-0.5" aria-label={`Avaliação ${product.rating} de 5`}>
-          {[1, 2, 3, 4, 5].map((n) => (
-            <Star
-              key={n}
-              className={`w-3 h-3 ${
-                n <= fullStars
-                  ? 'fill-[#F5A623] text-[#F5A623]'
-                  : 'fill-[#E0E0E0] text-[#E0E0E0]'
-              }`}
-            />
-          ))}
-        </div>
-        <span className="text-[10.5px] text-[#999999] tabular-nums">
-          ({product.reviewCount} aval.)
-        </span>
+      {/* Stars + Review Count */}
+      <div className="mt-1.5 flex items-center justify-center gap-1 min-h-[16px]">
+        {product.reviewCount > 0 ? (
+          <>
+            <div className="flex items-center gap-0.5" aria-label={`Avaliação ${product.rating} de 5`}>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <Star
+                  key={n}
+                  className={`w-3 h-3 ${
+                    n <= fullStars
+                      ? 'fill-[#F5A623] text-[#F5A623]'
+                      : 'fill-[#E0E0E0] text-[#E0E0E0]'
+                  }`}
+                />
+              ))}
+            </div>
+            <span className="text-[10.5px] text-[#999999] tabular-nums">
+              ({product.reviewCount})
+            </span>
+          </>
+        ) : (
+          <span className="text-[10.5px] text-[#AAAAAA]">Sem avaliações</span>
+        )}
       </div>
 
       {/* Centered Bold Brand Price in Metical (MT) */}

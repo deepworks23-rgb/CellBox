@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { motion } from 'motion/react';
+import { useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -10,11 +10,14 @@ import {
   ShoppingCart,
   Star,
   Store,
+  Tag,
   Truck,
+  X,
 } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
+import type { Review } from '../types';
 import { calculateShipping, formatCurrency } from '../utils/marketplace';
-import { MotionButton, SPRING_SNAPPY } from './MotionPrimitives';
+import { MotionButton, SPRING_CARD, SPRING_SNAPPY } from './MotionPrimitives';
 import { ProductImage } from './ProductImage';
 
 interface ProductDetailViewProps {
@@ -31,6 +34,13 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
     toggleWishlist,
     toggleCompare,
     navigate,
+    applyCoupon,
+    appliedCouponCode,
+    removeCoupon,
+    currentUser,
+    submitReview,
+    fetchReviews,
+    showToast,
   } = useMarketplace();
 
   const product = products.find((p) => p.id === productId);
@@ -40,11 +50,26 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
   const [quantity, setQuantity] = useState(1);
   const [cep, setCep] = useState('1100');
   const [shippingCalculated, setShippingCalculated] = useState(true);
+  const [couponInput, setCouponInput] = useState('');
+
+  // Reviews
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   useEffect(() => {
     setSelectedImageIdx(0);
     setQuantity(1);
-  }, [productId]);
+    if (productId) {
+      setLoadingReviews(true);
+      fetchReviews('product', productId)
+        .then((data) => setReviews(data))
+        .finally(() => setLoadingReviews(false));
+    }
+  }, [productId, fetchReviews]);
 
   if (!product) {
     return (
@@ -67,18 +92,65 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
   const isCompared = compareIds.includes(product.id);
   const shippingQuote = calculateShipping(cep, product.price * quantity);
 
-  const specItems = [
-    { label: 'Condição', value: product.condition },
-    { label: 'Processador', value: product.specs.processor },
-    { label: 'Memória RAM', value: product.specs.ram },
-    { label: 'Armazenamento', value: product.specs.storage },
-    { label: 'Tela', value: product.specs.display },
-    { label: 'Bateria / Energia', value: product.specs.battery },
-    { label: 'Garantia', value: product.specs.warranty },
-  ].filter((item) => Boolean(item.value));
+  // Dynamic specs table
+  const specItems = useMemo(() => {
+    const list: Array<{ label: string; value: string }> = [
+      { label: 'Condição', value: product.condition },
+      { label: 'Marca', value: product.brand },
+      { label: 'Categoria', value: product.category },
+    ];
+    if (product.specs && typeof product.specs === 'object') {
+      for (const [k, v] of Object.entries(product.specs)) {
+        if (v && typeof v === 'string') {
+          const formattedLabel = k
+            .replace(/([A-Z])/g, ' $1')
+            .replace(/_/g, ' ')
+            .replace(/^./, (str) => str.toUpperCase());
+          list.push({ label: formattedLabel, value: v });
+        }
+      }
+    }
+    return list;
+  }, [product]);
+
+  const handleApplyCoupon = (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = couponInput.trim().toUpperCase();
+    if (!code) {
+      showToast('Digite o código do cupom.', 'warning');
+      return;
+    }
+    const ok = applyCoupon(code);
+    if (!ok) {
+      showToast('Cupom inválido ou expirado.', 'warning');
+    } else {
+      setCouponInput('');
+    }
+  };
+
+  const handleOpenReviewModal = () => {
+    if (!currentUser) {
+      navigate({ type: 'auth', mode: 'login' });
+      return;
+    }
+    setReviewModalOpen(true);
+  };
+
+  const handleSubmitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!product || !reviewComment.trim()) return;
+    setSubmittingReview(true);
+    const ok = await submitReview('product', product.id, reviewRating, reviewComment.trim());
+    setSubmittingReview(false);
+    if (ok) {
+      setReviewModalOpen(false);
+      setReviewComment('');
+      fetchReviews('product', product.id).then((data) => setReviews(data));
+    }
+  };
 
   return (
-    <main className="max-w-[1170px] mx-auto px-4 py-6 pb-16">
+    <main className="max-w-[1170px] mx-auto px-4 py-6 pb-20">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-xs text-[#777777] mb-5 pb-3 border-b border-[#EAEAEA]">
         <button
@@ -99,12 +171,12 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
         {/* Left: Gallery & Specs */}
         <div className="lg:col-span-7 space-y-6">
           <div className="bg-white border border-[#EAEAEA] rounded-[3px] overflow-hidden">
-            <div className="aspect-[4/3] bg-white p-4 flex items-center justify-center">
+            <div className="aspect-[4/3] bg-[#FAFAFA] flex items-center justify-center p-6">
               <ProductImage
                 src={product.images[selectedImageIdx] ?? product.images[0]}
                 alt={product.title}
                 category={product.category}
-                className="w-full h-full object-cover rounded-[2px]"
+                className="max-h-[380px] w-auto max-w-full object-contain"
               />
             </div>
 
@@ -164,38 +236,103 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
               </dl>
             </div>
           </div>
+
+          {/* Seção de Avaliações Reais do Produto */}
+          <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-[#F0F0F0] pb-3">
+              <div>
+                <h3 className="font-condensed text-lg font-bold uppercase text-[#0A3768] tracking-wide">
+                  Avaliações dos Clientes ({reviews.length})
+                </h3>
+                <p className="text-xs text-[#777777]">
+                  Comentários de quem já comprou e testou este produto na Cellbox.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleOpenReviewModal}
+                className="h-8 px-4 rounded-[2px] bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold cursor-pointer"
+              >
+                + Avaliar Produto
+              </button>
+            </div>
+
+            {loadingReviews ? (
+              <p className="text-xs text-[#777777] py-4">Carregando avaliações...</p>
+            ) : reviews.length === 0 ? (
+              <div className="text-center py-6 text-xs text-[#888888]">
+                Ainda não há avaliações registradas para este item. Compre e deixe o primeiro laudo!
+              </div>
+            ) : (
+              <div className="divide-y divide-[#F0F0F0] space-y-3 pt-2">
+                {reviews.map((rev) => (
+                  <div key={rev.id} className="pt-3 first:pt-0 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-xs text-[#333333]">{rev.userName}</span>
+                        <div className="flex items-center gap-0.5">
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <Star
+                              key={s}
+                              className={`w-3 h-3 ${
+                                s <= rev.rating
+                                  ? 'fill-[#F5A623] text-[#F5A623]'
+                                  : 'fill-[#E0E0E0] text-[#E0E0E0]'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <span className="text-[10px] text-[#999999]">
+                        {new Date(rev.createdAt).toLocaleDateString('pt-MZ')}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#555555] leading-relaxed">{rev.comment}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Right: Sticky Contiguous Purchase Module + Seller Box */}
+        {/* Right: Sticky Purchase Module + Seller Box */}
         <div className="lg:col-span-5 lg:sticky lg:top-[174px] space-y-5">
-          <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-6 space-y-5">
+          <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-6 space-y-5 shadow-xs">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-[#777777]">
-                {product.brand} · {product.condition} · {product.soldCount} vendidos
+              <p className="text-[11px] uppercase tracking-wider font-bold text-[#888888]">
+                {product.brand} · {product.category}
               </p>
-              <h1 className="mt-1.5 font-condensed text-[26px] font-bold uppercase text-[#222222] leading-tight">
+              <h1 className="mt-1.5 font-condensed text-[24px] font-bold uppercase text-[#222222] leading-tight">
                 {product.title}
               </h1>
+
+              {/* Avaliação Real */}
               <div className="mt-2 flex items-center gap-2 text-xs">
-                <div className="inline-flex items-center gap-0.5">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star
-                      key={star}
-                      className={`w-3.5 h-3.5 ${
-                        star <= Math.round(product.rating)
-                          ? 'fill-[#F5A623] text-[#F5A623]'
-                          : 'fill-[#E0E0E0] text-[#E0E0E0]'
-                      }`}
-                    />
-                  ))}
-                </div>
-                <span className="font-bold tabular-nums text-[#333333]">
-                  {product.rating.toFixed(1)}
-                </span>
-                <span className="text-[#CCCCCC]">|</span>
-                <span className="text-[#777777] tabular-nums">
-                  ({product.reviewCount} avaliações)
-                </span>
+                {product.reviewCount > 0 ? (
+                  <>
+                    <div className="inline-flex items-center gap-0.5">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star
+                          key={star}
+                          className={`w-3.5 h-3.5 ${
+                            star <= Math.round(product.rating)
+                              ? 'fill-[#F5A623] text-[#F5A623]'
+                              : 'fill-[#E0E0E0] text-[#E0E0E0]'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="font-bold tabular-nums text-[#333333]">
+                      {product.rating.toFixed(1)}
+                    </span>
+                    <span className="text-[#CCCCCC]">|</span>
+                    <span className="text-[#777777] tabular-nums">
+                      ({product.reviewCount} {product.reviewCount === 1 ? 'avaliação' : 'avaliações'})
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-xs text-[#888888]">Novo no catálogo · Sem avaliações ainda</span>
+                )}
               </div>
             </div>
 
@@ -209,7 +346,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
                 {formatCurrency(product.price)}
               </p>
               <p className="text-xs text-[#0A3768] font-semibold mt-1">
-                10% OFF via M-Pesa/e-Mola ou até 12x de {formatCurrency(product.price / 12)} sem juros
+                Pagamento seguro via M-Pesa, e-Mola ou Cartão na Cellbox
               </p>
             </div>
 
@@ -234,7 +371,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
                 >
                   −
                 </button>
-                <span className="w-10 text-center text-sm font-mono tabular-nums font-bold">
+                <span className="w-10 text-center text-sm font-bold tabular-nums">
                   {quantity}
                 </span>
                 <button
@@ -304,6 +441,41 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
               </div>
             </div>
 
+            {/* ── Cupom de Desconto ── */}
+            <div className="pt-4 border-t border-[#EAEAEA] space-y-2.5">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-[#333333]">
+                <Tag className="w-4 h-4 text-[#0475EE]" />
+                <span>Possui um Cupom de Desconto?</span>
+              </div>
+              <form onSubmit={handleApplyCoupon} className="flex gap-2">
+                <input
+                  type="text"
+                  value={couponInput}
+                  onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                  placeholder="Inserir código"
+                  className="flex-1 h-9 px-3 rounded-[2px] border border-[#DCDCDC] text-xs uppercase focus:outline-none focus:border-[#0475EE]"
+                />
+                <button
+                  type="submit"
+                  className="h-9 px-4 rounded-[2px] bg-[#0A3768] hover:bg-[#0475EE] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                >
+                  Aplicar
+                </button>
+              </form>
+              {appliedCouponCode && (
+                <div className="flex items-center justify-between text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-[2px]">
+                  <span>Cupom <strong>{appliedCouponCode}</strong> ativado!</span>
+                  <button
+                    type="button"
+                    onClick={removeCoupon}
+                    className="text-rose-600 hover:text-rose-800 font-bold ml-2 cursor-pointer"
+                  >
+                    Remover
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Freight Calculator */}
             <div className="pt-4 border-t border-[#EAEAEA] space-y-3">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-[#333333]">
@@ -326,7 +498,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
                   value={cep}
                   onChange={(e) => setCep(e.target.value)}
                   placeholder="1100"
-                  className="flex-1 h-9 px-3 rounded-[2px] border border-[#DCDCDC] text-xs font-mono tabular-nums focus:outline-none focus:border-[#0475EE]"
+                  className="flex-1 h-9 px-3 rounded-[2px] border border-[#DCDCDC] text-xs tabular-nums focus:outline-none focus:border-[#0475EE]"
                 />
                 <button
                   type="submit"
@@ -342,7 +514,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
                     <span className="text-[#444444] font-medium">
                       Entrega Padrão ({shippingQuote.standardDays})
                     </span>
-                    <span className="font-mono tabular-nums font-bold text-[#0A3768]">
+                    <span className="tabular-nums font-bold text-[#0A3768]">
                       {shippingQuote.isFreeStandard
                         ? 'Grátis'
                         : formatCurrency(shippingQuote.standardCost)}
@@ -352,7 +524,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
                     <span className="text-[#666666]">
                       Entrega Expressa ({shippingQuote.expressDays})
                     </span>
-                    <span className="font-mono tabular-nums font-semibold text-[#333333]">
+                    <span className="tabular-nums font-semibold text-[#333333]">
                       {formatCurrency(shippingQuote.expressCost)}
                     </span>
                   </div>
@@ -362,7 +534,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
 
             <div className="flex items-center gap-2 text-xs text-[#666666] pt-1">
               <ShieldCheck className="w-4 h-4 text-[#0475EE] shrink-0" />
-              <span>Compra Garantida Cellbox · Devolução grátis em até 30 dias</span>
+              <span>Compra Garantida Cellbox · Devolução facilitada</span>
             </div>
           </div>
 
@@ -376,7 +548,7 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
                 <div className="flex items-center gap-3">
                   <div
                     className="w-11 h-11 rounded-[3px] flex items-center justify-center text-white font-extrabold text-sm shrink-0"
-                    style={{ backgroundColor: seller.accentColor }}
+                    style={{ backgroundColor: seller.accentColor || '#0475EE' }}
                   >
                     {seller.logoText}
                   </div>
@@ -395,19 +567,25 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
                     </p>
                   </div>
                 </div>
-                <div className="text-right text-xs font-mono tabular-nums">
-                  <span className="inline-flex items-center gap-1 font-bold text-[#333333]">
-                    <Star className="w-3.5 h-3.5 fill-[#F5A623] text-[#F5A623]" />
-                    {seller.rating.toFixed(1)}
-                  </span>
-                  <p className="text-[#999999]">{seller.reviewCount} aval.</p>
+                <div className="text-right text-xs tabular-nums">
+                  {seller.reviewCount > 0 ? (
+                    <>
+                      <span className="inline-flex items-center gap-1 font-bold text-[#333333]">
+                        <Star className="w-3.5 h-3.5 fill-[#F5A623] text-[#F5A623]" />
+                        {seller.rating.toFixed(1)}
+                      </span>
+                      <p className="text-[#999999]">{seller.reviewCount} aval.</p>
+                    </>
+                  ) : (
+                    <span className="text-[10px] text-[#999999]">Nova loja</span>
+                  )}
                 </div>
               </div>
 
               <div className="mt-4 pt-3 border-t border-[#EAEAEA] flex items-center justify-between">
                 <span className="inline-flex items-center gap-1.5 text-xs text-[#666666]">
                   <MapPin className="w-3.5 h-3.5 text-[#0475EE]" />
-                  Envio rápido com fatura oficial
+                  Envio seguro em Moçambique
                 </span>
                 <button
                   type="button"
@@ -415,13 +593,102 @@ export function ProductDetailView({ productId }: ProductDetailViewProps) {
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0475EE] hover:text-[#0A3768] cursor-pointer"
                 >
                   <Store className="w-3.5 h-3.5" />
-                  Visitar loja do vendedor
+                  Visitar loja
                 </button>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* ── Modal de Avaliar Produto ── */}
+      {reviewModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="bg-white rounded-[4px] border border-[#E0E0E0] max-w-md w-full overflow-hidden shadow-2xl">
+            <div className="px-5 py-3.5 bg-[#F8FAFC] border-b border-[#EAEAEA] flex items-center justify-between">
+              <h3 className="font-condensed text-lg font-bold uppercase text-[#0A3768]">
+                Avaliar Produto
+              </h3>
+              <button
+                type="button"
+                onClick={() => setReviewModalOpen(false)}
+                className="p-1 rounded text-[#777777] hover:bg-[#EAEAEA] cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitReview} className="p-5 space-y-4">
+              <div>
+                <p className="text-xs font-bold text-[#333333] mb-1">{product.title}</p>
+                <label className="block text-xs font-medium text-[#666666] mb-1.5">
+                  Classificação Geral
+                </label>
+                <div className="flex items-center gap-2">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setReviewRating(s)}
+                      className="p-1 hover:scale-110 transition-transform cursor-pointer"
+                    >
+                      <Star
+                        className={`w-7 h-7 ${
+                          s <= reviewRating
+                            ? 'fill-[#F5A623] text-[#F5A623]'
+                            : 'fill-[#E0E0E0] text-[#D0D0D0]'
+                        }`}
+                      />
+                    </button>
+                  ))}
+                  <span className="text-sm font-bold text-[#0A3768] ml-2">
+                    {reviewRating} de 5
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="product-review-comment"
+                  className="block text-xs font-bold text-[#444444] mb-1"
+                >
+                  Seu Comentário ou Avaliação *
+                </label>
+                <textarea
+                  id="product-review-comment"
+                  rows={4}
+                  required
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder="Descreva o que achou da qualidade, acabamento, funcionamento e se recomenda o item..."
+                  className="w-full p-3 rounded-[2px] border border-[#DCDCDC] text-xs focus:outline-none focus:border-[#0475EE]"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#F0F0F0]">
+                <button
+                  type="button"
+                  onClick={() => setReviewModalOpen(false)}
+                  className="h-9 px-4 rounded-full border border-[#DCDCDC] text-xs font-bold uppercase text-[#555555] cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingReview || !reviewComment.trim()}
+                  className="h-9 px-6 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider disabled:opacity-50 cursor-pointer"
+                >
+                  {submittingReview ? 'Enviando...' : 'Publicar Avaliação'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

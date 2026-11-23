@@ -3,7 +3,7 @@
 @theme {
   --font-display: "Barlow Condensed", "DM Sans", system-ui, sans-serif;
   --font-sans: "DM Sans", system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-mono: "DM Sans", system-ui, -apple-system, sans-serif;
   --color-brand-navy: #0a3768;
   --color-brand-royal: #0475ee;
   --color-brand-cyan: #18a3de;

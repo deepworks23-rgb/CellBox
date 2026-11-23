@@ -98,8 +98,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
 
   const seller =
     sellers.find((s) => currentUser?.sellerId && s.id === currentUser.sellerId) ??
-    sellers.find((s) => currentUser && s.ownerUserId === currentUser.id) ??
-    sellers[0];
+    sellers.find((s) => currentUser && s.ownerUserId === currentUser.id);
 
   const [productSearch, setProductSearch] = useState('');
   const [productCategoryFilter, setProductCategoryFilter] = useState('Todas');
@@ -806,7 +805,33 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
         : 'Loja Suspensa';
 
   if (!currentUser || currentUser.role !== 'seller' || !seller) {
-    return null;
+    return (
+      <main className="max-w-[600px] mx-auto px-4 py-16 text-center">
+        <Store className="w-12 h-12 text-[#0475EE] mx-auto mb-3" />
+        <h1 className="font-condensed text-2xl font-bold uppercase text-[#0A3768]">
+          Painel do Vendedor
+        </h1>
+        <p className="mt-2 text-sm text-[#666666]">
+          Você precisa estar conectado com uma conta de Vendedor com loja ativa para acessar esta área.
+        </p>
+        <div className="mt-5 flex justify-center gap-3">
+          <MotionButton
+            type="button"
+            onClick={() => navigate({ type: 'auth', mode: 'login' })}
+            className="h-10 px-6 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
+          >
+            Fazer Login
+          </MotionButton>
+          <MotionButton
+            type="button"
+            onClick={() => navigate({ type: 'auth', mode: 'register' })}
+            className="h-10 px-6 rounded-full border border-[#0475EE] text-[#0475EE] hover:bg-[#EAF6FC] text-xs font-bold uppercase tracking-wider cursor-pointer"
+          >
+            Cadastrar Loja
+          </MotionButton>
+        </div>
+      </main>
+    );
   }
 
   return (

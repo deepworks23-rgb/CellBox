@@ -25,6 +25,7 @@ import type {
   Product,
   ProductCondition,
   ProductSpecs,
+  Review,
   SellerActivationStatus,
   SellerKycInfo,
   SellerPayoutInfo,
@@ -1271,6 +1272,72 @@ export function createApiApp(): Express {
       };
       await db.createContactMessage(entry);
       res.status(201).json({ ok: true, id: entry.id });
+    })
+  );
+
+  // ── Reviews: List and Create ─────────────────────────────────────────────
+  app.get(
+    '/api/reviews',
+    asyncHandler(async (req, res) => {
+      const targetType = req.query.targetType === 'seller' ? 'seller' : 'product';
+      const targetId = String(req.query.targetId || '');
+      if (!targetId) {
+        res.status(400).json({ error: 'targetId é obrigatório.' });
+        return;
+      }
+      const reviews = await db.listReviews(targetType, targetId);
+      res.json({ reviews });
+    })
+  );
+
+  app.post(
+    '/api/reviews',
+    asyncHandler(async (req, res) => {
+      const user = await getAuthenticatedUser(req);
+      if (!user) {
+        res.status(401).json({ error: 'Faça login para enviar sua avaliação.' });
+        return;
+      }
+      const { targetType, targetId, rating, comment } = req.body as {
+        targetType?: 'seller' | 'product';
+        targetId?: string;
+        rating?: number;
+        comment?: string;
+      };
+
+      if (!targetType || !['seller', 'product'].includes(targetType)) {
+        res.status(400).json({ error: 'Tipo de avaliação inválido (seller ou product).' });
+        return;
+      }
+      if (!targetId) {
+        res.status(400).json({ error: 'Identificador do item/loja é obrigatório.' });
+        return;
+      }
+      const numRating = Number(rating);
+      if (isNaN(numRating) || numRating < 1 || numRating > 5) {
+        res.status(400).json({ error: 'A nota deve ser entre 1 e 5 estrelas.' });
+        return;
+      }
+      if (!comment || comment.trim().length < 3) {
+        res.status(400).json({ error: 'Escreva um comentário com pelo menos 3 caracteres.' });
+        return;
+      }
+
+      const review: Review = {
+        id: `rev-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        targetType,
+        targetId,
+        userId: user.id,
+        userName: user.name,
+        rating: Math.round(numRating),
+        comment: comment.trim(),
+        createdAt: new Date().toISOString(),
+      };
+
+      await db.createReview(review);
+      const reviews = await db.listReviews(targetType, targetId);
+      const bootstrap = await buildBootstrapPayload(user);
+      res.json({ ok: true, review, reviews, ...bootstrap });
     })
   );
 

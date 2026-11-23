@@ -716,10 +716,24 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                     </div>
                   </div>
 
-                  <div className="text-xs text-[#555555] space-y-1.5 border-t border-[#EAEAEA] pt-4">
-                    <p>
-                      <strong>Status:</strong> {statusLabel(inspectedSeller.status)}
-                    </p>
+                  <div className="text-xs text-[#555555] space-y-2 border-t border-[#EAEAEA] pt-4">
+                    <div className="flex items-center justify-between">
+                      <p>
+                        <strong>Status da Loja:</strong>{' '}
+                        <span className={`font-bold ${statusColor(inspectedSeller.status)}`}>
+                          {statusLabel(inspectedSeller.status)}
+                        </span>
+                      </p>
+                      <p>
+                        <strong>Verificada:</strong>{' '}
+                        {inspectedSeller.verified ? (
+                          <span className="text-emerald-700 font-bold">Sim (Oficial)</span>
+                        ) : (
+                          <span className="text-amber-700 font-bold">Não</span>
+                        )}
+                      </p>
+                    </div>
+
                     <p>
                       <strong>Categoria principal:</strong> {inspectedSeller.mainCategory}
                     </p>
@@ -730,10 +744,68 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                       <strong>Dados de repasse:</strong> {inspectedSeller.payoutInfo.bankName} ·{' '}
                       {inspectedSeller.payoutInfo.pixOrWallet}
                     </p>
+
+                    {/* Dados de Verificação KYC e Taxa de Inscrição */}
+                    <div className="mt-3 p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-[3px] space-y-2">
+                      <p className="font-bold text-[#0A3768] text-xs uppercase tracking-wider">
+                        Documentação KYC & Ativação
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <p>
+                          <strong>Tipo de Documento:</strong>{' '}
+                          {inspectedSeller.kyc?.documentType || 'BI'}
+                        </p>
+                        <p>
+                          <strong>Número:</strong>{' '}
+                          {inspectedSeller.kyc?.documentNumber || inspectedSeller.documentId || 'Não informado'}
+                        </p>
+                        <p>
+                          <strong>Status KYC:</strong>{' '}
+                          <span className="font-semibold uppercase text-xs">
+                            {inspectedSeller.kyc?.status === 'verified'
+                              ? 'Aprovado'
+                              : inspectedSeller.kyc?.status === 'pending'
+                                ? 'Em Análise'
+                                : 'Não Submetido'}
+                          </span>
+                        </p>
+                        <p>
+                          <strong>Taxa de 100 MT:</strong>{' '}
+                          {inspectedSeller.activation?.feePaid ? (
+                            <span className="text-emerald-700 font-bold">Confirmada</span>
+                          ) : (
+                            <span className="text-amber-700 font-bold">Pendente</span>
+                          )}
+                        </p>
+                      </div>
+
+                      {inspectedSeller.kyc?.documentFrontUrl && (
+                        <div className="pt-2 border-t border-[#E2E8F0]">
+                          <p className="font-semibold text-xs text-[#333333] mb-1">
+                            Comprovante / Foto do Documento:
+                          </p>
+                          <a
+                            href={inspectedSeller.kyc.documentFrontUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-block border border-[#CBD5E1] rounded overflow-hidden max-w-[200px] hover:border-[#0475EE]"
+                          >
+                            <img
+                              src={inspectedSeller.kyc.documentFrontUrl}
+                              alt="Documento do Vendedor"
+                              className="w-full h-24 object-cover"
+                            />
+                            <span className="block text-[10px] text-center bg-white py-0.5 text-[#0475EE] font-bold">
+                              Clique para ampliar
+                            </span>
+                          </a>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex justify-end gap-2 pt-2">
-                    {inspectedSeller.status !== 'active' && (
+                    {inspectedSeller.status !== 'active' ? (
                       <button
                         type="button"
                         onClick={() => {
@@ -742,7 +814,18 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                         }}
                         className="h-9 px-5 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase cursor-pointer"
                       >
-                        Aprovar Loja
+                        Aprovar Loja e KYC
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSellerStatus(inspectedSeller.id, 'suspended');
+                          setInspectedSeller(null);
+                        }}
+                        className="h-9 px-5 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold uppercase cursor-pointer"
+                      >
+                        Suspender Loja
                       </button>
                     )}
                     <button

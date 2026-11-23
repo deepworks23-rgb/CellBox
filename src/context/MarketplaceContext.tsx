@@ -20,6 +20,7 @@ import type {
   Product,
   ProductCondition,
   ProductSpecs,
+  Review,
   SellerActivationStatus,
   SellerKycInfo,
   SellerPayoutInfo,
@@ -153,6 +154,16 @@ interface MarketplaceContextValue {
     sellerId: string,
     data: { method: 'mpesa' | 'emola'; phone: string }
   ) => Promise<boolean>;
+  submitReview: (
+    targetType: 'seller' | 'product',
+    targetId: string,
+    rating: number,
+    comment: string
+  ) => Promise<boolean>;
+  fetchReviews: (
+    targetType: 'seller' | 'product',
+    targetId: string
+  ) => Promise<Review[]>;
   logout: () => Promise<void>;
   updateProfile: (updates: {
     name: string;
@@ -526,6 +537,48 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
     showToast(res.data.error ?? 'Falha ao processar pagamento.', 'warning');
     return false;
   };
+
+  const fetchReviews = useCallback(
+    async (targetType: 'seller' | 'product', targetId: string): Promise<Review[]> => {
+      try {
+        const res = await apiRequest<{ reviews?: Review[] }>(
+          `/api/reviews?targetType=${encodeURIComponent(targetType)}&targetId=${encodeURIComponent(targetId)}`
+        );
+        if (res.ok && Array.isArray(res.data.reviews)) {
+          return res.data.reviews;
+        }
+      } catch (err) {
+        console.error('Failed fetching reviews:', err);
+      }
+      return [];
+    },
+    []
+  );
+
+  const submitReview = useCallback(
+    async (
+      targetType: 'seller' | 'product',
+      targetId: string,
+      rating: number,
+      comment: string
+    ): Promise<boolean> => {
+      const res = await apiRequest<BootstrapResponse & { ok?: boolean }>(
+        '/api/reviews',
+        {
+          method: 'POST',
+          body: JSON.stringify({ targetType, targetId, rating, comment }),
+        }
+      );
+      if (res.ok) {
+        applyBootstrap(res.data);
+        showToast('Avaliação enviada com sucesso! Obrigado pelo feedback.', 'success');
+        return true;
+      }
+      showToast(res.data.error ?? 'Falha ao enviar avaliação.', 'warning');
+      return false;
+    },
+    [showToast]
+  );
 
   const logout = async () => {
     setStoredToken(null);
@@ -1105,6 +1158,8 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
         registerUser,
         submitSellerKyc,
         paySellerActivationFee,
+        submitReview,
+        fetchReviews,
         logout,
         updateProfile,
         changePassword,

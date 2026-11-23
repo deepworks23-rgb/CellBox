@@ -193,15 +193,15 @@ export function StoresView() {
                   data-testid={`store-directory-card-${store.id}`}
                   className="bg-white border border-[#E5E7EB] rounded-[3px] overflow-hidden flex flex-col shadow-[0_2px_10px_rgba(10,55,104,0.04)]"
                 >
-                  {/* Static Store Visual Cover + Logo Badge (Proporção 16:9 = 1000x500) */}
-                  <div className="relative aspect-[16/9] w-full max-h-[500px] bg-[#0A3768] overflow-hidden">
+                  {/* Static Store Visual Cover + Logo Badge (Proporção 1000x300) */}
+                  <div className="relative aspect-[10/3] w-full min-h-[190px] max-h-[250px] bg-[#0A3768] overflow-hidden">
                     <img
                       src={coverImg}
                       alt={`Vitrine ${store.name}`}
                       referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover opacity-85"
+                      className="w-full h-full object-cover opacity-90"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0A3768]/90 via-[#0A3768]/35 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0A3768]/95 via-[#0A3768]/35 to-transparent" />
 
                     <div className="absolute top-3 right-3 flex items-center gap-1.5">
                       <span className="px-2.5 py-1 rounded-[2px] bg-white/95 text-[#0A3768] text-[10px] font-bold uppercase tracking-wider">
@@ -240,10 +240,16 @@ export function StoresView() {
                           )}
                         </div>
                         <div className="flex flex-wrap items-center gap-2.5 text-[11px] text-white/90 mt-0.5">
-                          <span className="inline-flex items-center gap-1 font-semibold tabular-nums">
-                            <Star className="w-3.5 h-3.5 fill-[#F5A623] text-[#F5A623]" />
-                            {store.rating.toFixed(1)} ({store.reviewCount})
-                          </span>
+                          {store.reviewCount > 0 ? (
+                            <span className="inline-flex items-center gap-1 font-semibold tabular-nums">
+                              <Star className="w-3.5 h-3.5 fill-[#F5A623] text-[#F5A623]" />
+                              {store.rating.toFixed(1)} ({store.reviewCount})
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-white/80 font-medium">
+                              Sem avaliações ainda
+                            </span>
+                          )}
                           <span aria-hidden="true">·</span>
                           <span className="inline-flex items-center gap-1">
                             <MapPin className="w-3 h-3 text-[#1AD6DE]" />
