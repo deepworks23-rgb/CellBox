@@ -768,6 +768,20 @@ export async function initDatabase(createSeed: () => SeedPayload): Promise<void>
       ALTER TABLE products ADD COLUMN IF NOT EXISTS is_flash_deal BOOLEAN NOT NULL DEFAULT FALSE;
       ALTER TABLE products ADD COLUMN IF NOT EXISTS is_best_seller BOOLEAN NOT NULL DEFAULT FALSE;
 
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS province TEXT;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS city TEXT;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS neighborhood TEXT;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS zip_code TEXT;
+      ALTER TABLE users ALTER COLUMN email DROP NOT NULL;
+
+      ALTER TABLE sellers ADD COLUMN IF NOT EXISTS logo_url TEXT;
+      ALTER TABLE sellers ADD COLUMN IF NOT EXISTS socials JSONB DEFAULT '{}'::jsonb;
+      ALTER TABLE sellers ADD COLUMN IF NOT EXISTS kyc JSONB DEFAULT '{"status":"not_submitted"}'::jsonb;
+      ALTER TABLE sellers ADD COLUMN IF NOT EXISTS activation JSONB DEFAULT '{"profileCompleted":true,"kycCompleted":false,"feePaid":false}'::jsonb;
+
+      CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
+
       CREATE TABLE IF NOT EXISTS orders (
         id TEXT PRIMARY KEY,
         buyer_id TEXT NOT NULL,
@@ -1038,7 +1052,15 @@ export async function createUserAccount(
 
 export async function updateUserProfile(
   userId: string,
-  updates: { name?: string; phone?: string }
+  updates: {
+    name?: string;
+    phone?: string;
+    avatarUrl?: string;
+    province?: string;
+    city?: string;
+    neighborhood?: string;
+    zipCode?: string;
+  }
 ): Promise<StoredUser | null> {
   const existing = await findUserById(userId);
   if (!existing) return null;
@@ -1048,10 +1070,22 @@ export async function updateUserProfile(
       : existing.name;
   const nextPhone =
     typeof updates.phone === 'string' ? updates.phone.trim() : existing.phone ?? null;
+  const nextAvatar =
+    typeof updates.avatarUrl === 'string' ? updates.avatarUrl.trim() : existing.avatarUrl ?? null;
+  const nextProvince =
+    typeof updates.province === 'string' ? updates.province.trim() : existing.province ?? null;
+  const nextCity =
+    typeof updates.city === 'string' ? updates.city.trim() : existing.city ?? null;
+  const nextNeighborhood =
+    typeof updates.neighborhood === 'string' ? updates.neighborhood.trim() : existing.neighborhood ?? null;
+  const nextZipCode =
+    typeof updates.zipCode === 'string' ? updates.zipCode.trim() : existing.zipCode ?? null;
 
   const res = await query(
-    'UPDATE users SET name = $2, phone = $3 WHERE id = $1 RETURNING *',
-    [userId, nextName, nextPhone]
+    `UPDATE users 
+     SET name = $2, phone = $3, avatar_url = $4, province = $5, city = $6, neighborhood = $7, zip_code = $8 
+     WHERE id = $1 RETURNING *`,
+    [userId, nextName, nextPhone, nextAvatar, nextProvince, nextCity, nextNeighborhood, nextZipCode]
   );
   return res.rows[0] ? mapUserRow(res.rows[0]) : null;
 }

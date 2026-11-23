@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import {
+  Camera,
   CheckCircle2,
   Heart,
   KeyRound,
@@ -14,6 +15,8 @@ import {
   Star,
   Trash2,
   Truck,
+  Upload,
+  User as UserIcon,
 } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
 import { formatCurrency, ORDER_STATUS_FLOW } from '../utils/marketplace';
@@ -52,6 +55,7 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
     removeAddress,
     updateProfile,
     changePassword,
+    uploadImageAsset,
     logout,
     navigate,
     showToast,
@@ -69,7 +73,16 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
   // Account settings form
   const [name, setName] = useState(currentUser?.name ?? '');
   const [phone, setPhone] = useState(currentUser?.phone ?? '');
+  const [avatarUrl, setAvatarUrl] = useState(currentUser?.avatarUrl ?? '');
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    setName(currentUser.name);
+    setPhone(currentUser.phone ?? '');
+    setAvatarUrl(currentUser.avatarUrl ?? '');
+  }, [currentUser]);
 
   // Password change form
   const [currentPassword, setCurrentPassword] = useState('');
@@ -177,11 +190,27 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
     }
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploadingAvatar(true);
+    try {
+      const res = await uploadImageAsset(file, 'avatars');
+      if (res.ok && res.url) {
+        setAvatarUrl(res.url);
+        await updateProfile({ name, phone, avatarUrl: res.url });
+      }
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setSavingProfile(true);
     try {
-      await updateProfile({ name, phone });
+      await updateProfile({ name, phone, avatarUrl });
     } finally {
       setSavingProfile(false);
     }
@@ -703,6 +732,34 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
             <h2 className="font-condensed text-[20px] font-bold uppercase text-[#0A3768]">
               Dados Pessoais
             </h2>
+            {/* Foto de Perfil */}
+            <div className="flex items-center gap-4 pb-4 border-b border-[#EAEAEA]">
+              <div className="w-16 h-16 rounded-full border border-[#DCDCDC] overflow-hidden bg-[#F0F4F8] flex items-center justify-center shrink-0 shadow-inner">
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={currentUser.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <UserIcon className="w-7 h-7 text-[#888888]" />
+                )}
+              </div>
+              <div>
+                <p className="text-xs font-bold text-[#444444] mb-1">Foto de Perfil</p>
+                <label className="h-8 px-3.5 rounded-[3px] border border-[#DCDCDC] hover:border-[#0475EE] bg-[#F9FAFB] text-xs font-semibold text-[#333333] inline-flex items-center gap-2 cursor-pointer transition-colors">
+                  <Camera className="w-3.5 h-3.5 text-[#0475EE]" />
+                  {uploadingAvatar ? 'Carregando...' : 'Alterar Foto'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarUpload}
+                    disabled={uploadingAvatar}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            </div>
             <div>
               <label htmlFor="acc-name" className="block text-xs font-bold text-[#444444] mb-1">
                 Nome completo

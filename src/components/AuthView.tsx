@@ -306,9 +306,10 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
 
   const handleAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
     setUploadingAvatar(true);
-    const res = await uploadImageAsset(file, 'products');
+    const res = await uploadImageAsset(file, 'avatars');
     setUploadingAvatar(false);
     if (res.ok && res.url) {
       setAvatarUrl(res.url);
@@ -317,9 +318,10 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
 
   const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
     setUploadingLogo(true);
-    const res = await uploadImageAsset(file, 'products');
+    const res = await uploadImageAsset(file, 'logos');
     setUploadingLogo(false);
     if (res.ok && res.url) {
       setLogoUrl(res.url);
@@ -328,6 +330,7 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
 
   const handleBannerFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
     setUploadingBanner(true);
     const res = await uploadImageAsset(file, 'banners');

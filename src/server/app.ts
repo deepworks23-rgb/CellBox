@@ -566,8 +566,24 @@ export function createApiApp(): Express {
         res.status(401).json({ error: 'Faça login para atualizar seus dados.' });
         return;
       }
-      const { name, phone } = req.body as { name?: string; phone?: string };
-      const updated = await db.updateUserProfile(user.id, { name, phone });
+      const { name, phone, avatarUrl, province, city, neighborhood, zipCode } = req.body as {
+        name?: string;
+        phone?: string;
+        avatarUrl?: string;
+        province?: string;
+        city?: string;
+        neighborhood?: string;
+        zipCode?: string;
+      };
+      const updated = await db.updateUserProfile(user.id, {
+        name,
+        phone,
+        avatarUrl,
+        province,
+        city,
+        neighborhood,
+        zipCode,
+      });
       res.json({ user: toPublicUser(updated ?? user) });
     })
   );
@@ -1234,12 +1250,6 @@ export function createApiApp(): Express {
     '/api/uploads',
     asyncHandler(async (req, res) => {
       const user = await getAuthenticatedUser(req);
-      if (!user || (user.role !== 'seller' && user.role !== 'admin')) {
-        res
-          .status(403)
-          .json({ error: 'Apenas vendedores ou administradores podem enviar imagens.' });
-        return;
-      }
 
       if (!isS3Configured()) {
         res.status(503).json({
@@ -1273,7 +1283,7 @@ export function createApiApp(): Express {
         await db.recordUploadedAsset({
           key: uploaded.key,
           bucket: uploaded.bucket,
-          ownerUserId: user.id,
+          ownerUserId: user?.id || 'guest',
           originalName: validated.fileName,
           contentType: validated.contentType,
           sizeBytes: validated.buffer.length,

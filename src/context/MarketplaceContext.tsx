@@ -146,7 +146,15 @@ interface MarketplaceContextValue {
     data: { method: 'mpesa' | 'emola'; phone: string }
   ) => Promise<boolean>;
   logout: () => Promise<void>;
-  updateProfile: (updates: { name: string; phone: string }) => Promise<boolean>;
+  updateProfile: (updates: {
+    name: string;
+    phone: string;
+    avatarUrl?: string;
+    province?: string;
+    city?: string;
+    neighborhood?: string;
+    zipCode?: string;
+  }) => Promise<boolean>;
   changePassword: (
     currentPassword: string,
     newPassword: string
@@ -202,7 +210,7 @@ interface MarketplaceContextValue {
   ) => Promise<void>;
   uploadImageAsset: (
     file: File,
-    folder?: 'products' | 'banners'
+    folder?: 'products' | 'banners' | 'avatars' | 'logos' | 'kyc' | string
   ) => Promise<{ ok: boolean; url?: string; error?: string }>;
   // Admin actions
   setSellerStatus: (sellerId: string, status: SellerStatus) => Promise<void>;
@@ -569,7 +577,15 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
     showToast('Sessão encerrada com sucesso.', 'info');
   };
 
-  const updateProfile = async (updates: { name: string; phone: string }): Promise<boolean> => {
+  const updateProfile = async (updates: {
+    name: string;
+    phone: string;
+    avatarUrl?: string;
+    province?: string;
+    city?: string;
+    neighborhood?: string;
+    zipCode?: string;
+  }): Promise<boolean> => {
     const res = await apiRequest<{ user: User }>('/api/profile', {
       method: 'PATCH',
       body: JSON.stringify(updates),
@@ -932,7 +948,7 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
 
   const uploadImageAsset = async (
     file: File,
-    folder: 'products' | 'banners' = 'products'
+    folder: 'products' | 'banners' | 'avatars' | 'logos' | 'kyc' | string = 'products'
   ): Promise<{ ok: boolean; url?: string; error?: string }> => {
     const base64Data = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();

@@ -108,7 +108,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
     if (!file) return;
     setUploadingKycDoc(true);
     try {
-      const result = await uploadImageAsset(file, 'banners');
+      const result = await uploadImageAsset(file, 'kyc');
       if (result.ok && result.url) {
         setKycDocFrontUrl(result.url);
       }
@@ -360,7 +360,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
     if (!file) return;
     setUploadingBannerImg(true);
     try {
-      const result = await uploadImageAsset(file, 'banners');
+      const result = await uploadImageAsset(file, 'kyc');
       if (result.ok && result.url) {
         setStoreForm((p) => ({ ...p, bannerImage: result.url! }));
       }
