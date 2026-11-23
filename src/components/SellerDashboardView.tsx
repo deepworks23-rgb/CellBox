@@ -66,6 +66,11 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
     setActiveTab(initialTab);
   }, [initialTab]);
 
+  const seller =
+    sellers.find((s) => currentUser?.sellerId && s.id === currentUser.sellerId) ??
+    sellers.find((s) => currentUser && s.ownerUserId === currentUser.id) ??
+    sellers[0];
+
   const [productSearch, setProductSearch] = useState('');
   const [productCategoryFilter, setProductCategoryFilter] = useState('Todas');
   const [newProductOpen, setNewProductOpen] = useState(false);
@@ -88,6 +93,16 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
   const [feePhone, setFeePhone] = useState(currentUser?.phone ?? '');
   const [payingFee, setPayingFee] = useState(false);
   const [feeModalOpen, setFeeModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (seller) {
+      setKycDocNumber((prev) => prev || seller.documentId || '');
+    }
+    if (currentUser) {
+      setKycFullName((prev) => prev || currentUser.name || '');
+      setFeePhone((prev) => prev || currentUser.phone || '');
+    }
+  }, [seller, currentUser]);
 
   const isPublicActive = seller ? isStorePubliclyActive(seller) : false;
   const profileDone = Boolean(
@@ -152,11 +167,6 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
       setPayingFee(false);
     }
   };
-
-  const seller =
-    sellers.find((s) => currentUser?.sellerId && s.id === currentUser.sellerId) ??
-    sellers.find((s) => currentUser && s.ownerUserId === currentUser.id) ??
-    sellers[0];
 
   // Product Form State
   const [formState, setFormState] = useState({
