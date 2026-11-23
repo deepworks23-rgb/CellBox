@@ -1,5 +1,13 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { ACTIVE_COUPONS } from '../data/seedData';
+import {
+  ACTIVE_COUPONS,
+  INITIAL_ADDRESSES,
+  INITIAL_CATEGORIES,
+  INITIAL_ORDERS,
+  INITIAL_PRODUCTS,
+  INITIAL_SELLERS,
+  INITIAL_USERS,
+} from '../data/seedData';
 import type {
   Address,
   AppView,
@@ -273,15 +281,15 @@ const MarketplaceContext = createContext<MarketplaceContextValue | null>(null);
 
 export function MarketplaceProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<MarketplaceState>(() => ({
-    users: [],
+    users: INITIAL_USERS,
     currentUser: null,
-    sellers: [],
-    products: [],
-    categories: [],
-    orders: [],
+    sellers: INITIAL_SELLERS,
+    products: INITIAL_PRODUCTS,
+    categories: INITIAL_CATEGORIES,
+    orders: INITIAL_ORDERS,
     cart: typeof window !== 'undefined' ? readStoredCart() : [],
     wishlist: typeof window !== 'undefined' ? readGuestWishlist() : [],
-    addresses: [],
+    addresses: INITIAL_ADDRESSES,
     commissionRate: 10,
   }));
 
@@ -327,14 +335,14 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
     setState((prev) => ({
       ...prev,
       currentUser: payload.currentUser,
-      users: payload.users,
-      sellers: payload.sellers,
-      products: payload.products,
-      categories: payload.categories,
-      orders: payload.orders,
-      addresses: payload.addresses,
+      users: Array.isArray(payload.users) && payload.users.length > 0 ? payload.users : prev.users,
+      sellers: Array.isArray(payload.sellers) && payload.sellers.length > 0 ? payload.sellers : prev.sellers,
+      products: Array.isArray(payload.products) && payload.products.length > 0 ? payload.products : prev.products,
+      categories: Array.isArray(payload.categories) && payload.categories.length > 0 ? payload.categories : prev.categories,
+      orders: Array.isArray(payload.orders) ? payload.orders : prev.orders,
+      addresses: Array.isArray(payload.addresses) ? payload.addresses : prev.addresses,
       wishlist: payload.currentUser?.role === 'buyer' ? payload.wishlist : readGuestWishlist(),
-      commissionRate: payload.commissionRate,
+      commissionRate: typeof payload.commissionRate === 'number' ? payload.commissionRate : prev.commissionRate,
     }));
   }, []);
 
