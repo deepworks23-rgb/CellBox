@@ -193,13 +193,13 @@ export function StoresView() {
                   data-testid={`store-directory-card-${store.id}`}
                   className="bg-white border border-[#E5E7EB] rounded-[3px] overflow-hidden flex flex-col shadow-[0_2px_10px_rgba(10,55,104,0.04)]"
                 >
-                  {/* Static Store Visual Cover + Logo Badge */}
-                  <div className="relative h-40 bg-[#0A3768] overflow-hidden">
+                  {/* Static Store Visual Cover + Logo Badge (Proporção 16:9 = 1000x500) */}
+                  <div className="relative aspect-[16/9] w-full max-h-[500px] bg-[#0A3768] overflow-hidden">
                     <img
                       src={coverImg}
                       alt={`Vitrine ${store.name}`}
                       referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover opacity-80"
+                      className="w-full h-full object-cover opacity-85"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0A3768]/90 via-[#0A3768]/35 to-transparent" />
 

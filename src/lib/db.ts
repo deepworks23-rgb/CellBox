@@ -869,32 +869,31 @@ export async function initDatabase(createSeed: () => SeedPayload): Promise<void>
         ON password_reset_tokens (user_id);
     `);
 
-    const countRes = await client.query<{ count: number }>(
-      'SELECT COUNT(*)::int AS count FROM users'
-    );
-    const userCount = countRes.rows[0]?.count ?? 0;
-    const sellerCountRes = await client.query<{ count: number }>(
-      'SELECT COUNT(*)::int AS count FROM sellers WHERE status = $1',
-      ['active']
-    );
-    const activeSellerCount = sellerCountRes.rows[0]?.count ?? 0;
-
-    if (userCount === 0 || activeSellerCount === 0) {
-      const seed = createSeed();
-      await insertSeedInClient(client, seed);
-      console.log('[Cellbox PostgreSQL] Schema checked and initial partners ensured.');
-    } else {
-      const stats = await client.query<{ users: number; products: number; sellers: number }>(`
-        SELECT
-          (SELECT COUNT(*)::int FROM users) AS users,
-          (SELECT COUNT(*)::int FROM products) AS products,
-          (SELECT COUNT(*)::int FROM sellers) AS sellers
-      `);
-      const row = stats.rows[0];
-      console.log(
-        `[Cellbox PostgreSQL] Connected to Neon (${row.users} users, ${row.sellers} sellers, ${row.products} products).`
+    // Ensure categories and settings exist
+    const seed = createSeed();
+    for (let i = 0; i < seed.categories.length; i++) {
+      await client.query(
+        'INSERT INTO categories (name, sort_order) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING',
+        [seed.categories[i], i]
       );
     }
+    await client.query(
+      `INSERT INTO platform_settings (key, value, updated_at)
+       VALUES ('commissionRate', $1::jsonb, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+      [JSON.stringify(seed.commissionRate)]
+    );
+
+    const stats = await client.query<{ users: number; products: number; sellers: number }>(`
+      SELECT
+        (SELECT COUNT(*)::int FROM users) AS users,
+        (SELECT COUNT(*)::int FROM products) AS products,
+        (SELECT COUNT(*)::int FROM sellers) AS sellers
+    `);
+    const row = stats.rows[0];
+    console.log(
+      `[Cellbox PostgreSQL] Connected to Neon (${row.users} users, ${row.sellers} sellers, ${row.products} products).`
+    );
   });
 }
 

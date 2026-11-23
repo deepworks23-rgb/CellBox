@@ -1622,7 +1622,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                         </p>
                       </div>
                       <div className="space-y-2">
-                        <div className="w-full h-24 rounded-[4px] border border-[#DCDCDC] overflow-hidden bg-[#F0F4F8] flex items-center justify-center relative">
+                        <div className="w-full aspect-[16/9] max-h-48 rounded-[4px] border border-[#DCDCDC] overflow-hidden bg-[#F0F4F8] flex items-center justify-center relative">
                           {storeForm.bannerImage ? (
                             <img
                               src={storeForm.bannerImage}

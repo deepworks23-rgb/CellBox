@@ -32,9 +32,9 @@ export function SellerStoreView({ sellerId }: SellerStoreViewProps) {
 
   return (
     <main className="max-w-[1170px] mx-auto px-4 py-6 pb-16 space-y-6">
-      {/* Store Banner with custom banner image or official gradient */}
+      {/* Store Banner with custom banner image or official gradient (Proporção 16:9 = 1000x500) */}
       <section
-        className="relative text-white rounded-[3px] p-6 sm:p-8 overflow-hidden cellbox-hero-gradient shadow-sm"
+        className="relative text-white rounded-[3px] p-6 sm:p-8 overflow-hidden cellbox-hero-gradient shadow-sm w-full aspect-[16/9] max-h-[500px] flex flex-col justify-between"
         style={
           seller.bannerImage
             ? {

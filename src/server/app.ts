@@ -66,24 +66,14 @@ const SESSION_COOKIE_NAME = 'cellbox_session';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'cellbox-mz-session-signing-key-2026-v1';
 
 export function createInitialSeed(): SeedPayload {
-  const defaultPasswordHash = hashPassword('cellbox123');
-  const users: StoredUser[] = INITIAL_USERS.map((u) => ({
-    ...u,
-    passwordHash: defaultPasswordHash,
-  }));
-
   return {
-    users,
-    sellers: structuredClone(INITIAL_SELLERS),
-    products: structuredClone(INITIAL_PRODUCTS),
+    users: [],
+    sellers: [],
+    products: [],
     categories: [...INITIAL_CATEGORIES],
-    orders: structuredClone(INITIAL_ORDERS),
-    addressesByUser: {
-      'user-buyer-1': structuredClone(INITIAL_ADDRESSES),
-    },
-    wishlistsByUser: {
-      'user-buyer-1': ['prod-iphone-16-pro', 'prod-macbook-pro-m3'],
-    },
+    orders: [],
+    addressesByUser: {},
+    wishlistsByUser: {},
     commissionRate: 10,
   };
 }
