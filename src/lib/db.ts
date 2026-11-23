@@ -552,7 +552,8 @@ async function insertSeedInClient(client: PoolClient, seed: SeedPayload): Promis
   for (const u of seed.users) {
     await client.query(
       `INSERT INTO users (id, name, email, role, phone, seller_id, password_hash, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (id) DO NOTHING`,
       [u.id, u.name, u.email, u.role, u.phone ?? null, u.sellerId ?? null, u.passwordHash, u.createdAt]
     );
   }
@@ -562,13 +563,15 @@ async function insertSeedInClient(client: PoolClient, seed: SeedPayload): Promis
     await client.query(
       `INSERT INTO sellers (
         id, owner_user_id, name, slug, document_id, main_category, description,
-        logo_text, accent_color, banner_image, status, verified, rating,
-        review_count, joined_date, tenure_label, location, payout_info, sort_order
+        logo_text, logo_url, accent_color, banner_image, status, verified, rating,
+        review_count, joined_date, tenure_label, location, payout_info,
+        socials, kyc, activation, sort_order
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7,
-        $8, $9, $10, $11, $12, $13,
-        $14, $15, $16, $17, $18::jsonb, $19
-      )`,
+        $8, $9, $10, $11, $12, $13, $14,
+        $15, $16, $17, $18, $19::jsonb,
+        $20::jsonb, $21::jsonb, $22::jsonb, $23
+      ) ON CONFLICT (id) DO NOTHING`,
       [
         s.id,
         s.ownerUserId,
@@ -578,16 +581,20 @@ async function insertSeedInClient(client: PoolClient, seed: SeedPayload): Promis
         s.mainCategory,
         s.description,
         s.logoText,
+        s.logoUrl ?? null,
         s.accentColor,
         s.bannerImage,
         s.status,
-        s.verified,
+        true,
         s.rating,
         s.reviewCount,
         s.joinedDate,
         s.tenureLabel,
         s.location,
         JSON.stringify(s.payoutInfo),
+        JSON.stringify(s.socials ?? {}),
+        JSON.stringify({ status: 'verified' }),
+        JSON.stringify({ profileCompleted: true, kycCompleted: true, feePaid: true }),
         i,
       ]
     );
@@ -865,10 +872,17 @@ export async function initDatabase(createSeed: () => SeedPayload): Promise<void>
     const countRes = await client.query<{ count: number }>(
       'SELECT COUNT(*)::int AS count FROM users'
     );
-    if ((countRes.rows[0]?.count ?? 0) === 0) {
+    const userCount = countRes.rows[0]?.count ?? 0;
+    const sellerCountRes = await client.query<{ count: number }>(
+      'SELECT COUNT(*)::int AS count FROM sellers WHERE status = $1',
+      ['active']
+    );
+    const activeSellerCount = sellerCountRes.rows[0]?.count ?? 0;
+
+    if (userCount === 0 || activeSellerCount === 0) {
       const seed = createSeed();
       await insertSeedInClient(client, seed);
-      console.log('[Cellbox PostgreSQL] Schema created and initial data seeded.');
+      console.log('[Cellbox PostgreSQL] Schema checked and initial partners ensured.');
     } else {
       const stats = await client.query<{ users: number; products: number; sellers: number }>(`
         SELECT

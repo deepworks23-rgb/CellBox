@@ -186,6 +186,7 @@ export function calculateCartTotals(groups: SellerCartGroup[]): {
 
 export function isStorePubliclyActive(s: SellerStore): boolean {
   if (s.status !== 'active') return false;
+  if (s.verified) return true;
   if (s.activation) {
     if (!s.activation.profileCompleted || !s.activation.kycCompleted || !s.activation.feePaid) {
       return false;
