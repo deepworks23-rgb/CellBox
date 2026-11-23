@@ -184,13 +184,23 @@ export function calculateCartTotals(groups: SellerCartGroup[]): {
   };
 }
 
+export function isStorePubliclyActive(s: SellerStore): boolean {
+  if (s.status !== 'active') return false;
+  if (s.activation) {
+    if (!s.activation.profileCompleted || !s.activation.kycCompleted || !s.activation.feePaid) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export function filterVisibleProducts(
   products: Product[],
   sellers: SellerStore[],
   filters: CatalogFilters
 ): Product[] {
   const activeSellerIds = new Set(
-    sellers.filter((s) => s.status === 'active').map((s) => s.id)
+    sellers.filter(isStorePubliclyActive).map((s) => s.id)
   );
 
   const query = filters.search.trim().toLowerCase();
@@ -431,42 +441,72 @@ export function evaluatePasswordStrength(password: string): PasswordStrengthResu
 
 export interface RegistrationInput {
   name: string;
-  email: string;
+  phone: string;
+  email?: string;
   password: string;
-  phone?: string;
+  province?: string;
+  city?: string;
+  neighborhood?: string;
+  zipCode?: string;
   isSeller: boolean;
   storeName?: string;
-  documentId?: string;
   mainCategory?: string;
+  description?: string;
+  storeLocation?: string;
+  logoUrl?: string;
+  bannerImage?: string;
+  avatarUrl?: string;
+  socials?: {
+    facebook?: string;
+    instagram?: string;
+    tiktok?: string;
+    youtube?: string;
+  };
 }
 
 export function validateRegistration(input: RegistrationInput): Record<string, string> {
   const errors: Record<string, string> = {};
-  if (!input.name.trim() || input.name.trim().length < 2) {
+
+  if (!input.name || input.name.trim().length < 2) {
     errors.name = 'Informe seu nome completo.';
   }
-  if (!input.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim())) {
-    errors.email = 'Informe um e-mail válido.';
+
+  const phoneDigits = (input.phone ?? '').replace(/\D/g, '');
+  if (!input.phone || phoneDigits.length < 8) {
+    errors.phone = 'Informe um número de telefone válido (mínimo 8 dígitos).';
   }
+
+  if (input.email && input.email.trim().length > 0) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim())) {
+      errors.email = 'Informe um e-mail válido ou deixe o campo em branco.';
+    }
+  }
+
+  if (!input.province?.trim()) {
+    errors.province = 'Selecione a província.';
+  }
+  if (!input.city?.trim() || input.city.trim().length < 2) {
+    errors.city = 'Informe a cidade.';
+  }
+  if (!input.neighborhood?.trim() || input.neighborhood.trim().length < 2) {
+    errors.neighborhood = 'Informe o bairro.';
+  }
+  if (!input.zipCode?.trim() || input.zipCode.trim().length < 3) {
+    errors.zipCode = 'Informe o código postal.';
+  }
+
   if (!input.password || input.password.length < 6) {
     errors.password = 'A senha deve conter no mínimo 6 caracteres.';
   }
-  if (input.phone !== undefined && input.phone.trim().length > 0) {
-    const digits = input.phone.replace(/\D/g, '');
-    if (digits.length < 7) {
-      errors.phone = 'Informe um número de telefone/WhatsApp válido.';
-    }
-  }
+
   if (input.isSeller) {
     if (!input.storeName?.trim() || input.storeName.trim().length < 3) {
       errors.storeName = 'Informe o nome da sua loja (mínimo 3 caracteres).';
-    }
-    if (input.documentId !== undefined && input.documentId.trim().length > 0 && input.documentId.trim().length < 8) {
-      errors.documentId = 'Informe um NUIT / NIF válido (mínimo 8 dígitos).';
     }
     if (!input.mainCategory?.trim()) {
       errors.mainCategory = 'Selecione a categoria principal da loja.';
     }
   }
+
   return errors;
 }

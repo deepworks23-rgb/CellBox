@@ -5,12 +5,18 @@ import {
   BarChart3,
   Check,
   CheckCircle2,
+  Clock,
+  CreditCard,
+  FileText,
   Package,
   Pencil,
   Plus,
   Search,
   Settings,
+  ShieldAlert,
+  ShieldCheck,
   ShoppingBag,
+  Smartphone,
   Star,
   Store,
   Trash2,
@@ -24,6 +30,7 @@ import {
   calculateSellerAnalytics,
   formatCurrency,
   getNextOrderStatus,
+  isStorePubliclyActive,
   validateProductForm,
 } from '../utils/marketplace';
 import { MotionButton } from './MotionPrimitives';
@@ -47,6 +54,8 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
     updateOrderFulfillmentStatus,
     updateSellerSettings,
     uploadImageAsset,
+    submitSellerKyc,
+    paySellerActivationFee,
     navigate,
   } = useMarketplace();
 
@@ -65,6 +74,84 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
   const [editStock, setEditStock] = useState('');
   const [uploadingProductImg, setUploadingProductImg] = useState(false);
   const [uploadingBannerImg, setUploadingBannerImg] = useState(false);
+
+  // Activation, KYC & Fee Payment State
+  const [kycDocType, setKycDocType] = useState<'bi' | 'nuit' | 'passaporte' | 'licenca'>('bi');
+  const [kycDocNumber, setKycDocNumber] = useState(seller?.documentId ?? '');
+  const [kycFullName, setKycFullName] = useState(currentUser?.name ?? '');
+  const [kycDocFrontUrl, setKycDocFrontUrl] = useState('');
+  const [uploadingKycDoc, setUploadingKycDoc] = useState(false);
+  const [submittingKyc, setSubmittingKyc] = useState(false);
+  const [kycModalOpen, setKycModalOpen] = useState(false);
+
+  const [feeMethod, setFeeMethod] = useState<'mpesa' | 'emola'>('mpesa');
+  const [feePhone, setFeePhone] = useState(currentUser?.phone ?? '');
+  const [payingFee, setPayingFee] = useState(false);
+  const [feeModalOpen, setFeeModalOpen] = useState(false);
+
+  const isPublicActive = seller ? isStorePubliclyActive(seller) : false;
+  const profileDone = Boolean(
+    seller?.activation?.profileCompleted ?? (seller?.name && seller?.mainCategory && seller?.location)
+  );
+  const kycDone = Boolean(
+    seller?.activation?.kycCompleted || seller?.kyc?.status === 'verified'
+  );
+  const kycPending = seller?.kyc?.status === 'pending';
+  const feeDone = Boolean(seller?.activation?.feePaid);
+
+  const completedStepsCount = (profileDone ? 1 : 0) + (kycDone ? 1 : 0) + (feeDone ? 1 : 0);
+  const progressPercent = Math.round((completedStepsCount / 3) * 100);
+
+  const handleUploadKycDoc = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploadingKycDoc(true);
+    try {
+      const result = await uploadImageAsset(file, 'banners');
+      if (result.ok && result.url) {
+        setKycDocFrontUrl(result.url);
+      }
+    } finally {
+      setUploadingKycDoc(false);
+    }
+  };
+
+  const handleSubmitKyc = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!seller || !kycDocNumber.trim() || !kycFullName.trim()) return;
+    setSubmittingKyc(true);
+    try {
+      const ok = await submitSellerKyc(seller.id, {
+        documentType: kycDocType,
+        documentNumber: kycDocNumber.trim(),
+        fullName: kycFullName.trim(),
+        documentFrontUrl: kycDocFrontUrl || undefined,
+      });
+      if (ok) {
+        setKycModalOpen(false);
+      }
+    } finally {
+      setSubmittingKyc(false);
+    }
+  };
+
+  const handlePayFee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!seller || !feePhone.trim()) return;
+    setPayingFee(true);
+    try {
+      const ok = await paySellerActivationFee(seller.id, {
+        method: feeMethod,
+        phone: feePhone.trim(),
+      });
+      if (ok) {
+        setFeeModalOpen(false);
+      }
+    } finally {
+      setPayingFee(false);
+    }
+  };
 
   const seller =
     sellers.find((s) => currentUser?.sellerId && s.id === currentUser.sellerId) ??
@@ -302,23 +389,187 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
 
   return (
     <div className="max-w-[1170px] mx-auto px-4 py-6 pb-16">
-      {/* Status alert banner if seller is pending or suspended */}
-      {seller.status !== 'active' && (
-        <div
-          role="alert"
-          className="mb-6 bg-amber-50 border border-amber-200 rounded-[3px] p-4 flex flex-wrap items-center justify-between gap-4"
+      {/* Visual Activation Banner if store is not publicly active */}
+      {!isPublicActive ? (
+        <section
+          aria-label="Ativação da Loja"
+          className="mb-8 bg-gradient-to-r from-[#0A3768] via-[#0D4B8A] to-[#0475EE] text-white rounded-[4px] p-6 shadow-sm border border-[#0A3768]"
         >
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-white/20">
             <div>
-              <p className="text-sm font-bold text-amber-950">
-                Status da Loja: {statusText}
+              <div className="flex items-center gap-2 mb-1">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-400 text-amber-950">
+                  Modo Privado · Ativação Pendente
+                </span>
+                <span className="text-xs text-white/80 font-medium">
+                  {completedStepsCount} de 3 etapas concluídas ({progressPercent}%)
+                </span>
+              </div>
+              <h2 className="font-condensed text-2xl font-bold uppercase tracking-tight">
+                Ativação da sua Loja na CellBox
+              </h2>
+              <p className="text-xs text-white/90 max-w-2xl mt-1 leading-relaxed">
+                Para proteger os compradores e garantir a qualidade dos parceiros, sua loja e produtos permanecem invisíveis no catálogo público até a conclusão de 3 etapas simples.
               </p>
-              <p className="text-xs text-amber-800 mt-0.5">
-                Você já pode cadastrar produtos e configurar sua vitrine. Seus anúncios ficarão públicos assim que a verificação da loja for concluída.
+            </div>
+
+            {/* Overall Progress Bar */}
+            <div className="w-full md:w-56 shrink-0 bg-white/10 p-3 rounded-[3px] border border-white/15">
+              <div className="flex justify-between text-xs font-bold mb-1.5">
+                <span>Progresso</span>
+                <span>{progressPercent}%</span>
+              </div>
+              <div className="w-full h-2.5 bg-black/30 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-[#34D399] transition-all duration-500 rounded-full"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 3 Step Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+            {/* Step 1: Store Profile */}
+            <div className="bg-white/10 rounded-[3px] p-4 border border-white/15 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-white/70">
+                    Etapa 1
+                  </span>
+                  {profileDone ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Concluído
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-300">
+                      <Clock className="w-3.5 h-3.5" /> Pendente
+                    </span>
+                  )}
+                </div>
+                <h3 className="font-bold text-sm text-white">Perfil da Loja</h3>
+                <p className="text-xs text-white/80 mt-1 leading-relaxed">
+                  Nome da loja, categoria de atuação e endereço comercial configurados.
+                </p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('settings')}
+                  className="w-full h-8 px-3 rounded-[3px] bg-white/15 hover:bg-white/25 text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                >
+                  {profileDone ? 'Ver Configurações' : 'Completar Perfil'}
+                </button>
+              </div>
+            </div>
+
+            {/* Step 2: KYC Identity Verification */}
+            <div className="bg-white/10 rounded-[3px] p-4 border border-white/15 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-white/70">
+                    Etapa 2
+                  </span>
+                  {kycDone ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Verificado
+                    </span>
+                  ) : kycPending ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-300">
+                      <Clock className="w-3.5 h-3.5" /> Em Análise
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-300">
+                      <ShieldAlert className="w-3.5 h-3.5" /> Obrigatório
+                    </span>
+                  )}
+                </div>
+                <h3 className="font-bold text-sm text-white">Verificação de Identidade (KYC)</h3>
+                <p className="text-xs text-white/80 mt-1 leading-relaxed">
+                  Envio de BI, NUIT ou Passaporte do responsável legal pela loja.
+                </p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-white/10">
+                {kycDone ? (
+                  <span className="text-xs font-semibold text-emerald-300 block text-center py-1">
+                    Documento Aprovado
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setKycModalOpen(true)}
+                    className="w-full h-8 px-3 rounded-[3px] bg-white text-[#0A3768] hover:bg-white/90 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                  >
+                    {kycPending ? 'Atualizar Documentos' : 'Enviar Documento (KYC)'}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Step 3: Registration Fee (100 MZN) */}
+            <div className="bg-white/10 rounded-[3px] p-4 border border-white/15 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-white/70">
+                    Etapa 3
+                  </span>
+                  {feeDone ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> 100 MT Pago
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-300">
+                      <CreditCard className="w-3.5 h-3.5" /> 100 MT Pendente
+                    </span>
+                  )}
+                </div>
+                <h3 className="font-bold text-sm text-white">Taxa de Inscrição (100 MZN)</h3>
+                <p className="text-xs text-white/80 mt-1 leading-relaxed">
+                  Taxa única de ativação via <strong>M-Pesa</strong> ou <strong>e-Mola</strong>.
+                </p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-white/10">
+                {feeDone ? (
+                  <span className="text-xs font-semibold text-emerald-300 block text-center py-1">
+                    Taxa Confirmada ✓
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setFeeModalOpen(true)}
+                    className="w-full h-8 px-3 rounded-[3px] bg-[#E50914] hover:bg-[#c20811] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                  >
+                    Pagar 100 MZN
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : (
+        <div
+          role="status"
+          className="mb-6 bg-emerald-50 border border-emerald-200 rounded-[3px] p-4 flex items-center justify-between gap-4"
+        >
+          <div className="flex items-center gap-3">
+            <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+            <div>
+              <p className="text-sm font-bold text-emerald-950">
+                Loja Oficial Ativa & Verificada
+              </p>
+              <p className="text-xs text-emerald-800 mt-0.5">
+                Sua vitrine está disponível em /lojas e seus anúncios estão ativos no catálogo CellBox.
               </p>
             </div>
           </div>
+          <button
+            type="button"
+            onClick={() => navigate({ type: 'store', sellerId: seller.id })}
+            className="h-8 px-3 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider inline-flex items-center gap-1.5 cursor-pointer"
+          >
+            <Store className="w-3.5 h-3.5" />
+            Ver Loja Pública
+          </button>
         </div>
       )}
 
@@ -1156,6 +1407,269 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                   className="h-10 px-6 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
                 >
                   Publicar Produto
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: SUBMETER KYC */}
+      {kycModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs"
+        >
+          <div className="bg-white rounded-[4px] max-w-lg w-full p-6 space-y-5 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-[#EAEAEA] pb-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-[#0475EE]" />
+                <h3 className="font-condensed text-xl font-bold uppercase text-[#0A3768]">
+                  Verificação de Identidade (KYC)
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setKycModalOpen(false)}
+                className="text-[#777777] hover:text-[#222222] cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-[#666666] leading-relaxed">
+              Para validar sua loja como parceira oficial CellBox em Moçambique, informe o documento oficial de identificação do titular ou representante legal.
+            </p>
+
+            <form onSubmit={handleSubmitKyc} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[#444444] mb-1">
+                  Tipo de Documento *
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { id: 'bi', label: 'B.I.' },
+                    { id: 'nuit', label: 'NUIT' },
+                    { id: 'passaporte', label: 'Passaporte' },
+                    { id: 'licenca', label: 'Alvará' },
+                  ].map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setKycDocType(t.id as any)}
+                      className={`h-9 rounded-[3px] text-xs font-bold border transition-colors cursor-pointer ${
+                        kycDocType === t.id
+                          ? 'border-[#0475EE] bg-[#0475EE]/10 text-[#0475EE]'
+                          : 'border-[#DCDCDC] text-[#555555] hover:bg-[#F8F9FA]'
+                      }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="kyc-doc-number" className="block text-xs font-bold text-[#444444] mb-1">
+                  Número do Documento *
+                </label>
+                <input
+                  id="kyc-doc-number"
+                  type="text"
+                  required
+                  value={kycDocNumber}
+                  onChange={(e) => setKycDocNumber(e.target.value)}
+                  placeholder="Ex: 110100234567M ou NUIT"
+                  className="w-full h-10 px-3 rounded-[3px] border border-[#DCDCDC] text-sm focus:border-[#0475EE] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="kyc-full-name" className="block text-xs font-bold text-[#444444] mb-1">
+                  Nome Completo no Documento *
+                </label>
+                <input
+                  id="kyc-full-name"
+                  type="text"
+                  required
+                  value={kycFullName}
+                  onChange={(e) => setKycFullName(e.target.value)}
+                  placeholder="Nome do titular como consta no documento"
+                  className="w-full h-10 px-3 rounded-[3px] border border-[#DCDCDC] text-sm focus:border-[#0475EE] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#444444] mb-1">
+                  Foto ou Cópia do Documento (Frente)
+                </label>
+                <div className="flex items-center gap-3">
+                  <label className="h-10 px-4 rounded-[3px] border border-[#DCDCDC] hover:border-[#0475EE] bg-[#F9FAFB] text-xs font-bold text-[#333333] inline-flex items-center gap-2 cursor-pointer transition-colors">
+                    <Upload className="w-4 h-4 text-[#0475EE]" />
+                    {uploadingKycDoc ? 'Carregando...' : 'Carregar Imagem'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleUploadKycDoc}
+                      className="hidden"
+                      disabled={uploadingKycDoc}
+                    />
+                  </label>
+                  {kycDocFrontUrl && (
+                    <span className="text-xs text-emerald-600 font-semibold inline-flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5" /> Arquivo anexado
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-[#EAEAEA] flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setKycModalOpen(false)}
+                  className="h-9 px-4 rounded-full border border-[#DCDCDC] text-xs font-bold uppercase text-[#555555] cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingKyc || !kycDocNumber.trim() || !kycFullName.trim()}
+                  className="h-9 px-6 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider disabled:opacity-50 cursor-pointer"
+                >
+                  {submittingKyc ? 'Submetendo...' : 'Submeter Documento'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: PAGAR TAXA DE INSCRIÇÃO (100 MZN) */}
+      {feeModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs"
+        >
+          <div className="bg-white rounded-[4px] max-w-md w-full p-6 space-y-5 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-[#EAEAEA] pb-3">
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-[#E50914]" />
+                <h3 className="font-condensed text-xl font-bold uppercase text-[#0A3768]">
+                  Taxa de Inscrição de Loja
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFeeModalOpen(false)}
+                className="text-[#777777] hover:text-[#222222] cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-[#FFF5F5] border border-[#FFD6D6] rounded-[3px] p-3.5 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-[#777777] font-semibold">Valor da Taxa de Adesão</p>
+                <p className="font-condensed text-2xl font-bold text-[#E50914] mt-0.5">
+                  100,00 MT (MZN)
+                </p>
+              </div>
+              <span className="text-[10px] font-extrabold uppercase px-2.5 py-1 bg-white border border-[#FFD6D6] rounded-full text-[#E50914]">
+                Pagamento Único
+              </span>
+            </div>
+
+            <p className="text-xs text-[#666666] leading-relaxed">
+              O pagamento da taxa de adesão ativa permanentemente a vitrine da sua loja para receber pedidos de todo o território nacional.
+            </p>
+
+            <form onSubmit={handlePayFee} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[#444444] mb-2">
+                  Escolha a Carteira Móvel *
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setFeeMethod('mpesa')}
+                    className={`p-3 rounded-[3px] border text-left transition-all cursor-pointer ${
+                      feeMethod === 'mpesa'
+                        ? 'border-[#E50914] bg-[#E50914]/5 ring-1 ring-[#E50914]'
+                        : 'border-[#DCDCDC] hover:bg-[#F9FAFB]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-sm text-[#E50914]">M-Pesa</span>
+                      <span className="w-3.5 h-3.5 rounded-full border border-[#E50914] flex items-center justify-center">
+                        {feeMethod === 'mpesa' && <span className="w-2 h-2 rounded-full bg-[#E50914]" />}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#777777] mt-1">Vodacom Moçambique (84 / 85)</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFeeMethod('emola')}
+                    className={`p-3 rounded-[3px] border text-left transition-all cursor-pointer ${
+                      feeMethod === 'emola'
+                        ? 'border-[#F58220] bg-[#F58220]/5 ring-1 ring-[#F58220]'
+                        : 'border-[#DCDCDC] hover:bg-[#F9FAFB]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-sm text-[#F58220]">e-Mola</span>
+                      <span className="w-3.5 h-3.5 rounded-full border border-[#F58220] flex items-center justify-center">
+                        {feeMethod === 'emola' && <span className="w-2 h-2 rounded-full bg-[#F58220]" />}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#777777] mt-1">Movitel Moçambique (86 / 87)</p>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="fee-phone" className="block text-xs font-bold text-[#444444] mb-1">
+                  Número de Celular {feeMethod === 'mpesa' ? 'M-Pesa' : 'e-Mola'} *
+                </label>
+                <div className="relative">
+                  <Smartphone className="w-4 h-4 text-[#888888] absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    id="fee-phone"
+                    type="tel"
+                    required
+                    value={feePhone}
+                    onChange={(e) => setFeePhone(e.target.value)}
+                    placeholder={feeMethod === 'mpesa' ? '84 123 4567' : '86 123 4567'}
+                    className="w-full h-10 pl-9 pr-3 rounded-[3px] border border-[#DCDCDC] text-sm focus:border-[#0475EE] focus:outline-none"
+                  />
+                </div>
+                <p className="text-[11px] text-[#777777] mt-1">
+                  Você receberá uma solicitação USSD para inserir seu PIN e confirmar o pagamento de 100 MT.
+                </p>
+              </div>
+
+              <div className="pt-4 border-t border-[#EAEAEA] flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setFeeModalOpen(false)}
+                  className="h-9 px-4 rounded-full border border-[#DCDCDC] text-xs font-bold uppercase text-[#555555] cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={payingFee || !feePhone.trim()}
+                  className="h-9 px-6 rounded-full bg-[#E50914] hover:bg-[#c20811] text-white text-xs font-bold uppercase tracking-wider disabled:opacity-50 cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  {payingFee ? (
+                    'Confirmando...'
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" /> Pagar 100 MT agora
+                    </>
+                  )}
                 </button>
               </div>
             </form>

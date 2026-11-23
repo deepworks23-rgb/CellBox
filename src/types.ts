@@ -36,24 +36,46 @@ export interface Coupon {
   active: boolean;
 }
 
+export const MOZAMBIQUE_PROVINCES = [
+  'Maputo Cidade',
+  'Maputo Província',
+  'Gaza',
+  'Inhambane',
+  'Sofala',
+  'Manica',
+  'Tete',
+  'Zambézia',
+  'Nampula',
+  'Cabo Delgado',
+  'Niassa',
+] as const;
+
+export type MozambiqueProvince = (typeof MOZAMBIQUE_PROVINCES)[number];
+
 export interface Address {
   id: string;
   label: string;
   recipient: string;
   street: string;
   city: string;
-  state: string;
+  state: string; // Província
   zipCode: string;
+  neighborhood?: string;
   isDefault?: boolean;
 }
 
 export interface User {
   id: string;
   name: string;
-  email: string;
+  email: string; // pode ser email real ou gerado a partir do telefone
   role: UserRole;
   phone?: string;
   sellerId?: string;
+  avatarUrl?: string;
+  province?: string;
+  city?: string;
+  neighborhood?: string;
+  zipCode?: string;
   createdAt: string;
 }
 
@@ -64,15 +86,44 @@ export interface SellerPayoutInfo {
   pixOrWallet: string;
 }
 
+export interface SellerSocials {
+  facebook?: string;
+  instagram?: string;
+  tiktok?: string;
+  youtube?: string;
+}
+
+export interface SellerKycInfo {
+  status: 'not_submitted' | 'pending' | 'verified' | 'rejected';
+  documentType?: 'BI' | 'NUIT' | 'Passaporte' | 'Alvara';
+  documentNumber?: string;
+  documentFrontUrl?: string;
+  documentBackUrl?: string;
+  submittedAt?: string;
+  reviewedAt?: string;
+  rejectionReason?: string;
+}
+
+export interface SellerActivationStatus {
+  profileCompleted: boolean;
+  kycCompleted: boolean;
+  feePaid: boolean;
+  feePaymentMethod?: 'mpesa' | 'emola';
+  feePhone?: string;
+  feePaidAt?: string;
+  feeReceipt?: string;
+}
+
 export interface SellerStore {
   id: string;
   ownerUserId: string;
   name: string;
   slug: string;
-  documentId: string; // CNPJ / NIF
+  documentId: string; // NUIT / BI
   mainCategory: string;
   description: string;
   logoText: string;
+  logoUrl?: string;
   accentColor: string;
   bannerImage: string;
   status: SellerStatus;
@@ -82,6 +133,9 @@ export interface SellerStore {
   joinedDate: string;
   tenureLabel: string;
   location: string;
+  socials?: SellerSocials;
+  kyc?: SellerKycInfo;
+  activation?: SellerActivationStatus;
   payoutInfo: SellerPayoutInfo;
 }
 

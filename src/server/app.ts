@@ -25,7 +25,10 @@ import type {
   Product,
   ProductCondition,
   ProductSpecs,
+  SellerActivationStatus,
+  SellerKycInfo,
   SellerPayoutInfo,
+  SellerSocials,
   SellerStatus,
   SellerStore,
   User,
@@ -113,6 +116,11 @@ function toPublicUser(u: StoredUser): User {
     role: u.role,
     phone: u.phone,
     sellerId: u.sellerId,
+    avatarUrl: u.avatarUrl,
+    province: u.province,
+    city: u.city,
+    neighborhood: u.neighborhood,
+    zipCode: u.zipCode,
     createdAt: u.createdAt,
   };
 }
@@ -270,19 +278,24 @@ export function createApiApp(): Express {
   app.post(
     '/api/auth/login',
     asyncHandler(async (req, res) => {
-      const { email, password } = req.body as { email?: string; password?: string };
-      const normalizedEmail = (email ?? '').trim().toLowerCase();
+      const { email, phone, identifier, password } = req.body as {
+        email?: string;
+        phone?: string;
+        identifier?: string;
+        password?: string;
+      };
+      const userIdentifier = (identifier ?? phone ?? email ?? '').trim();
       const rawPassword = password ?? '';
 
-      if (!normalizedEmail || !rawPassword) {
-        res.status(400).json({ error: 'Preencha e-mail e senha para continuar.' });
+      if (!userIdentifier || !rawPassword) {
+        res.status(400).json({ error: 'Informe o número de telefone e a senha para continuar.' });
         return;
       }
 
-      const user = await db.findUserByEmail(normalizedEmail);
+      const user = await db.findUserByIdentifier(userIdentifier);
       if (!user || !verifyPassword(rawPassword, user.passwordHash)) {
         res.status(401).json({
-          error: 'E-mail ou senha inválidos. Verifique suas credenciais e tente novamente.',
+          error: 'Número de telefone ou senha incorretos. Verifique suas credenciais e tente novamente.',
         });
         return;
       }
@@ -301,24 +314,47 @@ export function createApiApp(): Express {
     asyncHandler(async (req, res) => {
       const body = req.body as {
         name?: string;
+        phone?: string;
         email?: string;
         password?: string;
-        phone?: string;
+        province?: string;
+        city?: string;
+        neighborhood?: string;
+        zipCode?: string;
+        avatarUrl?: string;
         isSeller?: boolean;
         storeName?: string;
-        documentId?: string;
         mainCategory?: string;
+        description?: string;
+        storeLocation?: string;
+        logoUrl?: string;
+        bannerImage?: string;
+        socials?: {
+          facebook?: string;
+          instagram?: string;
+          tiktok?: string;
+          youtube?: string;
+        };
       };
 
       const errors = validateRegistration({
         name: body.name ?? '',
-        email: body.email ?? '',
+        phone: body.phone ?? '',
+        email: body.email,
         password: body.password ?? '',
-        phone: body.phone,
+        province: body.province,
+        city: body.city,
+        neighborhood: body.neighborhood,
+        zipCode: body.zipCode,
         isSeller: Boolean(body.isSeller),
         storeName: body.storeName,
-        documentId: body.documentId,
         mainCategory: body.mainCategory,
+        description: body.description,
+        storeLocation: body.storeLocation,
+        logoUrl: body.logoUrl,
+        bannerImage: body.bannerImage,
+        avatarUrl: body.avatarUrl,
+        socials: body.socials,
       });
 
       if (Object.keys(errors).length > 0) {
@@ -326,14 +362,25 @@ export function createApiApp(): Express {
         return;
       }
 
-      const emailNorm = body.email!.trim().toLowerCase();
-      const phoneClean = body.phone?.trim() || undefined;
-      const existing = await db.findUserByEmail(emailNorm);
-      if (existing) {
-        res.status(409).json({ error: 'Este e-mail já está cadastrado na Cellbox.' });
-        return;
+      const phoneClean = body.phone?.trim();
+      if (phoneClean) {
+        const existingPhone = await db.findUserByPhone(phoneClean);
+        if (existingPhone) {
+          res.status(409).json({ error: 'Este número de telefone já está cadastrado na CellBox.' });
+          return;
+        }
       }
 
+      const emailTrimmed = body.email?.trim().toLowerCase();
+      if (emailTrimmed) {
+        const existingEmail = await db.findUserByEmail(emailTrimmed);
+        if (existingEmail) {
+          res.status(409).json({ error: 'Este e-mail já está cadastrado na CellBox.' });
+          return;
+        }
+      }
+
+      const emailFinal = emailTrimmed || `${body.phone?.replace(/\D/g, '') || Date.now()}@cellbox.mz`;
       const userId = `user-${Date.now()}`;
       const today = new Date().toISOString().slice(0, 10);
       const passwordHash = hashPassword(body.password!);
@@ -344,7 +391,6 @@ export function createApiApp(): Express {
       if (body.isSeller) {
         const sellerId = `seller-${Date.now()}`;
         const storeName = body.storeName!.trim();
-        const docClean = body.documentId?.trim() || 'Pendente';
         const initials =
           storeName
             .split(/\s+/)
@@ -356,10 +402,15 @@ export function createApiApp(): Express {
         createdUser = {
           id: userId,
           name: body.name!.trim(),
-          email: emailNorm,
+          email: emailFinal,
           role: 'seller',
           phone: phoneClean,
           sellerId,
+          avatarUrl: body.avatarUrl?.trim() || undefined,
+          province: body.province?.trim() || 'Maputo Cidade',
+          city: body.city?.trim() || 'Maputo',
+          neighborhood: body.neighborhood?.trim() || 'Central',
+          zipCode: body.zipCode?.trim() || '1100',
           createdAt: today,
           passwordHash,
         };
@@ -369,33 +420,52 @@ export function createApiApp(): Express {
           ownerUserId: userId,
           name: storeName,
           slug: storeName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-          documentId: docClean,
+          documentId: 'Pendente de KYC',
           mainCategory: body.mainCategory!,
-          description: `Loja parceira Cellbox especializada em ${body.mainCategory}.`,
+          description:
+            body.description?.trim() ||
+            `Loja parceira CellBox especializada em ${body.mainCategory}.`,
           logoText: initials,
+          logoUrl: body.logoUrl?.trim() || undefined,
           accentColor: '#0475EE',
-          bannerImage: ASSET_IMAGES.hero,
+          bannerImage: body.bannerImage?.trim() || ASSET_IMAGES.hero,
           status: 'pending',
           verified: false,
           rating: 5.0,
           reviewCount: 0,
           joinedDate: today,
-          tenureLabel: 'Aguardando aprovação',
-          location: 'Maputo, Moçambique',
+          tenureLabel: 'Pendente de Ativação',
+          location:
+            body.storeLocation?.trim() ||
+            `${body.city || 'Maputo'}, ${body.province || 'Moçambique'}`,
+          socials: body.socials ?? {},
+          kyc: {
+            status: 'not_submitted',
+          },
+          activation: {
+            profileCompleted: true,
+            kycCompleted: false,
+            feePaid: false,
+          },
           payoutInfo: {
             bankName: 'Pendente de configuração',
             accountType: 'Conta Empresarial',
             accountNumber: '—',
-            pixOrWallet: phoneClean || docClean,
+            pixOrWallet: phoneClean || 'M-Pesa',
           },
         };
       } else {
         createdUser = {
           id: userId,
           name: body.name!.trim(),
-          email: emailNorm,
+          email: emailFinal,
           role: 'buyer',
           phone: phoneClean,
+          avatarUrl: body.avatarUrl?.trim() || undefined,
+          province: body.province?.trim() || 'Maputo Cidade',
+          city: body.city?.trim() || 'Maputo',
+          neighborhood: body.neighborhood?.trim() || 'Central',
+          zipCode: body.zipCode?.trim() || '1100',
           createdAt: today,
           passwordHash,
         };
@@ -410,6 +480,70 @@ export function createApiApp(): Express {
         seller: createdSeller,
         ...(await buildBootstrapPayload(createdUser)),
       });
+    })
+  );
+
+  // ── Seller Activation: KYC Verification ──────────────────────────────────
+  app.post(
+    '/api/seller/kyc',
+    asyncHandler(async (req, res) => {
+      const user = await getAuthenticatedUser(req);
+      if (!user || user.role !== 'seller') {
+        res.status(401).json({ error: 'Apenas vendedores podem submeter verificação KYC.' });
+        return;
+      }
+      const seller = await db.findSellerOwnedBy(user.id, user.sellerId);
+      if (!seller) {
+        res.status(404).json({ error: 'Loja não encontrada.' });
+        return;
+      }
+      const { documentType, documentNumber, documentFrontUrl, documentBackUrl } = req.body as {
+        documentType?: 'BI' | 'NUIT' | 'Passaporte' | 'Alvara';
+        documentNumber?: string;
+        documentFrontUrl?: string;
+        documentBackUrl?: string;
+      };
+      if (!documentNumber?.trim()) {
+        res.status(400).json({ error: 'Informe o número do documento de identificação.' });
+        return;
+      }
+      const kycData: SellerKycInfo = {
+        status: 'pending',
+        documentType: documentType || 'BI',
+        documentNumber: documentNumber.trim(),
+        documentFrontUrl: documentFrontUrl?.trim() || undefined,
+        documentBackUrl: documentBackUrl?.trim() || undefined,
+        submittedAt: new Date().toISOString(),
+      };
+      const updated = await db.updateSellerKyc(seller.id, kycData);
+      res.json({ ok: true, seller: updated, ...(await buildBootstrapPayload(user)) });
+    })
+  );
+
+  // ── Seller Activation: 100 MZN Registration Fee Payment ───────────────────
+  app.post(
+    '/api/seller/activate-fee',
+    asyncHandler(async (req, res) => {
+      const user = await getAuthenticatedUser(req);
+      if (!user || user.role !== 'seller') {
+        res.status(401).json({ error: 'Acesso restrito ao vendedor.' });
+        return;
+      }
+      const seller = await db.findSellerOwnedBy(user.id, user.sellerId);
+      if (!seller) {
+        res.status(404).json({ error: 'Loja não encontrada.' });
+        return;
+      }
+      const { method, phone } = req.body as { method?: 'mpesa' | 'emola'; phone?: string };
+      if (!method || !phone?.trim()) {
+        res.status(400).json({ error: 'Selecione M-Pesa ou e-Mola e informe o número de telefone.' });
+        return;
+      }
+      const updated = await db.paySellerActivationFee(seller.id, {
+        method,
+        phone: phone.trim(),
+      });
+      res.json({ ok: true, seller: updated, ...(await buildBootstrapPayload(user)) });
     })
   );
 

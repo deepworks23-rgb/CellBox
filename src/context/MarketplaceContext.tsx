@@ -20,6 +20,8 @@ import type {
   Product,
   ProductCondition,
   ProductSpecs,
+  SellerActivationStatus,
+  SellerKycInfo,
   SellerPayoutInfo,
   SellerStatus,
   SellerStore,
@@ -85,13 +87,27 @@ export interface NewProductPayload {
 
 export interface RegisterPayload {
   name: string;
-  email: string;
+  phone: string;
+  email?: string;
   password: string;
-  phone?: string;
+  province?: string;
+  city?: string;
+  neighborhood?: string;
+  zipCode?: string;
+  avatarUrl?: string;
   isSeller: boolean;
   storeName?: string;
-  documentId?: string;
   mainCategory?: string;
+  description?: string;
+  storeLocation?: string;
+  logoUrl?: string;
+  bannerImage?: string;
+  socials?: {
+    facebook?: string;
+    instagram?: string;
+    tiktok?: string;
+    youtube?: string;
+  };
 }
 
 interface MarketplaceContextValue {
@@ -122,8 +138,13 @@ interface MarketplaceContextValue {
   toast: ToastMessage | null;
   showToast: (message: string, tone?: ToastMessage['tone']) => void;
   // Real Auth & RBAC
-  login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+  login: (identifier: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   registerUser: (payload: RegisterPayload) => Promise<{ ok: boolean; error?: string }>;
+  submitSellerKyc: (sellerId: string, kyc: SellerKycInfo) => Promise<boolean>;
+  paySellerActivationFee: (
+    sellerId: string,
+    data: { method: 'mpesa' | 'emola'; phone: string }
+  ) => Promise<boolean>;
   logout: () => Promise<void>;
   updateProfile: (updates: { name: string; phone: string }) => Promise<boolean>;
   changePassword: (
@@ -436,18 +457,18 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
 
   // ── Real Auth & RBAC ──────────────────────────────────────────────────────
   const login = async (
-    email: string,
+    identifier: string,
     password: string
   ): Promise<{ ok: boolean; error?: string }> => {
     const res = await apiRequest<BootstrapResponse>('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ identifier, password }),
     });
 
     if (!res.ok) {
       return {
         ok: false,
-        error: res.data.error ?? 'E-mail ou senha inválidos.',
+        error: res.data.error ?? 'Número de telefone ou senha inválidos.',
       };
     }
 
@@ -483,13 +504,47 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
     if (payload.isSeller) {
       showToast(
-        `Loja "${payload.storeName}" cadastrada com status Pendente de Aprovação.`,
-        'warning'
+        `Loja "${payload.storeName}" cadastrada com sucesso! Conclua a ativação no seu painel.`,
+        'info'
       );
     } else {
       showToast(`Conta criada com sucesso! Boas compras, ${res.data.currentUser?.name}.`);
     }
     return { ok: true };
+  };
+
+  const submitSellerKyc = async (
+    sellerId: string,
+    kyc: SellerKycInfo
+  ): Promise<boolean> => {
+    const res = await apiRequest<BootstrapResponse>('/api/seller/kyc', {
+      method: 'POST',
+      body: JSON.stringify(kyc),
+    });
+    if (res.ok) {
+      applyBootstrap(res.data);
+      showToast('Documentos de verificação (KYC) submetidos com sucesso!', 'success');
+      return true;
+    }
+    showToast(res.data.error ?? 'Falha ao enviar documentos KYC.', 'warning');
+    return false;
+  };
+
+  const paySellerActivationFee = async (
+    sellerId: string,
+    data: { method: 'mpesa' | 'emola'; phone: string }
+  ): Promise<boolean> => {
+    const res = await apiRequest<BootstrapResponse>('/api/seller/activate-fee', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    if (res.ok) {
+      applyBootstrap(res.data);
+      showToast('Taxa de inscrição de 100 MZN confirmada! Loja ativada!', 'success');
+      return true;
+    }
+    showToast(res.data.error ?? 'Falha ao processar pagamento.', 'warning');
+    return false;
   };
 
   const logout = async () => {
@@ -1048,6 +1103,8 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
         showToast,
         login,
         registerUser,
+        submitSellerKyc,
+        paySellerActivationFee,
         logout,
         updateProfile,
         changePassword,

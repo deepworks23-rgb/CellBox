@@ -7,7 +7,10 @@ import type {
   Order,
   OrderStatus,
   Product,
+  SellerActivationStatus,
+  SellerKycInfo,
   SellerPayoutInfo,
+  SellerSocials,
   SellerStatus,
   SellerStore,
   User,
@@ -280,6 +283,11 @@ function mapUserRow(r: QueryResultRow): StoredUser {
     role: r.role,
     phone: r.phone ? String(r.phone) : undefined,
     sellerId: r.seller_id ? String(r.seller_id) : undefined,
+    avatarUrl: r.avatar_url ? String(r.avatar_url) : undefined,
+    province: r.province ? String(r.province) : undefined,
+    city: r.city ? String(r.city) : undefined,
+    neighborhood: r.neighborhood ? String(r.neighborhood) : undefined,
+    zipCode: r.zip_code ? String(r.zip_code) : undefined,
     createdAt: String(r.created_at),
     passwordHash: String(r.password_hash),
   };
@@ -295,6 +303,7 @@ function mapSellerRow(r: QueryResultRow): SellerStore {
     mainCategory: String(r.main_category),
     description: String(r.description),
     logoText: String(r.logo_text),
+    logoUrl: r.logo_url ? String(r.logo_url) : undefined,
     accentColor: String(r.accent_color),
     bannerImage: String(r.banner_image),
     status: r.status,
@@ -304,6 +313,13 @@ function mapSellerRow(r: QueryResultRow): SellerStore {
     joinedDate: String(r.joined_date),
     tenureLabel: String(r.tenure_label),
     location: String(r.location),
+    socials: (r.socials as SellerSocials) ?? {},
+    kyc: (r.kyc as SellerKycInfo) ?? { status: 'not_submitted' },
+    activation: (r.activation as SellerActivationStatus) ?? {
+      profileCompleted: true,
+      kycCompleted: Boolean(r.verified),
+      feePaid: r.status === 'active',
+    },
     payoutInfo: r.payout_info as SellerPayoutInfo,
   };
 }
@@ -436,6 +452,20 @@ export async function ensureDatabaseSchema(): Promise<void> {
 
     ALTER TABLE products ADD COLUMN IF NOT EXISTS is_flash_deal BOOLEAN NOT NULL DEFAULT FALSE;
     ALTER TABLE products ADD COLUMN IF NOT EXISTS is_best_seller BOOLEAN NOT NULL DEFAULT FALSE;
+
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS province TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS city TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS neighborhood TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS zip_code TEXT;
+    ALTER TABLE users ALTER COLUMN email DROP NOT NULL;
+
+    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS logo_url TEXT;
+    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS socials JSONB DEFAULT '{}'::jsonb;
+    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS kyc JSONB DEFAULT '{"status":"not_submitted"}'::jsonb;
+    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS activation JSONB DEFAULT '{"profileCompleted":true,"kycCompleted":false,"feePaid":false}'::jsonb;
+
+    CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
 
     CREATE TABLE IF NOT EXISTS orders (
       id TEXT PRIMARY KEY,
@@ -863,6 +893,46 @@ export async function findUserByEmail(email: string): Promise<StoredUser | null>
   return res.rows[0] ? mapUserRow(res.rows[0]) : null;
 }
 
+export function normalizePhone(raw?: string): string {
+  if (!raw) return '';
+  const digits = raw.replace(/\D/g, '');
+  if (digits.startsWith('258') && digits.length >= 11) {
+    return digits.slice(3);
+  }
+  return digits;
+}
+
+export async function findUserByPhone(phone: string): Promise<StoredUser | null> {
+  const normalized = normalizePhone(phone);
+  if (!normalized) return null;
+  const res = await query(
+    `SELECT * FROM users
+     WHERE regexp_replace(COALESCE(phone, ''), '\\D', 'g') = $1
+        OR regexp_replace(COALESCE(phone, ''), '\\D', 'g') = $2
+     LIMIT 1`,
+    [normalized, `258${normalized}`]
+  );
+  return res.rows[0] ? mapUserRow(res.rows[0]) : null;
+}
+
+export async function findUserByIdentifier(identifier: string): Promise<StoredUser | null> {
+  const trimmed = identifier.trim();
+  if (!trimmed) return null;
+
+  // If looks like phone (digits, +, spaces)
+  const phoneDigits = normalizePhone(trimmed);
+  if (phoneDigits.length >= 7) {
+    const user = await findUserByPhone(phoneDigits);
+    if (user) return user;
+  }
+
+  // Try by email
+  const byEmail = await findUserByEmail(trimmed);
+  if (byEmail) return byEmail;
+
+  return null;
+}
+
 export async function listUsers(): Promise<StoredUser[]> {
   const res = await query('SELECT * FROM users ORDER BY created_at ASC, id ASC');
   return res.rows.map(mapUserRow);
@@ -874,8 +944,10 @@ export async function createUserAccount(
 ): Promise<{ user: StoredUser; seller?: SellerStore }> {
   return withTransaction(async (client) => {
     await client.query(
-      `INSERT INTO users (id, name, email, role, phone, seller_id, password_hash, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      `INSERT INTO users (
+        id, name, email, role, phone, seller_id, password_hash, created_at,
+        avatar_url, province, city, neighborhood, zip_code
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
       [
         user.id,
         user.name,
@@ -885,8 +957,34 @@ export async function createUserAccount(
         user.sellerId ?? null,
         user.passwordHash,
         user.createdAt,
+        user.avatarUrl ?? null,
+        user.province ?? null,
+        user.city ?? null,
+        user.neighborhood ?? null,
+        user.zipCode ?? null,
       ]
     );
+
+    // If user provided address during registration, save as primary address
+    if (user.city || user.province) {
+      const addrId = `addr-${Date.now()}`;
+      await client.query(
+        `INSERT INTO addresses (id, user_id, label, recipient, street, city, state, zip_code, is_default, sort_order)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [
+          addrId,
+          user.id,
+          'Endereço Principal',
+          user.name,
+          user.neighborhood || 'Bairro Central',
+          user.city || 'Maputo',
+          user.province || 'Maputo Cidade',
+          user.zipCode || '1100',
+          true,
+          0,
+        ]
+      );
+    }
 
     if (seller) {
       const minOrderRes = await client.query<{ min_order: number | null }>(
@@ -897,12 +995,14 @@ export async function createUserAccount(
       await client.query(
         `INSERT INTO sellers (
           id, owner_user_id, name, slug, document_id, main_category, description,
-          logo_text, accent_color, banner_image, status, verified, rating,
-          review_count, joined_date, tenure_label, location, payout_info, sort_order
+          logo_text, logo_url, accent_color, banner_image, status, verified, rating,
+          review_count, joined_date, tenure_label, location, payout_info,
+          socials, kyc, activation, sort_order
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7,
           $8, $9, $10, $11, $12, $13,
-          $14, $15, $16, $17, $18::jsonb, $19
+          $14, $15, $16, $17, $18::jsonb,
+          $19::jsonb, $20::jsonb, $21::jsonb, $22
         )`,
         [
           seller.id,
@@ -913,6 +1013,7 @@ export async function createUserAccount(
           seller.mainCategory,
           seller.description,
           seller.logoText,
+          seller.logoUrl ?? null,
           seller.accentColor,
           seller.bannerImage,
           seller.status,
@@ -923,6 +1024,9 @@ export async function createUserAccount(
           seller.tenureLabel,
           seller.location,
           JSON.stringify(seller.payoutInfo),
+          JSON.stringify(seller.socials ?? {}),
+          JSON.stringify(seller.kyc ?? { status: 'not_submitted' }),
+          JSON.stringify(seller.activation ?? { profileCompleted: true, kycCompleted: false, feePaid: false }),
           nextSortOrder,
         ]
       );
@@ -1208,6 +1312,11 @@ export async function listSellers(): Promise<SellerStore[]> {
   return res.rows.map(mapSellerRow);
 }
 
+export async function findSellerById(sellerId: string): Promise<SellerStore | null> {
+  const res = await query('SELECT * FROM sellers WHERE id = $1 LIMIT 1', [sellerId]);
+  return res.rows[0] ? mapSellerRow(res.rows[0]) : null;
+}
+
 export async function findSellerOwnedBy(
   userId: string,
   sellerId?: string
@@ -1215,6 +1324,104 @@ export async function findSellerOwnedBy(
   const res = await query(
     'SELECT * FROM sellers WHERE id = $1 OR owner_user_id = $2 LIMIT 1',
     [sellerId ?? '', userId]
+  );
+  return res.rows[0] ? mapSellerRow(res.rows[0]) : null;
+}
+
+export async function updateSellerKyc(
+  sellerId: string,
+  kyc: SellerKycInfo
+): Promise<SellerStore | null> {
+  const seller = await findSellerById(sellerId);
+  if (!seller) return null;
+
+  const currentActivation = seller.activation ?? {
+    profileCompleted: true,
+    kycCompleted: false,
+    feePaid: false,
+  };
+
+  const updatedActivation: SellerActivationStatus = {
+    ...currentActivation,
+    kycCompleted: kyc.status === 'verified' || kyc.status === 'pending',
+  };
+
+  const isFullyReady =
+    updatedActivation.profileCompleted &&
+    updatedActivation.kycCompleted &&
+    updatedActivation.feePaid;
+
+  const nextStatus = isFullyReady ? 'active' : seller.status;
+  const nextVerified = isFullyReady;
+  const nextTenure = isFullyReady ? 'Loja Verificada' : seller.tenureLabel;
+
+  const res = await query(
+    `UPDATE sellers
+     SET kyc = $2::jsonb,
+         activation = $3::jsonb,
+         status = $4,
+         verified = $5,
+         tenure_label = $6
+     WHERE id = $1
+     RETURNING *`,
+    [
+      sellerId,
+      JSON.stringify(kyc),
+      JSON.stringify(updatedActivation),
+      nextStatus,
+      nextVerified,
+      nextTenure,
+    ]
+  );
+  return res.rows[0] ? mapSellerRow(res.rows[0]) : null;
+}
+
+export async function paySellerActivationFee(
+  sellerId: string,
+  data: { method: 'mpesa' | 'emola'; phone: string }
+): Promise<SellerStore | null> {
+  const seller = await findSellerById(sellerId);
+  if (!seller) return null;
+
+  const currentActivation = seller.activation ?? {
+    profileCompleted: true,
+    kycCompleted: false,
+    feePaid: false,
+  };
+
+  const updatedActivation: SellerActivationStatus = {
+    ...currentActivation,
+    feePaid: true,
+    feePaymentMethod: data.method,
+    feePhone: data.phone,
+    feePaidAt: new Date().toISOString(),
+    feeReceipt: `MZN-100-${Date.now().toString().slice(-6)}`,
+  };
+
+  const isFullyReady =
+    updatedActivation.profileCompleted &&
+    updatedActivation.kycCompleted &&
+    updatedActivation.feePaid;
+
+  const nextStatus = isFullyReady ? 'active' : seller.status;
+  const nextVerified = isFullyReady;
+  const nextTenure = isFullyReady ? 'Loja Verificada' : seller.tenureLabel;
+
+  const res = await query(
+    `UPDATE sellers
+     SET activation = $2::jsonb,
+         status = $3,
+         verified = $4,
+         tenure_label = $5
+     WHERE id = $1
+     RETURNING *`,
+    [
+      sellerId,
+      JSON.stringify(updatedActivation),
+      nextStatus,
+      nextVerified,
+      nextTenure,
+    ]
   );
   return res.rows[0] ? mapSellerRow(res.rows[0]) : null;
 }

@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
 import { ASSET_IMAGES, CUTOUT_IMAGES } from '../data/seedData';
-import { filterVisibleProducts } from '../utils/marketplace';
+import { filterVisibleProducts, isStorePubliclyActive } from '../utils/marketplace';
 import { MotionButton, SPRING_CARD, SPRING_SNAPPY } from './MotionPrimitives';
 import { ProductCard } from './ProductCard';
 import { BrandLogo, type PartnerBrandName } from './BrandLogo';
@@ -92,7 +92,7 @@ export function HomeView() {
   };
 
   const activeSellers = useMemo(
-    () => sellers.filter((s) => s.status === 'active'),
+    () => sellers.filter(isStorePubliclyActive),
     [sellers]
   );
 

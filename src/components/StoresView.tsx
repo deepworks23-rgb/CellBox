@@ -13,7 +13,7 @@ import {
 import { useMarketplace } from '../context/MarketplaceContext';
 import { ASSET_IMAGES } from '../data/seedData';
 import type { SellerStore } from '../types';
-import { formatCurrency } from '../utils/marketplace';
+import { formatCurrency, isStorePubliclyActive } from '../utils/marketplace';
 import { MotionButton } from './MotionPrimitives';
 import { ProductImage } from './ProductImage';
 
@@ -34,7 +34,7 @@ export function StoresView() {
   const [selectedCategory, setSelectedCategory] = useState('Todas');
 
   const activeStores = useMemo(
-    () => sellers.filter((s) => s.status === 'active'),
+    () => sellers.filter(isStorePubliclyActive),
     [sellers]
   );
 

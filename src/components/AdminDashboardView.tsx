@@ -382,8 +382,38 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                                 {s.documentId}
                               </td>
                               <td className="py-3.5 px-4 text-[#444444]">{s.mainCategory}</td>
-                              <td className={`py-3.5 px-4 text-xs font-bold ${statusColor(s.status)}`}>
-                                {statusLabel(s.status)}
+                              <td className="py-3.5 px-4">
+                                <div className="space-y-1">
+                                  <span className={`inline-block text-xs font-bold ${statusColor(s.status)}`}>
+                                    {statusLabel(s.status)}
+                                  </span>
+                                  <div className="flex flex-wrap gap-1">
+                                    <span
+                                      className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-[2px] ${
+                                        s.activation?.kycCompleted || s.kyc?.status === 'verified'
+                                          ? 'bg-emerald-100 text-emerald-800'
+                                          : s.kyc?.status === 'pending'
+                                            ? 'bg-amber-100 text-amber-800'
+                                            : 'bg-neutral-100 text-neutral-600'
+                                      }`}
+                                    >
+                                      {s.activation?.kycCompleted || s.kyc?.status === 'verified'
+                                        ? 'KYC OK'
+                                        : s.kyc?.status === 'pending'
+                                          ? 'KYC Análise'
+                                          : 'KYC Pendente'}
+                                    </span>
+                                    <span
+                                      className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-[2px] ${
+                                        s.activation?.feePaid
+                                          ? 'bg-emerald-100 text-emerald-800'
+                                          : 'bg-rose-100 text-rose-800'
+                                      }`}
+                                    >
+                                      {s.activation?.feePaid ? '100 MT Pago' : 'Taxa Pendente'}
+                                    </span>
+                                  </div>
+                                </div>
                               </td>
                               <td className="py-3.5 px-5">
                                 <div className="flex items-center justify-end gap-2">
