@@ -768,55 +768,91 @@ export function createApiApp(): Express {
       }
 
       const payload = req.body as {
-        sellerId: string;
+        sellerId?: string;
         title: string;
-        brand: string;
+        brand?: string;
         category: string;
-        condition: ProductCondition;
+        subcategory?: string;
+        condition?: ProductCondition;
         price: number;
         originalPrice?: number;
         stock: number;
         description: string;
-        imageUrl: string;
-        specs: ProductSpecs;
+        imageUrl?: string;
+        images?: string[];
+        specs?: Record<string, string>;
       };
 
-      const errors = validateProductForm({
-        title: payload.title ?? '',
-        brand: payload.brand ?? '',
-        category: payload.category ?? '',
-        condition: payload.condition ?? 'Novo',
-        price: Number(payload.price),
-        stock: Number(payload.stock),
-        description: payload.description ?? '',
-      });
-
-      if (Object.keys(errors).length > 0) {
-        res.status(400).json({ error: Object.values(errors)[0], errors });
+      if (!payload.title?.trim() || !payload.category?.trim() || Number(payload.price) <= 0 || !payload.description?.trim()) {
+        res.status(400).json({ error: 'Preencha todos os campos obrigatórios: Nome, Categoria, Preço e Descrição.' });
         return;
       }
+
+      const imgList = Array.isArray(payload.images) && payload.images.length > 0
+        ? payload.images.filter(Boolean)
+        : payload.imageUrl?.trim()
+          ? [payload.imageUrl.trim()]
+          : ['/api/assets/uploads/products/placeholder.png'];
 
       const created = await db.createProduct({
         id: `prod-${Date.now()}`,
         sellerId: ownedSeller.id,
         title: payload.title.trim(),
-        brand: payload.brand.trim(),
-        category: payload.category,
-        condition: payload.condition,
+        brand: payload.brand?.trim() || '',
+        category: payload.category.trim(),
+        condition: payload.condition || 'Novo',
         price: Number(payload.price),
         originalPrice: payload.originalPrice ? Number(payload.originalPrice) : undefined,
-        stock: Number(payload.stock),
+        stock: Number(payload.stock) || 0,
         rating: 5.0,
         reviewCount: 0,
         soldCount: 0,
-        images: [payload.imageUrl?.trim() || ASSET_IMAGES.iphone16Pro],
+        images: imgList,
         description: payload.description.trim(),
-        specs: payload.specs ?? { warranty: '12 meses' },
+        specs: payload.specs ?? {},
         createdAt: new Date().toISOString().slice(0, 10),
       });
 
       const products = await db.listProducts();
       res.status(201).json({ product: created, products });
+    })
+  );
+
+  app.post(
+    '/api/products/bulk',
+    asyncHandler(async (req, res) => {
+      const user = await getAuthenticatedUser(req);
+      if (!user || user.role !== 'seller') {
+        res.status(403).json({ error: 'Apenas lojistas autenticados podem importar produtos.' });
+        return;
+      }
+      const ownedSeller = await db.findSellerOwnedBy(user.id, user.sellerId);
+      if (!ownedSeller) {
+        res.status(403).json({ error: 'Loja do vendedor não encontrada.' });
+        return;
+      }
+      const { items } = req.body as { items: any[] };
+      if (!Array.isArray(items) || items.length === 0) {
+        res.status(400).json({ error: 'Nenhum produto fornecido para importação.' });
+        return;
+      }
+      if (items.length > 300) {
+        res.status(400).json({ error: 'O limite máximo para importação é de 300 produtos por arquivo CSV.' });
+        return;
+      }
+
+      const validItems = items.filter(
+        (it) => it && it.title?.trim() && it.category?.trim() && Number(it.price) > 0
+      );
+
+      if (validItems.length === 0) {
+        res.status(400).json({ error: 'Nenhum produto válido encontrado. Verifique o preenchimento das colunas obrigatórias.' });
+        return;
+      }
+
+      const created = await db.createBulkProducts(ownedSeller.id, validItems);
+      const products = await db.listProducts();
+      res.status(201).json({ count: created.length, products });
     })
   );
 
@@ -1122,10 +1158,13 @@ export function createApiApp(): Express {
       const updates = req.body as {
         name: string;
         description: string;
-        logoText: string;
-        accentColor: string;
+        logoText?: string;
+        accentColor?: string;
         location: string;
-        bannerImage: string;
+        bannerImage?: string;
+        logoUrl?: string;
+        mainCategory?: string;
+        socials?: SellerSocials;
         payoutInfo: SellerPayoutInfo;
       };
       await db.updateSellerSettings(req.params.id, updates);

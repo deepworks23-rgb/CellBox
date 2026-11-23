@@ -34,9 +34,15 @@ import {
   viewToPath,
 } from '../utils/rbac';
 
-const CART_STORAGE_KEY = 'cellbox_cart_v3';
-const GUEST_WISHLIST_KEY = 'cellbox_guest_wishlist_v3';
-const AUTH_TOKEN_KEY = 'cellbox_auth_token_v1';
+let inMemoryAuthToken: string | null = null;
+
+function getStoredToken(): string | null {
+  return inMemoryAuthToken;
+}
+
+function setStoredToken(token: string | null) {
+  inMemoryAuthToken = token;
+}
 
 interface MarketplaceState {
   users: User[];
@@ -76,13 +82,15 @@ export interface NewProductPayload {
   title: string;
   brand: string;
   category: string;
+  subcategory?: string;
   condition: ProductCondition;
   price: number;
   originalPrice?: number;
   stock: number;
   description: string;
-  imageUrl: string;
-  specs: ProductSpecs;
+  imageUrl?: string;
+  images?: string[];
+  specs?: Record<string, string>;
 }
 
 export interface RegisterPayload {
@@ -201,13 +209,19 @@ interface MarketplaceContextValue {
     updates: {
       name: string;
       description: string;
-      logoText: string;
-      accentColor: string;
+      logoText?: string;
+      accentColor?: string;
       location: string;
-      bannerImage: string;
+      bannerImage?: string;
+      logoUrl?: string;
+      mainCategory?: string;
+      socials?: SellerSocials;
       payoutInfo: SellerPayoutInfo;
     }
   ) => Promise<void>;
+  importProductsFromCsv: (
+    items: Array<any>
+  ) => Promise<{ ok: boolean; count?: number; error?: string }>;
   uploadImageAsset: (
     file: File,
     folder?: 'products' | 'banners' | 'avatars' | 'logos' | 'kyc' | string
@@ -238,49 +252,11 @@ const DEFAULT_FILTERS: CatalogFilters = {
 };
 
 function readStoredCart(): CartItem[] {
-  try {
-    const raw = window.localStorage.getItem(CART_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
-    }
-  } catch {
-    // Ignore invalid storage
-  }
   return [];
 }
 
 function readGuestWishlist(): string[] {
-  try {
-    const raw = window.localStorage.getItem(GUEST_WISHLIST_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
-    }
-  } catch {
-    // Ignore
-  }
   return [];
-}
-
-function getStoredToken(): string | null {
-  try {
-    return window.localStorage.getItem(AUTH_TOKEN_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function setStoredToken(token: string | null) {
-  try {
-    if (token) {
-      window.localStorage.setItem(AUTH_TOKEN_KEY, token);
-    } else {
-      window.localStorage.removeItem(AUTH_TOKEN_KEY);
-    }
-  } catch {
-    // Ignore
-  }
 }
 
 async function apiRequest<T>(
@@ -435,13 +411,9 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
     return () => window.removeEventListener('popstate', onPopState);
   }, [state.currentUser, syncBrowserUrl, showToast]);
 
-  // Persist cart to localStorage across reloads
+  // In-memory cart during session
   useEffect(() => {
-    try {
-      window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(state.cart));
-    } catch {
-      // Ignore quota errors
-    }
+    // Pure in-memory session cart; no localStorage
   }, [state.cart]);
 
   const navigate = useCallback(
@@ -733,11 +705,6 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
       const next = exists
         ? state.wishlist.filter((id) => id !== productId)
         : [productId, ...state.wishlist];
-      try {
-        window.localStorage.setItem(GUEST_WISHLIST_KEY, JSON.stringify(next));
-      } catch {
-        // Ignore
-      }
       setState((prev) => ({ ...prev, wishlist: next }));
       showToast(exists ? 'Removido da lista de desejos.' : 'Salvo na lista de desejos.', 'info');
       return;
@@ -946,6 +913,23 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
     }
   };
 
+  const importProductsFromCsv: MarketplaceContextValue['importProductsFromCsv'] = async (
+    items
+  ) => {
+    const res = await apiRequest<{ count: number; products: Product[] }>('/api/products/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ items }),
+    });
+    if (!res.ok) {
+      const err = res.data.error || 'Falha ao importar produtos.';
+      showToast(err, 'warning');
+      return { ok: false, error: err };
+    }
+    setState((prev) => ({ ...prev, products: res.data.products }));
+    showToast(`${res.data.count} produtos importados com sucesso!`, 'success');
+    return { ok: true, count: res.data.count };
+  };
+
   const uploadImageAsset = async (
     file: File,
     folder: 'products' | 'banners' | 'avatars' | 'logos' | 'kyc' | string = 'products'
@@ -1143,6 +1127,7 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
         updateProduct,
         deleteProduct,
         updateSellerSettings,
+        importProductsFromCsv,
         uploadImageAsset,
         setSellerStatus,
         addCategory,

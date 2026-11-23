@@ -145,7 +145,8 @@ export interface ProductSpecs {
   processor?: string;
   display?: string;
   battery?: string;
-  warranty: string;
+  warranty?: string;
+  [key: string]: string | undefined;
 }
 
 export interface Product {
@@ -154,6 +155,7 @@ export interface Product {
   title: string;
   brand: string;
   category: string;
+  subcategory?: string;
   condition: ProductCondition;
   price: number;
   originalPrice?: number;
@@ -164,6 +166,7 @@ export interface Product {
   isFlashDeal?: boolean;
   isBestSeller?: boolean;
   images: string[];
+  imageUrl?: string;
   description: string;
   specs: ProductSpecs;
   createdAt: string;

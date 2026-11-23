@@ -74,6 +74,10 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
   const [name, setName] = useState(currentUser?.name ?? '');
   const [phone, setPhone] = useState(currentUser?.phone ?? '');
   const [avatarUrl, setAvatarUrl] = useState(currentUser?.avatarUrl ?? '');
+  const [province, setProvince] = useState(currentUser?.province ?? 'Maputo');
+  const [city, setCity] = useState(currentUser?.city ?? '');
+  const [neighborhood, setNeighborhood] = useState(currentUser?.neighborhood ?? '');
+  const [zipCode, setZipCode] = useState(currentUser?.zipCode ?? '');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
 
@@ -82,6 +86,10 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
     setName(currentUser.name);
     setPhone(currentUser.phone ?? '');
     setAvatarUrl(currentUser.avatarUrl ?? '');
+    setProvince(currentUser.province ?? 'Maputo');
+    setCity(currentUser.city ?? '');
+    setNeighborhood(currentUser.neighborhood ?? '');
+    setZipCode(currentUser.zipCode ?? '');
   }, [currentUser]);
 
   // Password change form
@@ -194,12 +202,24 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('O arquivo excede o limite máximo de 5 MB.', 'warning');
+      return;
+    }
     setUploadingAvatar(true);
     try {
       const res = await uploadImageAsset(file, 'avatars');
       if (res.ok && res.url) {
         setAvatarUrl(res.url);
-        await updateProfile({ name, phone, avatarUrl: res.url });
+        await updateProfile({
+          name,
+          phone,
+          avatarUrl: res.url,
+          province,
+          city,
+          neighborhood,
+          zipCode,
+        });
       }
     } finally {
       setUploadingAvatar(false);
@@ -210,7 +230,15 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
     e.preventDefault();
     setSavingProfile(true);
     try {
-      await updateProfile({ name, phone, avatarUrl });
+      await updateProfile({
+        name,
+        phone,
+        avatarUrl,
+        province,
+        city,
+        neighborhood,
+        zipCode,
+      });
     } finally {
       setSavingProfile(false);
     }
@@ -747,12 +775,13 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
               </div>
               <div>
                 <p className="text-xs font-bold text-[#444444] mb-1">Foto de Perfil</p>
+                <p className="text-[11px] text-[#777777] mb-2">Recomendado: 500x500 px (1:1), máx. 5 MB</p>
                 <label className="h-8 px-3.5 rounded-[3px] border border-[#DCDCDC] hover:border-[#0475EE] bg-[#F9FAFB] text-xs font-semibold text-[#333333] inline-flex items-center gap-2 cursor-pointer transition-colors">
                   <Camera className="w-3.5 h-3.5 text-[#0475EE]" />
                   {uploadingAvatar ? 'Carregando...' : 'Alterar Foto'}
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/png,image/jpeg,image/webp,image/avif"
                     onChange={handleAvatarUpload}
                     disabled={uploadingAvatar}
                     className="hidden"
@@ -762,11 +791,12 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
             </div>
             <div>
               <label htmlFor="acc-name" className="block text-xs font-bold text-[#444444] mb-1">
-                Nome completo
+                Nome completo *
               </label>
               <input
                 id="acc-name"
                 type="text"
+                required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm focus:outline-none focus:border-[#0475EE]"
@@ -774,7 +804,7 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
             </div>
             <div>
               <label htmlFor="acc-email" className="block text-xs font-bold text-[#444444] mb-1">
-                E-mail de acesso
+                E-mail (opcional)
               </label>
               <input
                 id="acc-email"
@@ -786,16 +816,85 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
             </div>
             <div>
               <label htmlFor="acc-phone" className="block text-xs font-bold text-[#444444] mb-1">
-                Telefone / WhatsApp
+                Telefone / WhatsApp *
               </label>
               <input
                 id="acc-phone"
                 type="text"
+                required
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+258 84 000 0000"
                 className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm font-mono focus:outline-none focus:border-[#0475EE]"
               />
+            </div>
+
+            {/* Endereço completo conforme especificação */}
+            <div className="pt-2 border-t border-[#EAEAEA] space-y-3">
+              <p className="text-xs font-bold uppercase tracking-wider text-[#0A3768]">
+                Endereço de Entrega Principal
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="acc-province" className="block text-xs font-bold text-[#444444] mb-1">
+                    Província *
+                  </label>
+                  <select
+                    id="acc-province"
+                    value={province}
+                    onChange={(e) => setProvince(e.target.value)}
+                    className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] bg-white text-sm"
+                  >
+                    {MZ_PROVINCES.map((prov) => (
+                      <option key={prov} value={prov}>
+                        {prov}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="acc-city" className="block text-xs font-bold text-[#444444] mb-1">
+                    Cidade *
+                  </label>
+                  <input
+                    id="acc-city"
+                    type="text"
+                    required
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="Ex: Matola, Maputo, Beira"
+                    className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="acc-neigh" className="block text-xs font-bold text-[#444444] mb-1">
+                    Bairro *
+                  </label>
+                  <input
+                    id="acc-neigh"
+                    type="text"
+                    required
+                    value={neighborhood}
+                    onChange={(e) => setNeighborhood(e.target.value)}
+                    placeholder="Ex: Central, Polana, Sommerschield"
+                    className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="acc-zip" className="block text-xs font-bold text-[#444444] mb-1">
+                    Código Postal *
+                  </label>
+                  <input
+                    id="acc-zip"
+                    type="text"
+                    required
+                    value={zipCode}
+                    onChange={(e) => setZipCode(e.target.value)}
+                    placeholder="1100"
+                    className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm font-mono"
+                  />
+                </div>
+              </div>
             </div>
             <MotionButton
               type="submit"

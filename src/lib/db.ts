@@ -1491,13 +1491,46 @@ export async function updateSellerSettings(
   updates: {
     name: string;
     description: string;
-    logoText: string;
-    accentColor: string;
+    logoText?: string;
+    accentColor?: string;
     location: string;
-    bannerImage: string;
+    bannerImage?: string;
+    logoUrl?: string;
+    mainCategory?: string;
+    socials?: SellerSocials;
     payoutInfo: SellerPayoutInfo;
   }
 ): Promise<SellerStore | null> {
+  const current = await findSellerById(sellerId);
+  const nextName = updates.name.trim() || current?.name || 'Loja';
+  const nextDesc =
+    typeof updates.description === 'string'
+      ? updates.description.trim()
+      : (current?.description ?? '');
+  const nextLogoText =
+    updates.logoText?.trim().slice(0, 3).toUpperCase() || current?.logoText || 'CB';
+  const nextAccent = updates.accentColor || current?.accentColor || '#0475EE';
+  const nextLocation =
+    typeof updates.location === 'string' ? updates.location.trim() : (current?.location ?? '');
+  const nextBanner =
+    typeof updates.bannerImage === 'string' ? updates.bannerImage.trim() : (current?.bannerImage ?? '');
+  const nextLogoUrl =
+    typeof updates.logoUrl === 'string' ? updates.logoUrl.trim() : (current?.logoUrl ?? null);
+  const nextCategory = updates.mainCategory?.trim() || current?.mainCategory || 'Geral';
+  const nextSocials = updates.socials ?? current?.socials ?? {};
+  const nextPayout = updates.payoutInfo ?? current?.payoutInfo;
+
+  const profileCompleted = Boolean(nextName && nextCategory && nextLocation);
+  const currentActivation = current?.activation ?? {
+    profileCompleted: false,
+    kycCompleted: false,
+    feePaid: false,
+  };
+  const nextActivation = {
+    ...currentActivation,
+    profileCompleted,
+  };
+
   const res = await query(
     `UPDATE sellers SET
       name = $2,
@@ -1506,21 +1539,62 @@ export async function updateSellerSettings(
       accent_color = $5,
       location = $6,
       banner_image = $7,
-      payout_info = $8::jsonb
+      logo_url = $8,
+      main_category = $9,
+      socials = $10::jsonb,
+      payout_info = $11::jsonb,
+      activation = $12::jsonb
      WHERE id = $1
      RETURNING *`,
     [
       sellerId,
-      updates.name,
-      updates.description,
-      updates.logoText,
-      updates.accentColor,
-      updates.location,
-      updates.bannerImage,
-      JSON.stringify(updates.payoutInfo),
+      nextName,
+      nextDesc,
+      nextLogoText,
+      nextAccent,
+      nextLocation,
+      nextBanner,
+      nextLogoUrl,
+      nextCategory,
+      JSON.stringify(nextSocials),
+      JSON.stringify(nextPayout),
+      JSON.stringify(nextActivation),
     ]
   );
   return res.rows[0] ? mapSellerRow(res.rows[0]) : null;
+}
+
+export async function createBulkProducts(
+  sellerId: string,
+  items: Array<Omit<Product, 'id' | 'sellerId' | 'rating' | 'reviewCount' | 'soldCount' | 'createdAt'>>
+): Promise<Product[]> {
+  const created: Product[] = [];
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    const p: Product = {
+      id: `prod-${Date.now()}-${i}-${Math.random().toString(36).substring(2, 7)}`,
+      sellerId,
+      title: it.title,
+      brand: it.brand || '',
+      category: it.category,
+      condition: it.condition || 'Novo',
+      price: Number(it.price),
+      originalPrice: it.originalPrice ? Number(it.originalPrice) : undefined,
+      stock: Number(it.stock) || 0,
+      rating: 5.0,
+      reviewCount: 0,
+      soldCount: 0,
+      isFlashDeal: false,
+      isBestSeller: false,
+      images: Array.isArray(it.images) && it.images.length > 0 ? it.images : [ASSET_IMAGES.hero],
+      description: it.description || '',
+      specs: it.specs ?? {},
+      createdAt: new Date().toISOString(),
+    };
+    const saved = await createProduct(p);
+    created.push(saved);
+  }
+  return created;
 }
 
 export async function updateSellerStatus(

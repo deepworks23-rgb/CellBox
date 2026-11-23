@@ -32,24 +32,45 @@ export function SellerStoreView({ sellerId }: SellerStoreViewProps) {
 
   return (
     <main className="max-w-[1170px] mx-auto px-4 py-6 pb-16 space-y-6">
-      {/* Store Banner matching Digimart green gradient aesthetic */}
-      <section className="cellbox-hero-gradient text-white rounded-[3px] p-6 sm:p-8">
+      {/* Store Banner with custom banner image or official gradient */}
+      <section
+        className="relative text-white rounded-[3px] p-6 sm:p-8 overflow-hidden cellbox-hero-gradient shadow-sm"
+        style={
+          seller.bannerImage
+            ? {
+                backgroundImage: `linear-gradient(to right, rgba(10,55,104,0.92) 0%, rgba(10,55,104,0.7) 100%), url(${seller.bannerImage})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }
+            : undefined
+        }
+      >
         <button
           type="button"
           onClick={() => navigate({ type: 'stores' })}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-white/85 hover:text-white mb-5 cursor-pointer"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-white/85 hover:text-white mb-5 cursor-pointer relative z-10"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           Voltar para todas as lojas
         </button>
 
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div className="flex items-start gap-4">
-            <div
-              className="w-16 h-16 rounded-[4px] flex items-center justify-center text-white text-2xl font-extrabold shrink-0 border-2 border-white/40 shadow-sm"
-              style={{ backgroundColor: seller.accentColor }}
-            >
-              {seller.logoText}
+            <div className="w-16 h-16 rounded-[4px] overflow-hidden shrink-0 border-2 border-white/60 shadow-md bg-white flex items-center justify-center">
+              {seller.logoUrl ? (
+                <img
+                  src={seller.logoUrl}
+                  alt={seller.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div
+                  className="w-full h-full flex items-center justify-center text-white text-2xl font-extrabold"
+                  style={{ backgroundColor: seller.accentColor }}
+                >
+                  {seller.logoText}
+                </div>
+              )}
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -84,6 +105,53 @@ export function SellerStoreView({ sellerId }: SellerStoreViewProps) {
                   Garantia Cellbox
                 </span>
               </div>
+
+              {/* Social Media Links if provided */}
+              {seller.socials && Object.values(seller.socials).some(Boolean) && (
+                <div className="mt-3 pt-3 border-t border-white/20 flex flex-wrap items-center gap-3 text-xs">
+                  <span className="text-white/70 font-semibold text-[11px] uppercase tracking-wider">Redes da Loja:</span>
+                  {seller.socials.instagram && (
+                    <a
+                      href={seller.socials.instagram.startsWith('http') ? seller.socials.instagram : `https://instagram.com/${seller.socials.instagram.replace(/^@/, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2.5 py-0.5 rounded-full bg-white/15 hover:bg-white/25 text-white text-[11px] font-bold transition-colors"
+                    >
+                      Instagram
+                    </a>
+                  )}
+                  {seller.socials.facebook && (
+                    <a
+                      href={seller.socials.facebook.startsWith('http') ? seller.socials.facebook : `https://facebook.com/${seller.socials.facebook}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2.5 py-0.5 rounded-full bg-white/15 hover:bg-white/25 text-white text-[11px] font-bold transition-colors"
+                    >
+                      Facebook
+                    </a>
+                  )}
+                  {seller.socials.tiktok && (
+                    <a
+                      href={seller.socials.tiktok.startsWith('http') ? seller.socials.tiktok : `https://tiktok.com/@${seller.socials.tiktok.replace(/^@/, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2.5 py-0.5 rounded-full bg-white/15 hover:bg-white/25 text-white text-[11px] font-bold transition-colors"
+                    >
+                      TikTok
+                    </a>
+                  )}
+                  {seller.socials.youtube && (
+                    <a
+                      href={seller.socials.youtube.startsWith('http') ? seller.socials.youtube : `https://youtube.com/${seller.socials.youtube}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2.5 py-0.5 rounded-full bg-white/15 hover:bg-white/25 text-white text-[11px] font-bold transition-colors"
+                    >
+                      YouTube
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

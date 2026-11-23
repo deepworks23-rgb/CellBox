@@ -18,13 +18,13 @@ import { MotionButton } from './MotionPrimitives';
 import { ProductImage } from './ProductImage';
 
 function getStoreCoverImage(store: SellerStore, index: number): string {
+  if (store.bannerImage) return store.bannerImage;
   const cat = store.mainCategory.toLowerCase();
   if (cat.includes('laptop')) return ASSET_IMAGES.macbookPro;
   if (cat.includes('smartphone')) return ASSET_IMAGES.iphone16Pro;
   if (cat.includes('áudio') || cat.includes('audio')) return ASSET_IMAGES.sonyHeadphones;
   if (cat.includes('gaming')) return ASSET_IMAGES.gamingHandheld;
   if (cat.includes('tablet')) return ASSET_IMAGES.ipadPro;
-  if (store.bannerImage) return store.bannerImage;
   return index % 2 === 0 ? ASSET_IMAGES.hero : ASSET_IMAGES.dellXps;
 }
 
@@ -210,12 +210,22 @@ export function StoresView() {
                     </div>
 
                     <div className="absolute bottom-3.5 left-4 right-4 flex items-end gap-3.5">
-                      <div
-                        className="w-14 h-14 rounded-[4px] flex items-center justify-center text-white text-xl font-extrabold shrink-0 border-2 border-white shadow-md"
-                        style={{ backgroundColor: store.accentColor }}
-                        aria-hidden="true"
-                      >
-                        {store.logoText}
+                      <div className="w-14 h-14 rounded-[4px] overflow-hidden shrink-0 border-2 border-white shadow-md bg-white flex items-center justify-center">
+                        {store.logoUrl ? (
+                          <img
+                            src={store.logoUrl}
+                            alt={`Logotipo ${store.name}`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div
+                            className="w-full h-full flex items-center justify-center text-white text-xl font-extrabold"
+                            style={{ backgroundColor: store.accentColor }}
+                            aria-hidden="true"
+                          >
+                            {store.logoText}
+                          </div>
+                        )}
                       </div>
                       <div className="min-w-0 text-white">
                         <div className="flex items-center gap-1.5">
