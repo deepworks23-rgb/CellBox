@@ -570,7 +570,7 @@ export function createApiApp(): Express {
         return;
       }
       // Garante que a loja oficial esteja ativa para os produtos serem exibidos na vitrine
-      await db.setSellerStatus('seller-1795423493110', 'active');
+      await db.updateSellerStatus('seller-1795423493110', 'active');
       const refreshedStats = await db.getDatabaseHealthStats();
       res.json({ ok: true, message: 'Status dos utilizadores e lojas sincronizado.', stats: refreshedStats });
     })
