@@ -40,6 +40,7 @@ export function Navbar() {
     setCompareOpen,
     filters,
     setFilters,
+    siteCustomization,
     logout,
   } = useMarketplace();
 
@@ -142,11 +143,11 @@ export function Navbar() {
           <div className="hidden sm:flex items-center gap-5">
             <span className="inline-flex items-center gap-1.5">
               <Mail className="w-3.5 h-3.5 text-[#18A3DE]" />
-              <span>E-mail: suporte@cellbox.co.mz</span>
+              <span>E-mail: {siteCustomization?.header?.email || 'suporte@cellbox.co.mz'}</span>
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Phone className="w-3.5 h-3.5 text-[#18A3DE]" />
-              <span>Atendimento: +258 84 400 2026</span>
+              <span>Atendimento: {siteCustomization?.header?.phone || '+258 84 400 2026'}</span>
             </span>
           </div>
 

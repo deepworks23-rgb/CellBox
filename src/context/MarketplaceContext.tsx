@@ -26,8 +26,10 @@ import type {
   SellerPayoutInfo,
   SellerStatus,
   SellerStore,
+  SiteCustomization,
   User,
 } from '../types';
+import { DEFAULT_SITE_CUSTOMIZATION } from '../data/defaultCustomization';
 import {
   getDefaultPanelForRole,
   pathToView,
@@ -56,6 +58,7 @@ interface MarketplaceState {
   wishlist: string[];
   addresses: Address[];
   commissionRate: number;
+  siteCustomization: SiteCustomization;
 }
 
 interface BootstrapResponse {
@@ -68,6 +71,7 @@ interface BootstrapResponse {
   addresses: Address[];
   wishlist: string[];
   commissionRate: number;
+  siteCustomization?: SiteCustomization;
   token?: string;
   seller?: SellerStore;
 }
@@ -141,6 +145,8 @@ interface MarketplaceContextValue {
   setCompareOpen: (open: boolean) => void;
   addresses: Address[];
   commissionRate: number;
+  siteCustomization: SiteCustomization;
+  updateSiteCustomization: (customization: SiteCustomization) => Promise<boolean>;
   filters: CatalogFilters;
   setFilters: React.Dispatch<React.SetStateAction<CatalogFilters>>;
   resetFilters: () => void;
@@ -307,6 +313,7 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
     wishlist: typeof window !== 'undefined' ? readGuestWishlist() : [],
     addresses: INITIAL_ADDRESSES,
     commissionRate: 10,
+    siteCustomization: DEFAULT_SITE_CUSTOMIZATION,
   }));
 
   const [authReady, setAuthReady] = useState(false);
@@ -359,6 +366,7 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
       addresses: Array.isArray(payload.addresses) ? payload.addresses : prev.addresses,
       wishlist: payload.currentUser?.role === 'buyer' ? payload.wishlist : readGuestWishlist(),
       commissionRate: typeof payload.commissionRate === 'number' ? payload.commissionRate : prev.commissionRate,
+      siteCustomization: payload.siteCustomization ?? prev.siteCustomization ?? DEFAULT_SITE_CUSTOMIZATION,
     }));
   }, []);
 
@@ -578,6 +586,26 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
       return false;
     },
     [showToast]
+  );
+
+  const updateSiteCustomization = useCallback(
+    async (customization: SiteCustomization): Promise<boolean> => {
+      const res = await apiRequest<BootstrapResponse & { ok?: boolean }>(
+        '/api/site-customization',
+        {
+          method: 'PUT',
+          body: JSON.stringify(customization),
+        }
+      );
+      if (res.ok) {
+        applyBootstrap(res.data);
+        showToast('Personalização da loja salva com sucesso!', 'success');
+        return true;
+      }
+      showToast(res.data.error ?? 'Falha ao salvar personalização.', 'warning');
+      return false;
+    },
+    [applyBootstrap, showToast]
   );
 
   const logout = async () => {
@@ -1149,6 +1177,8 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
         setCompareOpen,
         addresses: state.addresses,
         commissionRate: state.commissionRate,
+        siteCustomization: state.siteCustomization,
+        updateSiteCustomization,
         filters,
         setFilters,
         resetFilters,

@@ -235,3 +235,74 @@ export interface CatalogFilters {
   maxPrice: number | null;
   sortBy: 'featured' | 'price_asc' | 'price_desc' | 'best_selling' | 'rating';
 }
+
+export interface HeroSlideConfig {
+  id: string;
+  kicker: string;
+  title: string;
+  subtitle: string;
+  highlight: string;
+  ctaText: string;
+  imageUrl: string;
+}
+
+export interface PromoSubBannerConfig {
+  id: string;
+  title: string;
+  subtitle: string;
+  ctaText: string;
+  imageUrl: string;
+}
+
+export interface WidePromoBannerConfig {
+  title: string;
+  kicker: string;
+  description: string;
+  ctaText: string;
+  imageUrl: string;
+}
+
+export interface PartnerBrandConfig {
+  id: string;
+  name: string;
+  logoUrl?: string;
+}
+
+export interface SiteContactConfig {
+  phone1: string;
+  phone2?: string;
+  emailSupport: string;
+  emailPartners?: string;
+  address: string;
+  whatsapp?: string;
+  socials: {
+    facebook?: string;
+    instagram?: string;
+    twitter?: string;
+    youtube?: string;
+    tiktok?: string;
+  };
+}
+
+export interface SiteHeaderConfig {
+  topBarNotice: string;
+  phone: string;
+  email: string;
+  currencyLabel: string;
+}
+
+export interface SiteFooterConfig {
+  aboutText: string;
+  guaranteeText: string;
+  copyrightText: string;
+}
+
+export interface SiteCustomization {
+  header: SiteHeaderConfig;
+  heroSlides: HeroSlideConfig[];
+  subBanners: PromoSubBannerConfig[];
+  wideBanner: WidePromoBannerConfig;
+  partnerBrands: PartnerBrandConfig[];
+  contact: SiteContactConfig;
+  footer: SiteFooterConfig;
+}

@@ -14,8 +14,10 @@ import type {
   SellerSocials,
   SellerStatus,
   SellerStore,
+  SiteCustomization,
   User,
 } from '../types.ts';
+import { DEFAULT_SITE_CUSTOMIZATION } from '../data/defaultCustomization.ts';
 
 if (!process.env.VERCEL) {
   dotenv.config({ quiet: true });
@@ -1960,6 +1962,53 @@ export async function setCommissionRate(rate: number): Promise<number> {
     [JSON.stringify(clamped)]
   );
   return clamped;
+}
+
+export async function getSiteCustomization(): Promise<SiteCustomization> {
+  const res = await query<{ value: unknown }>(
+    "SELECT value FROM platform_settings WHERE key = 'siteCustomization' LIMIT 1"
+  );
+  const raw = res.rows[0]?.value as Partial<SiteCustomization> | undefined;
+  if (!raw) return DEFAULT_SITE_CUSTOMIZATION;
+  return {
+    ...DEFAULT_SITE_CUSTOMIZATION,
+    ...raw,
+    header: { ...DEFAULT_SITE_CUSTOMIZATION.header, ...(raw.header ?? {}) },
+    heroSlides:
+      Array.isArray(raw.heroSlides) && raw.heroSlides.length > 0
+        ? raw.heroSlides
+        : DEFAULT_SITE_CUSTOMIZATION.heroSlides,
+    subBanners:
+      Array.isArray(raw.subBanners) && raw.subBanners.length > 0
+        ? raw.subBanners
+        : DEFAULT_SITE_CUSTOMIZATION.subBanners,
+    wideBanner: { ...DEFAULT_SITE_CUSTOMIZATION.wideBanner, ...(raw.wideBanner ?? {}) },
+    partnerBrands:
+      Array.isArray(raw.partnerBrands) && raw.partnerBrands.length > 0
+        ? raw.partnerBrands
+        : DEFAULT_SITE_CUSTOMIZATION.partnerBrands,
+    contact: {
+      ...DEFAULT_SITE_CUSTOMIZATION.contact,
+      ...(raw.contact ?? {}),
+      socials: {
+        ...DEFAULT_SITE_CUSTOMIZATION.contact.socials,
+        ...(raw.contact?.socials ?? {}),
+      },
+    },
+    footer: { ...DEFAULT_SITE_CUSTOMIZATION.footer, ...(raw.footer ?? {}) },
+  };
+}
+
+export async function setSiteCustomization(
+  settings: SiteCustomization
+): Promise<SiteCustomization> {
+  await query(
+    `INSERT INTO platform_settings (key, value, updated_at)
+     VALUES ('siteCustomization', $1::jsonb, NOW())
+     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+    [JSON.stringify(settings)]
+  );
+  return getSiteCustomization();
 }
 
 export async function addNewsletterSubscriber(email: string): Promise<void> {

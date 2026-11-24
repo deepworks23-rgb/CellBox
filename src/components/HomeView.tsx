@@ -66,7 +66,12 @@ export function HomeView() {
     setFilters,
     resetFilters,
     navigate,
+    siteCustomization,
   } = useMarketplace();
+
+  const heroSlides = (siteCustomization?.heroSlides && siteCustomization.heroSlides.length > 0)
+    ? siteCustomization.heroSlides
+    : HERO_SLIDES;
 
   const [heroIdx, setHeroIdx] = useState(0);
   const [heroDirection, setHeroDirection] = useState<1 | -1>(1);
@@ -77,19 +82,56 @@ export function HomeView() {
 
   // Auto-advance hero carousel every 5.5s (pauses on hover/focus)
   useEffect(() => {
-    if (heroPaused) return;
+    if (heroPaused || !heroSlides.length) return;
     const id = window.setInterval(() => {
       setHeroDirection(1);
-      setHeroIdx((prev) => (prev + 1) % HERO_SLIDES.length);
+      setHeroIdx((prev) => (prev + 1) % heroSlides.length);
     }, 5500);
     return () => window.clearInterval(id);
-  }, [heroPaused]);
+  }, [heroPaused, heroSlides.length]);
 
   const goHeroSlide = (nextIdx: number, dir?: 1 | -1) => {
-    const wrapped = (nextIdx + HERO_SLIDES.length) % HERO_SLIDES.length;
+    if (!heroSlides.length) return;
+    const wrapped = (nextIdx + heroSlides.length) % heroSlides.length;
     setHeroDirection(dir ?? (wrapped >= heroIdx ? 1 : -1));
     setHeroIdx(wrapped);
   };
+
+  const safeHeroIdx = heroSlides.length > 0 ? heroIdx % heroSlides.length : 0;
+  const activeSlide = heroSlides[safeHeroIdx] || heroSlides[0];
+
+  const subBanner1 = siteCustomization?.subBanners?.[0] || {
+    id: 'sub-tablets',
+    title: 'NOVOS TABLETS!',
+    subtitle: 'Até 20% OFF em iPad Pro',
+    cta: 'VER AGORA',
+    category: 'Tablets',
+    image: CUTOUT_IMAGES.ipadPro,
+    imageAlt: 'iPad Pro M4 em oferta',
+  };
+
+  const subBanner2 = siteCustomization?.subBanners?.[1] || {
+    id: 'sub-laptops',
+    title: 'OFERTA LAPTOPS',
+    subtitle: 'Workstations MacBook Pro M3 e Dell XPS OLED com garantia oficial e entrega grátis.',
+    cta: 'COMPRAR AGORA',
+    category: 'Laptops',
+    image: CUTOUT_IMAGES.macbookPro,
+    imageAlt: 'MacBook Pro M3',
+  };
+
+  const wideBanner = siteCustomization?.wideBanner || {
+    kicker: 'ECONOMIZE ATÉ 16.500 MT!',
+    title: 'EM SMARTPHONES RECONDICIONADOS A+ E NOTEBOOKS PRO',
+    description: 'Aparelhos revisados em laboratório com garantia oficial Cellbox de 12 meses e envio imediato em todo o país.',
+    cta: 'VER SEMINOVOS A+',
+    image1: CUTOUT_IMAGES.dellXps,
+    image2: CUTOUT_IMAGES.macbookPro,
+  };
+
+  const partnerBrands = (siteCustomization?.partnerBrands && siteCustomization.partnerBrands.length > 0)
+    ? siteCustomization.partnerBrands
+    : PARTNER_BRANDS;
 
   const activeSellers = useMemo(
     () => sellers.filter(isStorePubliclyActive),
@@ -143,7 +185,6 @@ export function HomeView() {
     safeStoresSlideIdx * STORES_PER_SLIDE + STORES_PER_SLIDE
   );
 
-  const activeSlide = HERO_SLIDES[heroIdx] ?? HERO_SLIDES[0];
   const pillCategories = ['Todas', ...categories.slice(0, 5)];
 
   const hasExtraFilters =
@@ -254,15 +295,15 @@ export function HomeView() {
 
           {/* Centered Slider Indicator Dots */}
           <div className="pb-4 flex items-center justify-center gap-2 z-10">
-            {HERO_SLIDES.map((s, idx) => (
+            {heroSlides.map((s, idx) => (
               <button
-                key={s.title}
+                key={`${s.title}-${idx}`}
                 type="button"
                 aria-label={`Slide ${idx + 1}: ${s.kicker}`}
-                aria-pressed={heroIdx === idx}
+                aria-pressed={safeHeroIdx === idx}
                 onClick={() => goHeroSlide(idx)}
                 className={`h-2 rounded-full transition-all cursor-pointer ${
-                  heroIdx === idx
+                  safeHeroIdx === idx
                     ? 'w-7 bg-white shadow-xs'
                     : 'w-2 bg-white/45 hover:bg-white/80'
                 }`}
@@ -271,71 +312,70 @@ export function HomeView() {
           </div>
         </section>
 
-        {/* 2. DUAL SUB-BANNER ROW — Static Banners with Transparent Cutouts Directly on #F1F2F4 */}
+        {/* 2. DUAL SUB-BANNER ROW — Dynamic Banners */}
         <section
           aria-label="Promoções por categoria"
           className="!mt-3 grid grid-cols-1 md:grid-cols-12 gap-3"
         >
-          {/* Left 1/3 Banner: NOVOS TABLETS! */}
+          {/* Left 1/3 Banner */}
           <div className="md:col-span-4 bg-[#F1F2F4] border border-[#E7E9EC] px-5 py-5 flex items-center justify-between gap-2 overflow-hidden min-h-[146px]">
             <div className="min-w-0 z-10">
               <h2 className="font-condensed text-xl font-bold uppercase text-[#18A3DE] leading-tight">
-                NOVOS TABLETS!
+                {subBanner1.title}
               </h2>
-              <p className="text-xs text-[#666666] mt-0.5">Até 20% OFF em iPad Pro</p>
+              <p className="text-xs text-[#666666] mt-0.5">{subBanner1.subtitle}</p>
               <MotionButton
                 type="button"
                 onClick={() => {
-                  setFilters((prev) => ({ ...prev, category: 'Tablets' }));
+                  setFilters((prev) => ({ ...prev, category: subBanner1.category }));
                   setPageIdx(0);
                   document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
                 }}
                 className="mt-3.5 h-7 px-4 rounded-full bg-[#18A3DE] hover:bg-[#0A3768] text-white text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap"
               >
-                VER AGORA
+                {subBanner1.cta}
               </MotionButton>
             </div>
-            <img
-              src={CUTOUT_IMAGES.ipadPro}
-              alt="iPad Pro M4 em oferta"
-              className="h-24 sm:h-28 w-auto max-w-[140px] object-contain shrink-0 drop-shadow-[0_10px_16px_rgba(10,55,104,0.22)] select-none pointer-events-none"
-            />
+            {subBanner1.image && (
+              <img
+                src={subBanner1.image}
+                alt={subBanner1.imageAlt || subBanner1.title}
+                className="h-24 sm:h-28 w-auto max-w-[140px] object-contain shrink-0 drop-shadow-[0_10px_16px_rgba(10,55,104,0.22)] select-none pointer-events-none"
+              />
+            )}
           </div>
 
-          {/* Right 2/3 Banner: OFERTA LAPTOPS */}
+          {/* Right 2/3 Banner */}
           <div className="md:col-span-8 bg-[#F1F2F4] border border-[#E7E9EC] px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 overflow-hidden min-h-[146px]">
             <div className="min-w-0 max-w-xs z-10">
               <h2 className="font-condensed text-2xl font-bold uppercase text-[#0A3768] leading-tight">
-                OFERTA LAPTOPS
+                {subBanner2.title}
               </h2>
               <p className="text-xs text-[#666666] mt-1 leading-relaxed">
-                Workstations MacBook Pro M3 e Dell XPS OLED com garantia oficial e entrega grátis.
+                {subBanner2.subtitle}
               </p>
               <MotionButton
                 type="button"
                 onClick={() => {
-                  setFilters((prev) => ({ ...prev, category: 'Laptops' }));
+                  setFilters((prev) => ({ ...prev, category: subBanner2.category }));
                   setPageIdx(0);
                   document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
                 }}
                 className="mt-3.5 h-8 px-4 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
               >
                 <ShoppingCart className="w-3.5 h-3.5" />
-                COMPRAR AGORA
+                {subBanner2.cta}
               </MotionButton>
             </div>
 
             <div className="flex items-end justify-end gap-1 shrink-0 self-end sm:self-center">
-              <img
-                src={CUTOUT_IMAGES.dellXps}
-                alt="Dell XPS 15 OLED"
-                className="hidden sm:block h-24 md:h-28 w-auto object-contain -mr-5 drop-shadow-[0_10px_16px_rgba(10,55,104,0.2)] select-none pointer-events-none"
-              />
-              <img
-                src={CUTOUT_IMAGES.macbookPro}
-                alt="MacBook Pro M3"
-                className="h-28 md:h-32 w-auto object-contain drop-shadow-[0_12px_20px_rgba(10,55,104,0.28)] select-none pointer-events-none"
-              />
+              {subBanner2.image && (
+                <img
+                  src={subBanner2.image}
+                  alt={subBanner2.imageAlt || subBanner2.title}
+                  className="h-28 md:h-32 w-auto object-contain drop-shadow-[0_12px_20px_rgba(10,55,104,0.28)] select-none pointer-events-none"
+                />
+              )}
             </div>
           </div>
         </section>
@@ -597,20 +637,20 @@ export function HomeView() {
           )}
         </section>
 
-        {/* 4. WIDE MID-PAGE PROMO BANNER — Static Banner with Cutout Products Directly on #F1F2F4 */}
+        {/* 4. WIDE MID-PAGE PROMO BANNER — Dynamic Banner */}
         <section
           aria-label="Oferta especial de economia"
           className="bg-[#F1F2F4] border border-[#E7E9EC] px-6 sm:px-10 py-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 overflow-hidden"
         >
           <div className="max-w-md z-10">
             <h2 className="font-condensed text-2xl sm:text-[28px] font-bold uppercase text-[#0A3768] leading-tight">
-              ECONOMIZE ATÉ 16.500 MT!
+              {wideBanner.title}
             </h2>
             <p className="text-[11px] font-bold uppercase tracking-wider text-[#18A3DE] mt-0.5">
-              EM SMARTPHONES RECONDICIONADOS A+ E NOTEBOOKS PRO
+              {wideBanner.kicker}
             </p>
             <p className="text-xs text-[#666666] mt-2 leading-relaxed">
-              Aparelhos revisados em laboratório com garantia oficial Cellbox de 12 meses e envio imediato em todo o país.
+              {wideBanner.description}
             </p>
             <MotionButton
               type="button"
@@ -626,26 +666,25 @@ export function HomeView() {
               className="mt-4 h-8 px-5 rounded-full bg-[#0A3768] hover:bg-[#0475EE] text-white text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <ShoppingCart className="w-3.5 h-3.5" />
-              VER SEMINOVOS A+
+              {wideBanner.cta}
             </MotionButton>
           </div>
 
           <div className="flex items-end justify-center gap-2 sm:gap-4 self-center md:self-auto">
-            <img
-              src={CUTOUT_IMAGES.dellXps}
-              alt="Dell XPS 15 OLED"
-              className="h-24 sm:h-32 w-auto object-contain drop-shadow-[0_12px_18px_rgba(10,55,104,0.2)] select-none pointer-events-none"
-            />
-            <img
-              src={CUTOUT_IMAGES.macbookPro}
-              alt="MacBook Pro M3"
-              className="h-28 sm:h-36 w-auto object-contain -ml-4 drop-shadow-[0_14px_22px_rgba(10,55,104,0.24)] select-none pointer-events-none"
-            />
-            <img
-              src={CUTOUT_IMAGES.galaxyS24Ultra}
-              alt="Galaxy S24 Ultra"
-              className="hidden lg:block h-24 w-auto object-contain -ml-2 drop-shadow-[0_10px_16px_rgba(10,55,104,0.2)] select-none pointer-events-none"
-            />
+            {wideBanner.image1 && (
+              <img
+                src={wideBanner.image1}
+                alt="Destaque 1"
+                className="h-24 sm:h-32 w-auto object-contain drop-shadow-[0_12px_18px_rgba(10,55,104,0.2)] select-none pointer-events-none"
+              />
+            )}
+            {wideBanner.image2 && (
+              <img
+                src={wideBanner.image2}
+                alt="Destaque 2"
+                className="h-28 sm:h-36 w-auto object-contain -ml-4 drop-shadow-[0_14px_22px_rgba(10,55,104,0.24)] select-none pointer-events-none"
+              />
+            )}
           </div>
         </section>
 
@@ -785,11 +824,11 @@ export function HomeView() {
           data-testid="partner-brands-strip"
           className="pt-8 pb-4 border-t border-[#EFEFEF] grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6 items-center"
         >
-          {PARTNER_BRANDS.map((b) => (
+          {partnerBrands.map((b) => (
             <motion.button
               key={b.name}
               type="button"
-              aria-label={b.ariaLabel}
+              aria-label={b.ariaLabel || `Filtrar produtos ${b.name}`}
               title={`Ver produtos ${b.name}`}
               whileHover={{ scale: 1.07, y: -2 }}
               whileTap={{ scale: 0.95 }}
@@ -801,7 +840,19 @@ export function HomeView() {
               }}
               className="h-12 px-3 flex items-center justify-center opacity-85 hover:opacity-100 transition-opacity cursor-pointer"
             >
-              <BrandLogo brand={b.name} />
+              {['Apple', 'Samsung', 'Dell', 'Sony', 'ASUS', 'Anker'].includes(b.name) && !b.logoUrl ? (
+                <BrandLogo brand={b.name as PartnerBrandName} />
+              ) : b.logoUrl ? (
+                <img
+                  src={b.logoUrl}
+                  alt={b.name}
+                  className="max-h-8 max-w-[120px] object-contain select-none"
+                />
+              ) : (
+                <span className="font-condensed font-bold text-lg uppercase tracking-wider text-[#0A3768]">
+                  {b.name}
+                </span>
+              )}
             </motion.button>
           ))}
         </section>

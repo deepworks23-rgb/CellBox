@@ -32,6 +32,7 @@ import type {
   SellerSocials,
   SellerStatus,
   SellerStore,
+  SiteCustomization,
   User,
 } from '../types.ts';
 import {
@@ -182,17 +183,27 @@ function clearSessionCookie(req: Request, res: Response): void {
 }
 
 async function buildBootstrapPayload(user: StoredUser | null) {
-  const [sellers, products, categories, orders, commissionRate, addresses, wishlist, allUsers] =
-    await Promise.all([
-      db.listSellers(),
-      db.listProducts(),
-      db.listCategories(),
-      db.listScopedOrders(user),
-      db.getCommissionRate(),
-      user ? db.listAddressesByUser(user.id) : Promise.resolve([]),
-      user ? db.listWishlistByUser(user.id) : Promise.resolve([]),
-      user?.role === 'admin' ? db.listUsers() : Promise.resolve([]),
-    ]);
+  const [
+    sellers,
+    products,
+    categories,
+    orders,
+    commissionRate,
+    addresses,
+    wishlist,
+    allUsers,
+    siteCustomization,
+  ] = await Promise.all([
+    db.listSellers(),
+    db.listProducts(),
+    db.listCategories(),
+    db.listScopedOrders(user),
+    db.getCommissionRate(),
+    user ? db.listAddressesByUser(user.id) : Promise.resolve([]),
+    user ? db.listWishlistByUser(user.id) : Promise.resolve([]),
+    user?.role === 'admin' ? db.listUsers() : Promise.resolve([]),
+    db.getSiteCustomization(),
+  ]);
 
   return {
     currentUser: user ? toPublicUser(user) : null,
@@ -209,6 +220,7 @@ async function buildBootstrapPayload(user: StoredUser | null) {
     addresses,
     wishlist,
     commissionRate,
+    siteCustomization,
   };
 }
 
@@ -1272,6 +1284,32 @@ export function createApiApp(): Express {
       };
       await db.createContactMessage(entry);
       res.status(201).json({ ok: true, id: entry.id });
+    })
+  );
+
+  // ── Site Customization (Header, Hero, Banners, Contacts, Partner Logos, Footer) ──
+  app.get(
+    '/api/site-customization',
+    asyncHandler(async (_req, res) => {
+      const siteCustomization = await db.getSiteCustomization();
+      res.json({ siteCustomization });
+    })
+  );
+
+  app.put(
+    '/api/site-customization',
+    asyncHandler(async (req, res) => {
+      const user = await getAuthenticatedUser(req);
+      if (!user || user.role !== 'admin') {
+        res.status(403).json({ error: 'Apenas Super Admin pode alterar as configurações da plataforma.' });
+        return;
+      }
+      const updated = await db.setSiteCustomization(req.body as SiteCustomization);
+      res.json({
+        ok: true,
+        siteCustomization: updated,
+        ...(await buildBootstrapPayload(user)),
+      });
     })
   );
 

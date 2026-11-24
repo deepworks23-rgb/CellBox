@@ -3,18 +3,35 @@ import {
   Ban,
   BarChart3,
   CheckCircle2,
+  ExternalLink,
   Eye,
+  Globe,
+  Image as ImageIcon,
   Layers,
+  Mail,
+  MapPin,
+  Palette,
   Percent,
+  Phone,
   Plus,
   RotateCcw,
+  Save,
   ShieldCheck,
   Store,
   Trash2,
+  Upload,
   X,
 } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
-import type { SellerStatus, SellerStore } from '../types';
+import type {
+  HeroSlideConfig,
+  PartnerBrandConfig,
+  PromoSubBannerConfig,
+  SellerStatus,
+  SellerStore,
+  SiteCustomization,
+  WidePromoBannerConfig,
+} from '../types';
 import {
   calculatePlatformAnalytics,
   calculateSellerAnalytics,
@@ -24,7 +41,7 @@ import { MotionButton } from './MotionPrimitives';
 import { ProductImage } from './ProductImage';
 
 interface AdminDashboardViewProps {
-  initialTab?: 'overview' | 'sellers' | 'catalog' | 'finance';
+  initialTab?: 'overview' | 'sellers' | 'catalog' | 'finance' | 'customization';
 }
 
 export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardViewProps) {
@@ -43,11 +60,15 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
     setCommissionRate,
     resetDemoData,
     logout,
+    siteCustomization,
+    updateSiteCustomization,
+    uploadImageAsset,
+    showToast,
   } = useMarketplace();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'sellers' | 'catalog' | 'finance'>(
-    initialTab
-  );
+  const [activeTab, setActiveTab] = useState<
+    'overview' | 'sellers' | 'catalog' | 'finance' | 'customization'
+  >(initialTab);
   useEffect(() => {
     setActiveTab(initialTab);
   }, [initialTab]);
@@ -86,6 +107,57 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
     }
   };
 
+  const [draftCustomization, setDraftCustomization] = useState<SiteCustomization>(siteCustomization);
+  const [cmsSubTab, setCmsSubTab] = useState<
+    'header' | 'hero' | 'banners' | 'brands' | 'contacts' | 'footer'
+  >('header');
+  const [savingCms, setSavingCms] = useState(false);
+  const [uploadingField, setUploadingField] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (siteCustomization) {
+      setDraftCustomization(siteCustomization);
+    }
+  }, [siteCustomization]);
+
+  const handleUploadImage = async (
+    fieldKey: string,
+    file: File,
+    callback: (url: string) => void
+  ) => {
+    setUploadingField(fieldKey);
+    try {
+      const url = await uploadImageAsset(file, 'banners');
+      if (url) {
+        callback(url);
+        showToast('Imagem carregada com sucesso!', 'success');
+      } else {
+        showToast('Falha no upload da imagem.', 'error');
+      }
+    } catch {
+      showToast('Erro ao enviar imagem.', 'error');
+    } finally {
+      setUploadingField(null);
+    }
+  };
+
+  const handleSaveCms = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setSavingCms(true);
+    try {
+      const ok = await updateSiteCustomization(draftCustomization);
+      if (ok) {
+        showToast('Design e conteúdos atualizados com sucesso!', 'success');
+      } else {
+        showToast('Erro ao salvar personalizações.', 'error');
+      }
+    } catch {
+      showToast('Erro de comunicação com o servidor.', 'error');
+    } finally {
+      setSavingCms(false);
+    }
+  };
+
   const navItems = [
     { id: 'overview' as const, label: 'Dashboard Global', icon: BarChart3 },
     {
@@ -96,6 +168,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
     },
     { id: 'catalog' as const, label: 'Catálogo e Categorias', icon: Layers },
     { id: 'finance' as const, label: 'Financeiro e Comissões', icon: Percent },
+    { id: 'customization' as const, label: 'Design & Conteúdo (CMS)', icon: Palette },
   ];
 
   const statusLabel = (s: SellerStatus) =>
@@ -653,6 +726,1034 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                 Aplicar Nova Taxa de Comissão
               </MotionButton>
             </form>
+          )}
+
+          {/* 5. Customization / Platform CMS Tab */}
+          {activeTab === 'customization' && (
+            <div className="bg-white border border-[#E5E7EB] rounded-[3px] p-6 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#EAEAEA] gap-4">
+                <div>
+                  <h2 className="font-condensed text-[24px] font-bold uppercase text-[#0A3768] flex items-center gap-2">
+                    <Palette className="w-6 h-6 text-[#18A3DE]" />
+                    Design & Conteúdo da Plataforma (CMS)
+                  </h2>
+                  <p className="text-xs text-[#666666] mt-0.5">
+                    Personalize o cabeçalho, carrossel hero, banners promocionais, marcas parceiras, contatos e rodapé do site.
+                  </p>
+                </div>
+                <MotionButton
+                  type="button"
+                  onClick={() => handleSaveCms()}
+                  disabled={savingCms}
+                  className="h-10 px-6 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-sm shrink-0"
+                >
+                  <Save className="w-4 h-4" />
+                  {savingCms ? 'Salvando...' : 'Salvar Alterações'}
+                </MotionButton>
+              </div>
+
+              {/* Sub-tabs Navigation */}
+              <div className="flex flex-wrap items-center gap-2 border-b border-[#EAEAEA] pb-2">
+                {[
+                  { id: 'header' as const, label: 'Header & Top Bar' },
+                  { id: 'hero' as const, label: 'Hero Slider' },
+                  { id: 'banners' as const, label: 'Banners Promocionais' },
+                  { id: 'brands' as const, label: 'Marcas Parceiras' },
+                  { id: 'contacts' as const, label: 'Contatos & Redes' },
+                  { id: 'footer' as const, label: 'Rodapé (Footer)' },
+                ].map((st) => (
+                  <button
+                    key={st.id}
+                    type="button"
+                    onClick={() => setCmsSubTab(st.id)}
+                    className={`h-9 px-4 rounded-[2px] text-xs font-bold transition-colors cursor-pointer ${
+                      cmsSubTab === st.id
+                        ? 'bg-[#0A3768] text-white'
+                        : 'bg-[#F1F2F4] text-[#555555] hover:bg-[#E2E8F0]'
+                    }`}
+                  >
+                    {st.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* SUBTAB 1: HEADER */}
+              {cmsSubTab === 'header' && (
+                <div className="space-y-4 max-w-2xl">
+                  <div>
+                    <label className="block text-xs font-bold text-[#444444] mb-1">
+                      Aviso de Topo (Barra Superior)
+                    </label>
+                    <input
+                      type="text"
+                      value={draftCustomization.header.topNotice}
+                      onChange={(e) =>
+                        setDraftCustomization((prev) => ({
+                          ...prev,
+                          header: { ...prev.header, topNotice: e.target.value },
+                        }))
+                      }
+                      placeholder="Ex: Entregas em todo Moçambique · Suporte oficial Cellbox"
+                      className="w-full h-10 px-3 border border-[#DCDCDC] rounded-[2px] text-xs text-[#333333] focus:border-[#0475EE] focus:outline-none"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-[#444444] mb-1">
+                        Telefone de Atendimento do Topo
+                      </label>
+                      <input
+                        type="text"
+                        value={draftCustomization.header.supportPhone}
+                        onChange={(e) =>
+                          setDraftCustomization((prev) => ({
+                            ...prev,
+                            header: { ...prev.header, supportPhone: e.target.value },
+                          }))
+                        }
+                        placeholder="+258 84 400 2026"
+                        className="w-full h-10 px-3 border border-[#DCDCDC] rounded-[2px] text-xs text-[#333333] focus:border-[#0475EE] focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-[#444444] mb-1">
+                        E-mail de Suporte do Topo
+                      </label>
+                      <input
+                        type="email"
+                        value={draftCustomization.header.supportEmail}
+                        onChange={(e) =>
+                          setDraftCustomization((prev) => ({
+                            ...prev,
+                            header: { ...prev.header, supportEmail: e.target.value },
+                          }))
+                        }
+                        placeholder="suporte@cellbox.co.mz"
+                        className="w-full h-10 px-3 border border-[#DCDCDC] rounded-[2px] text-xs text-[#333333] focus:border-[#0475EE] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-[#444444] mb-1">
+                      Moeda Exibida
+                    </label>
+                    <input
+                      type="text"
+                      value={draftCustomization.header.currencyDisplay}
+                      onChange={(e) =>
+                        setDraftCustomization((prev) => ({
+                          ...prev,
+                          header: { ...prev.header, currencyDisplay: e.target.value },
+                        }))
+                      }
+                      placeholder="MZ | MZN (MT)"
+                      className="w-full h-10 px-3 border border-[#DCDCDC] rounded-[2px] text-xs text-[#333333] focus:border-[#0475EE] focus:outline-none"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* SUBTAB 2: HERO SLIDER */}
+              {cmsSubTab === 'hero' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-[#666666]">
+                      Gerencie os slides de destaque principal do topo da página inicial.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newSlide: HeroSlideConfig = {
+                          kicker: 'Novidade',
+                          title: 'Novo Destaque Cellbox',
+                          subtitle: 'Descrição do novo produto em oferta especial.',
+                          highlight: 'Preço promocional imperdível',
+                          cta: 'CONFERIR',
+                          productId: '',
+                          image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop',
+                          imageAlt: 'Produto em destaque',
+                        };
+                        setDraftCustomization((prev) => ({
+                          ...prev,
+                          heroSlides: [...prev.heroSlides, newSlide],
+                        }));
+                      }}
+                      className="h-8 px-3 rounded-[2px] bg-[#18A3DE] hover:bg-[#0A3768] text-white text-xs font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Adicionar Slide
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {draftCustomization.heroSlides.map((slide, index) => (
+                      <div
+                        key={index}
+                        className="p-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-[3px] space-y-4"
+                      >
+                        <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-2">
+                          <span className="font-bold text-xs text-[#0A3768] uppercase">
+                            Slide {index + 1}: {slide.kicker} — {slide.title}
+                          </span>
+                          {draftCustomization.heroSlides.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDraftCustomization((prev) => ({
+                                  ...prev,
+                                  heroSlides: prev.heroSlides.filter((_, i) => i !== index),
+                                }));
+                              }}
+                              className="text-xs text-rose-600 hover:text-rose-800 font-bold inline-flex items-center gap-1 cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              Remover
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+                          <div>
+                            <label className="block font-bold text-[#444444] mb-1">
+                              Kicker (Subtítulo de Topo)
+                            </label>
+                            <input
+                              type="text"
+                              value={slide.kicker}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setDraftCustomization((prev) => {
+                                  const updated = [...prev.heroSlides];
+                                  updated[index] = { ...updated[index], kicker: val };
+                                  return { ...prev, heroSlides: updated };
+                                });
+                              }}
+                              className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block font-bold text-[#444444] mb-1">
+                              Título Principal
+                            </label>
+                            <input
+                              type="text"
+                              value={slide.title}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setDraftCustomization((prev) => {
+                                  const updated = [...prev.heroSlides];
+                                  updated[index] = { ...updated[index], title: val };
+                                  return { ...prev, heroSlides: updated };
+                                });
+                              }}
+                              className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block font-bold text-[#444444] mb-1">
+                              Texto do Botão (CTA)
+                            </label>
+                            <input
+                              type="text"
+                              value={slide.cta}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setDraftCustomization((prev) => {
+                                  const updated = [...prev.heroSlides];
+                                  updated[index] = { ...updated[index], cta: val };
+                                  return { ...prev, heroSlides: updated };
+                                });
+                              }}
+                              className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
+                            />
+                          </div>
+
+                          <div className="sm:col-span-2">
+                            <label className="block font-bold text-[#444444] mb-1">
+                              Subtítulo / Descrição
+                            </label>
+                            <input
+                              type="text"
+                              value={slide.subtitle}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setDraftCustomization((prev) => {
+                                  const updated = [...prev.heroSlides];
+                                  updated[index] = { ...updated[index], subtitle: val };
+                                  return { ...prev, heroSlides: updated };
+                                });
+                              }}
+                              className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block font-bold text-[#444444] mb-1">
+                              Destaque / Preço
+                            </label>
+                            <input
+                              type="text"
+                              value={slide.highlight}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setDraftCustomization((prev) => {
+                                  const updated = [...prev.heroSlides];
+                                  updated[index] = { ...updated[index], highlight: val };
+                                  return { ...prev, heroSlides: updated };
+                                });
+                              }}
+                              className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Imagem do Slide com Upload */}
+                        <div className="pt-2 border-t border-[#E2E8F0]">
+                          <label className="block font-bold text-[#444444] text-xs mb-1">
+                            Imagem do Slide (URL ou Upload de Arquivo)
+                          </label>
+                          <div className="flex flex-col sm:flex-row items-center gap-3">
+                            <input
+                              type="text"
+                              value={slide.image}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setDraftCustomization((prev) => {
+                                  const updated = [...prev.heroSlides];
+                                  updated[index] = { ...updated[index], image: val };
+                                  return { ...prev, heroSlides: updated };
+                                });
+                              }}
+                              placeholder="URL da imagem ou faça upload..."
+                              className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-xs text-[#333333]"
+                            />
+                            <label className="h-9 px-4 rounded-[2px] bg-white border border-[#0475EE] text-[#0475EE] hover:bg-[#EAF6FC] text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shrink-0 transition-colors">
+                              <Upload className="w-3.5 h-3.5" />
+                              {uploadingField === `hero-${index}` ? 'Enviando...' : 'Enviar Imagem'}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                disabled={uploadingField !== null}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    handleUploadImage(`hero-${index}`, file, (url) => {
+                                      setDraftCustomization((prev) => {
+                                        const updated = [...prev.heroSlides];
+                                        updated[index] = { ...updated[index], image: url };
+                                        return { ...prev, heroSlides: updated };
+                                      });
+                                    });
+                                  }
+                                }}
+                              />
+                            </label>
+                            {slide.image && (
+                              <div className="w-14 h-10 border border-[#CBD5E1] rounded overflow-hidden shrink-0 bg-white flex items-center justify-center">
+                                <img
+                                  src={slide.image}
+                                  alt="Preview"
+                                  className="w-full h-full object-contain"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* SUBTAB 3: BANNERS PROMOCIONAIS */}
+              {cmsSubTab === 'banners' && (
+                <div className="space-y-6">
+                  {/* Sub-Banners */}
+                  <div className="space-y-4">
+                    <h3 className="font-condensed text-[18px] font-bold uppercase text-[#0A3768]">
+                      Sub-Banners (Abaixo do Carrossel Principal)
+                    </h3>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {draftCustomization.subBanners.map((sb, sbIdx) => (
+                        <div
+                          key={sb.id || sbIdx}
+                          className="p-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-[3px] space-y-3 text-xs"
+                        >
+                          <p className="font-bold text-[#0A3768] uppercase border-b border-[#E2E8F0] pb-1">
+                            Sub-Banner {sbIdx + 1} ({sbIdx === 0 ? 'Esquerdo - 1/3' : 'Direito - 2/3'})
+                          </p>
+                          <div>
+                            <label className="block font-bold text-[#444444] mb-1">Título</label>
+                            <input
+                              type="text"
+                              value={sb.title}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setDraftCustomization((prev) => {
+                                  const updated = [...prev.subBanners];
+                                  updated[sbIdx] = { ...updated[sbIdx], title: val };
+                                  return { ...prev, subBanners: updated };
+                                });
+                              }}
+                              className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
+                            />
+                          </div>
+                          <div>
+                            <label className="block font-bold text-[#444444] mb-1">Subtítulo</label>
+                            <input
+                              type="text"
+                              value={sb.subtitle}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setDraftCustomization((prev) => {
+                                  const updated = [...prev.subBanners];
+                                  updated[sbIdx] = { ...updated[sbIdx], subtitle: val };
+                                  return { ...prev, subBanners: updated };
+                                });
+                              }}
+                              className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block font-bold text-[#444444] mb-1">Categoria Vinculada</label>
+                              <input
+                                type="text"
+                                value={sb.category}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setDraftCustomization((prev) => {
+                                    const updated = [...prev.subBanners];
+                                    updated[sbIdx] = { ...updated[sbIdx], category: val };
+                                    return { ...prev, subBanners: updated };
+                                  });
+                                }}
+                                className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
+                              />
+                            </div>
+                            <div>
+                              <label className="block font-bold text-[#444444] mb-1">Texto do Botão</label>
+                              <input
+                                type="text"
+                                value={sb.cta}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setDraftCustomization((prev) => {
+                                    const updated = [...prev.subBanners];
+                                    updated[sbIdx] = { ...updated[sbIdx], cta: val };
+                                    return { ...prev, subBanners: updated };
+                                  });
+                                }}
+                                className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block font-bold text-[#444444] mb-1">Imagem do Banner</label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={sb.image}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setDraftCustomization((prev) => {
+                                    const updated = [...prev.subBanners];
+                                    updated[sbIdx] = { ...updated[sbIdx], image: val };
+                                    return { ...prev, subBanners: updated };
+                                  });
+                                }}
+                                className="flex-1 h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
+                              />
+                              <label className="h-9 px-3 rounded-[2px] bg-white border border-[#0475EE] text-[#0475EE] hover:bg-[#EAF6FC] font-bold inline-flex items-center gap-1 cursor-pointer shrink-0">
+                                <Upload className="w-3 h-3" />
+                                {uploadingField === `sb-${sbIdx}` ? '...' : 'Upload'}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  disabled={uploadingField !== null}
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      handleUploadImage(`sb-${sbIdx}`, file, (url) => {
+                                        setDraftCustomization((prev) => {
+                                          const updated = [...prev.subBanners];
+                                          updated[sbIdx] = { ...updated[sbIdx], image: url };
+                                          return { ...prev, subBanners: updated };
+                                        });
+                                      });
+                                    }
+                                  }}
+                                />
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Wide Horizontal Banner */}
+                  <div className="p-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-[3px] space-y-3 text-xs">
+                    <h3 className="font-condensed text-[18px] font-bold uppercase text-[#0A3768] border-b border-[#E2E8F0] pb-1">
+                      Banner Promocional Largo (Meio da Página)
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-bold text-[#444444] mb-1">Kicker / Destaque</label>
+                        <input
+                          type="text"
+                          value={draftCustomization.wideBanner.kicker}
+                          onChange={(e) =>
+                            setDraftCustomization((prev) => ({
+                              ...prev,
+                              wideBanner: { ...prev.wideBanner, kicker: e.target.value },
+                            }))
+                          }
+                          className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-bold text-[#444444] mb-1">Título</label>
+                        <input
+                          type="text"
+                          value={draftCustomization.wideBanner.title}
+                          onChange={(e) =>
+                            setDraftCustomization((prev) => ({
+                              ...prev,
+                              wideBanner: { ...prev.wideBanner, title: e.target.value },
+                            }))
+                          }
+                          className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block font-bold text-[#444444] mb-1">Descrição</label>
+                      <input
+                        type="text"
+                        value={draftCustomization.wideBanner.description}
+                        onChange={(e) =>
+                          setDraftCustomization((prev) => ({
+                            ...prev,
+                            wideBanner: { ...prev.wideBanner, description: e.target.value },
+                          }))
+                        }
+                        className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-[#444444] mb-1">Texto do Botão (CTA)</label>
+                      <input
+                        type="text"
+                        value={draftCustomization.wideBanner.cta}
+                        onChange={(e) =>
+                          setDraftCustomization((prev) => ({
+                            ...prev,
+                            wideBanner: { ...prev.wideBanner, cta: e.target.value },
+                          }))
+                        }
+                        className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                      <div>
+                        <label className="block font-bold text-[#444444] mb-1">Imagem 1 (Produto 1)</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={draftCustomization.wideBanner.image1}
+                            onChange={(e) =>
+                              setDraftCustomization((prev) => ({
+                                ...prev,
+                                wideBanner: { ...prev.wideBanner, image1: e.target.value },
+                              }))
+                            }
+                            className="flex-1 h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
+                          />
+                          <label className="h-9 px-3 rounded-[2px] bg-white border border-[#0475EE] text-[#0475EE] hover:bg-[#EAF6FC] font-bold inline-flex items-center gap-1 cursor-pointer shrink-0">
+                            <Upload className="w-3 h-3" />
+                            {uploadingField === 'wide-1' ? '...' : 'Upload'}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              disabled={uploadingField !== null}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  handleUploadImage('wide-1', file, (url) => {
+                                    setDraftCustomization((prev) => ({
+                                      ...prev,
+                                      wideBanner: { ...prev.wideBanner, image1: url },
+                                    }));
+                                  });
+                                }
+                              }}
+                            />
+                          </label>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block font-bold text-[#444444] mb-1">Imagem 2 (Produto 2)</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={draftCustomization.wideBanner.image2}
+                            onChange={(e) =>
+                              setDraftCustomization((prev) => ({
+                                ...prev,
+                                wideBanner: { ...prev.wideBanner, image2: e.target.value },
+                              }))
+                            }
+                            className="flex-1 h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
+                          />
+                          <label className="h-9 px-3 rounded-[2px] bg-white border border-[#0475EE] text-[#0475EE] hover:bg-[#EAF6FC] font-bold inline-flex items-center gap-1 cursor-pointer shrink-0">
+                            <Upload className="w-3 h-3" />
+                            {uploadingField === 'wide-2' ? '...' : 'Upload'}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              disabled={uploadingField !== null}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  handleUploadImage('wide-2', file, (url) => {
+                                    setDraftCustomization((prev) => ({
+                                      ...prev,
+                                      wideBanner: { ...prev.wideBanner, image2: url },
+                                    }));
+                                  });
+                                }
+                              }}
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SUBTAB 4: MARCAS PARCEIRAS */}
+              {cmsSubTab === 'brands' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-[#666666]">
+                      Gerencie as marcas e logotipos exibidos na faixa inferior da página inicial.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newBrand: PartnerBrandConfig = {
+                          name: 'Nova Marca',
+                          logoUrl: '',
+                          ariaLabel: 'Filtrar produtos da marca',
+                        };
+                        setDraftCustomization((prev) => ({
+                          ...prev,
+                          partnerBrands: [...prev.partnerBrands, newBrand],
+                        }));
+                      }}
+                      className="h-8 px-3 rounded-[2px] bg-[#18A3DE] hover:bg-[#0A3768] text-white text-xs font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Adicionar Marca
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {draftCustomization.partnerBrands.map((brand, bIdx) => (
+                      <div
+                        key={bIdx}
+                        className="p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-[3px] space-y-2 text-xs"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-[#0A3768]">Marca #{bIdx + 1}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDraftCustomization((prev) => ({
+                                ...prev,
+                                partnerBrands: prev.partnerBrands.filter((_, i) => i !== bIdx),
+                              }));
+                            }}
+                            className="text-rose-600 hover:text-rose-800 text-[11px] font-bold cursor-pointer"
+                          >
+                            Excluir
+                          </button>
+                        </div>
+                        <div>
+                          <label className="block text-[#555555] mb-0.5">Nome da Marca</label>
+                          <input
+                            type="text"
+                            value={brand.name}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setDraftCustomization((prev) => {
+                                const updated = [...prev.partnerBrands];
+                                updated[bIdx] = { ...updated[bIdx], name: val };
+                                return { ...prev, partnerBrands: updated };
+                              });
+                            }}
+                            className="w-full h-8 px-2 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[#555555] mb-0.5">Logo URL (ou Upload)</label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={brand.logoUrl || ''}
+                              placeholder="Opcional para oficiais"
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setDraftCustomization((prev) => {
+                                  const updated = [...prev.partnerBrands];
+                                  updated[bIdx] = { ...updated[bIdx], logoUrl: val };
+                                  return { ...prev, partnerBrands: updated };
+                                });
+                              }}
+                              className="flex-1 h-8 px-2 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
+                            />
+                            <label className="h-8 px-2.5 rounded-[2px] bg-white border border-[#0475EE] text-[#0475EE] hover:bg-[#EAF6FC] font-bold inline-flex items-center gap-1 cursor-pointer shrink-0 text-[11px]">
+                              <Upload className="w-3 h-3" />
+                              {uploadingField === `brand-${bIdx}` ? '...' : 'Upload'}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                disabled={uploadingField !== null}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    handleUploadImage(`brand-${bIdx}`, file, (url) => {
+                                      setDraftCustomization((prev) => {
+                                        const updated = [...prev.partnerBrands];
+                                        updated[bIdx] = { ...updated[bIdx], logoUrl: url };
+                                        return { ...prev, partnerBrands: updated };
+                                      });
+                                    });
+                                  }
+                                }}
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* SUBTAB 5: CONTATOS & REDES SOCIAIS */}
+              {cmsSubTab === 'contacts' && (
+                <div className="space-y-4 max-w-2xl text-xs">
+                  <div>
+                    <label className="block font-bold text-[#444444] mb-1 flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-[#18A3DE]" />
+                      Endereço Oficial da Empresa
+                    </label>
+                    <input
+                      type="text"
+                      value={draftCustomization.contact.address}
+                      onChange={(e) =>
+                        setDraftCustomization((prev) => ({
+                          ...prev,
+                          contact: { ...prev.contact, address: e.target.value },
+                        }))
+                      }
+                      className="w-full h-10 px-3 border border-[#DCDCDC] rounded-[2px] text-xs text-[#333333]"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-bold text-[#444444] mb-1 flex items-center gap-1.5">
+                        <Phone className="w-3.5 h-3.5 text-[#18A3DE]" />
+                        Telefone Principal (Linha 1)
+                      </label>
+                      <input
+                        type="text"
+                        value={draftCustomization.contact.phone1}
+                        onChange={(e) =>
+                          setDraftCustomization((prev) => ({
+                            ...prev,
+                            contact: { ...prev.contact, phone1: e.target.value },
+                          }))
+                        }
+                        className="w-full h-10 px-3 border border-[#DCDCDC] rounded-[2px] text-xs text-[#333333]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-[#444444] mb-1 flex items-center gap-1.5">
+                        <Phone className="w-3.5 h-3.5 text-[#18A3DE]" />
+                        Telefone Secundário (Linha 2)
+                      </label>
+                      <input
+                        type="text"
+                        value={draftCustomization.contact.phone2 || ''}
+                        onChange={(e) =>
+                          setDraftCustomization((prev) => ({
+                            ...prev,
+                            contact: { ...prev.contact, phone2: e.target.value },
+                          }))
+                        }
+                        className="w-full h-10 px-3 border border-[#DCDCDC] rounded-[2px] text-xs text-[#333333]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-bold text-[#444444] mb-1 flex items-center gap-1.5">
+                        <Mail className="w-3.5 h-3.5 text-[#18A3DE]" />
+                        E-mail de Suporte ao Cliente
+                      </label>
+                      <input
+                        type="email"
+                        value={draftCustomization.contact.emailSupport}
+                        onChange={(e) =>
+                          setDraftCustomization((prev) => ({
+                            ...prev,
+                            contact: { ...prev.contact, emailSupport: e.target.value },
+                          }))
+                        }
+                        className="w-full h-10 px-3 border border-[#DCDCDC] rounded-[2px] text-xs text-[#333333]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-[#444444] mb-1 flex items-center gap-1.5">
+                        <Mail className="w-3.5 h-3.5 text-[#18A3DE]" />
+                        E-mail de Parcerias / Lojistas
+                      </label>
+                      <input
+                        type="email"
+                        value={draftCustomization.contact.emailPartners || ''}
+                        onChange={(e) =>
+                          setDraftCustomization((prev) => ({
+                            ...prev,
+                            contact: { ...prev.contact, emailPartners: e.target.value },
+                          }))
+                        }
+                        className="w-full h-10 px-3 border border-[#DCDCDC] rounded-[2px] text-xs text-[#333333]"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-[#444444] mb-1">
+                      WhatsApp Oficial
+                    </label>
+                    <input
+                      type="text"
+                      value={draftCustomization.contact.whatsapp || ''}
+                      onChange={(e) =>
+                        setDraftCustomization((prev) => ({
+                          ...prev,
+                          contact: { ...prev.contact, whatsapp: e.target.value },
+                        }))
+                      }
+                      placeholder="+258 84 400 2026"
+                      className="w-full h-10 px-3 border border-[#DCDCDC] rounded-[2px] text-xs text-[#333333]"
+                    />
+                  </div>
+
+                  <div className="pt-3 border-t border-[#EAEAEA] space-y-3">
+                    <p className="font-bold text-[#0A3768] text-sm uppercase">
+                      Redes Sociais Oficiais
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-semibold text-[#555555] mb-1">Facebook</label>
+                        <input
+                          type="text"
+                          value={draftCustomization.contact.facebook || ''}
+                          onChange={(e) =>
+                            setDraftCustomization((prev) => ({
+                              ...prev,
+                              contact: { ...prev.contact, facebook: e.target.value },
+                            }))
+                          }
+                          placeholder="https://facebook.com/cellbox"
+                          className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-semibold text-[#555555] mb-1">Instagram</label>
+                        <input
+                          type="text"
+                          value={draftCustomization.contact.instagram || ''}
+                          onChange={(e) =>
+                            setDraftCustomization((prev) => ({
+                              ...prev,
+                              contact: { ...prev.contact, instagram: e.target.value },
+                            }))
+                          }
+                          placeholder="https://instagram.com/cellbox"
+                          className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-semibold text-[#555555] mb-1">Twitter / X</label>
+                        <input
+                          type="text"
+                          value={draftCustomization.contact.twitter || ''}
+                          onChange={(e) =>
+                            setDraftCustomization((prev) => ({
+                              ...prev,
+                              contact: { ...prev.contact, twitter: e.target.value },
+                            }))
+                          }
+                          placeholder="https://x.com/cellbox"
+                          className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-semibold text-[#555555] mb-1">YouTube</label>
+                        <input
+                          type="text"
+                          value={draftCustomization.contact.youtube || ''}
+                          onChange={(e) =>
+                            setDraftCustomization((prev) => ({
+                              ...prev,
+                              contact: { ...prev.contact, youtube: e.target.value },
+                            }))
+                          }
+                          placeholder="https://youtube.com/@cellbox"
+                          className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] text-xs"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="block font-semibold text-[#555555] mb-1">TikTok</label>
+                        <input
+                          type="text"
+                          value={draftCustomization.contact.tiktok || ''}
+                          onChange={(e) =>
+                            setDraftCustomization((prev) => ({
+                              ...prev,
+                              contact: { ...prev.contact, tiktok: e.target.value },
+                            }))
+                          }
+                          placeholder="https://tiktok.com/@cellbox"
+                          className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] text-xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SUBTAB 6: RODAPÉ */}
+              {cmsSubTab === 'footer' && (
+                <div className="space-y-4 max-w-2xl text-xs">
+                  <div>
+                    <label className="block font-bold text-[#444444] mb-1">
+                      Título da Seção Sobre
+                    </label>
+                    <input
+                      type="text"
+                      value={draftCustomization.footer.aboutTitle}
+                      onChange={(e) =>
+                        setDraftCustomization((prev) => ({
+                          ...prev,
+                          footer: { ...prev.footer, aboutTitle: e.target.value },
+                        }))
+                      }
+                      className="w-full h-10 px-3 border border-[#DCDCDC] rounded-[2px] text-xs text-[#333333]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-[#444444] mb-1">
+                      Texto Institucional Sobre a Cellbox
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={draftCustomization.footer.aboutText}
+                      onChange={(e) =>
+                        setDraftCustomization((prev) => ({
+                          ...prev,
+                          footer: { ...prev.footer, aboutText: e.target.value },
+                        }))
+                      }
+                      className="w-full p-3 border border-[#DCDCDC] rounded-[2px] text-xs text-[#333333]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-[#444444] mb-1">
+                      Título da Compra Garantida
+                    </label>
+                    <input
+                      type="text"
+                      value={draftCustomization.footer.guaranteeTitle}
+                      onChange={(e) =>
+                        setDraftCustomization((prev) => ({
+                          ...prev,
+                          footer: { ...prev.footer, guaranteeTitle: e.target.value },
+                        }))
+                      }
+                      className="w-full h-10 px-3 border border-[#DCDCDC] rounded-[2px] text-xs text-[#333333]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-[#444444] mb-1">
+                      Texto da Compra Garantida
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={draftCustomization.footer.guaranteeText}
+                      onChange={(e) =>
+                        setDraftCustomization((prev) => ({
+                          ...prev,
+                          footer: { ...prev.footer, guaranteeText: e.target.value },
+                        }))
+                      }
+                      className="w-full p-3 border border-[#DCDCDC] rounded-[2px] text-xs text-[#333333]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-[#444444] mb-1">
+                      Texto de Copyright
+                    </label>
+                    <input
+                      type="text"
+                      value={draftCustomization.footer.copyrightText}
+                      onChange={(e) =>
+                        setDraftCustomization((prev) => ({
+                          ...prev,
+                          footer: { ...prev.footer, copyrightText: e.target.value },
+                        }))
+                      }
+                      className="w-full h-10 px-3 border border-[#DCDCDC] rounded-[2px] text-xs text-[#333333]"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Botão de Salvar no Rodapé da Aba */}
+              <div className="pt-6 border-t border-[#EAEAEA] flex items-center justify-between">
+                <p className="text-xs text-[#777777]">
+                  As alterações são salvas diretamente no banco de dados e refletem em tempo real no site.
+                </p>
+                <MotionButton
+                  type="button"
+                  onClick={() => handleSaveCms()}
+                  disabled={savingCms}
+                  className="h-10 px-8 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-sm"
+                >
+                  <Save className="w-4 h-4" />
+                  {savingCms ? 'Salvando...' : 'Salvar Alterações do Site'}
+                </MotionButton>
+              </div>
+            </div>
           )}
         </main>
       </div>

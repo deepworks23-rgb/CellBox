@@ -64,6 +64,7 @@ export function Footer() {
     setFilters,
     subscribeNewsletter,
     showToast,
+    siteCustomization,
   } = useMarketplace();
   const [email, setEmail] = useState('');
   const [submittingNews, setSubmittingNews] = useState(false);
@@ -164,10 +165,13 @@ export function Footer() {
 
           <div className="flex items-center gap-2 shrink-0">
             {[
-              { label: 'Facebook', glyph: 'f' },
-              { label: 'Twitter', glyph: '𝕏' },
-              { label: 'Instagram', glyph: 'ig' },
-              { label: 'YouTube', glyph: '▶' },
+              { label: 'Facebook', glyph: 'f', url: siteCustomization.contact.facebook },
+              { label: 'Twitter', glyph: '𝕏', url: siteCustomization.contact.twitter },
+              { label: 'Instagram', glyph: 'ig', url: siteCustomization.contact.instagram },
+              { label: 'YouTube', glyph: '▶', url: siteCustomization.contact.youtube },
+              ...(siteCustomization.contact.tiktok
+                ? [{ label: 'TikTok', glyph: 'tk', url: siteCustomization.contact.tiktok }]
+                : []),
             ].map((social) => (
               <MotionButton
                 key={social.label}
@@ -175,7 +179,13 @@ export function Footer() {
                 hoverScale={1.08}
                 hoverY={-1}
                 aria-label={social.label}
-                onClick={() => showToast(`Siga @cellbox.mz no ${social.label}!`, 'info')}
+                onClick={() => {
+                  if (social.url && social.url.startsWith('http')) {
+                    window.open(social.url, '_blank', 'noopener,noreferrer');
+                  } else {
+                    showToast(`Siga @cellbox.mz no ${social.label}!`, 'info');
+                  }
+                }}
                 className="w-8 h-8 bg-white hover:bg-[#EAF6FC] text-[#0A3768] rounded-[2px] flex items-center justify-center text-[12px] font-extrabold transition-colors cursor-pointer"
               >
                 {social.glyph}
@@ -198,8 +208,8 @@ export function Footer() {
                   <MapPin className="w-3 h-3" />
                 </span>
                 <span>
-                  <strong className="text-[#0A3768] uppercase text-[10px]">ENDEREÇO:</strong> Av.
-                  25 de Setembro, 1374 — Maputo, Moçambique
+                  <strong className="text-[#0A3768] uppercase text-[10px]">ENDEREÇO:</strong>{' '}
+                  {siteCustomization.contact.address}
                 </span>
               </li>
               <li className="flex items-start gap-2.5">
@@ -207,10 +217,14 @@ export function Footer() {
                   <Phone className="w-3 h-3" />
                 </span>
                 <span>
-                  <strong className="text-[#0A3768] uppercase text-[10px]">TELEFONE:</strong> +258
-                  84 400 2026
-                  <br />
-                  +258 82 987 4321
+                  <strong className="text-[#0A3768] uppercase text-[10px]">TELEFONE:</strong>{' '}
+                  {siteCustomization.contact.phone1}
+                  {siteCustomization.contact.phone2 && (
+                    <>
+                      <br />
+                      {siteCustomization.contact.phone2}
+                    </>
+                  )}
                 </span>
               </li>
               <li className="flex items-start gap-2.5">
@@ -219,9 +233,13 @@ export function Footer() {
                 </span>
                 <span>
                   <strong className="text-[#0A3768] uppercase text-[10px]">E-MAIL:</strong>{' '}
-                  suporte@cellbox.co.mz
-                  <br />
-                  parceiros@cellbox.co.mz
+                  {siteCustomization.contact.emailSupport}
+                  {siteCustomization.contact.emailPartners && (
+                    <>
+                      <br />
+                      {siteCustomization.contact.emailPartners}
+                    </>
+                  )}
                 </span>
               </li>
             </ul>
@@ -594,7 +612,8 @@ export function Footer() {
             ))}
           </div>
           <p className="text-[11px] text-[#888888] mt-3">
-            Copyright © 2026 Cellbox Moçambique. Todos os direitos reservados · Preços em Meticais (MZN).
+            {siteCustomization.footer.copyrightText ||
+              'Copyright © 2026 Cellbox Moçambique. Todos os direitos reservados · Preços em Meticais (MZN).'}
           </p>
         </div>
       </div>
