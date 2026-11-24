@@ -6,6 +6,7 @@ import type { Express, NextFunction, Request, RequestHandler, Response } from 'e
 if (!process.env.VERCEL) {
   dotenv.config({ quiet: true });
 }
+import { DEFAULT_SITE_CUSTOMIZATION } from '../data/defaultCustomization.ts';
 import {
   ACTIVE_COUPONS,
   ASSET_IMAGES,
@@ -194,15 +195,15 @@ async function buildBootstrapPayload(user: StoredUser | null) {
     allUsers,
     siteCustomization,
   ] = await Promise.all([
-    db.listSellers(),
-    db.listProducts(),
-    db.listCategories(),
-    db.listScopedOrders(user),
-    db.getCommissionRate(),
-    user ? db.listAddressesByUser(user.id) : Promise.resolve([]),
-    user ? db.listWishlistByUser(user.id) : Promise.resolve([]),
-    user?.role === 'admin' ? db.listUsers() : Promise.resolve([]),
-    db.getSiteCustomization(),
+    db.listSellers().catch(() => []),
+    db.listProducts().catch(() => []),
+    db.listCategories().catch(() => []),
+    db.listScopedOrders(user).catch(() => []),
+    db.getCommissionRate().catch(() => 10),
+    user ? db.listAddressesByUser(user.id).catch(() => []) : Promise.resolve([]),
+    user ? db.listWishlistByUser(user.id).catch(() => []) : Promise.resolve([]),
+    user?.role === 'admin' ? db.listUsers().catch(() => []) : Promise.resolve([]),
+    db.getSiteCustomization().catch(() => DEFAULT_SITE_CUSTOMIZATION),
   ]);
 
   return {
@@ -228,6 +229,20 @@ export function createApiApp(): Express {
   const app = express();
   app.set('trust proxy', 1);
   app.use(express.json({ limit: '10mb' }));
+
+  // Garante que o schema e todas as colunas do banco estejam inicializados
+  let dbInitDone = false;
+  app.use(async (req, _res, next) => {
+    if (req.path.startsWith('/api') && req.path !== '/api/health' && !dbInitDone) {
+      try {
+        await ensureDatabaseReady();
+        dbInitDone = true;
+      } catch (err) {
+        console.warn('[Cellbox DB] Aviso na inicialização de schema:', err);
+      }
+    }
+    next();
+  });
 
   // ── Healthcheck (PostgreSQL connectivity & runtime env diagnostics) ──────
   app.get(
@@ -1149,12 +1164,12 @@ export function createApiApp(): Express {
     '/api/sellers/:id',
     asyncHandler(async (req, res) => {
       const user = await getAuthenticatedUser(req);
-      if (!user || user.role !== 'seller') {
-        res.status(403).json({ error: 'Apenas o Vendedor proprietário pode atualizar a loja.' });
+      if (!user || (user.role !== 'seller' && user.role !== 'admin')) {
+        res.status(403).json({ error: 'Apenas o Vendedor proprietário ou Administrador pode atualizar a loja.' });
         return;
       }
       const ownsStore = await db.doesUserOwnSeller(req.params.id, user.id, user.sellerId);
-      if (!ownsStore) {
+      if (user.role !== 'admin' && !ownsStore) {
         res.status(403).json({ error: 'Sem permissão para alterar outra loja.' });
         return;
       }

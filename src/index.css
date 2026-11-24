@@ -20,15 +20,19 @@
     font-family: var(--font-sans);
     background-color: #ffffff;
     color: #333333;
+    font-variant-numeric: normal;
+    font-feature-settings: "zero" 0;
   }
 }
 
 .font-condensed {
   font-family: var(--font-display);
+  font-feature-settings: "zero" 0;
 }
 
 .tabular-nums {
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "zero" 0;
 }
 
 /* Hero gradient matching exact official Cellbox logo sweep with subtle product spotlight */
