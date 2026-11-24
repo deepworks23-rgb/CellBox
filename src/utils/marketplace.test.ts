@@ -322,6 +322,7 @@ test('form validations catch missing required inputs', () => {
 
   const sellerRegErrors = validateRegistration({
     name: 'João',
+    phone: '840000000',
     email: 'invalid-email',
     password: '123',
     isSeller: true,

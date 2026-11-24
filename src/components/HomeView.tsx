@@ -48,7 +48,7 @@ const HERO_SLIDES = [
   },
 ];
 
-const PARTNER_BRANDS: Array<{ name: PartnerBrandName; ariaLabel: string }> = [
+const PARTNER_BRANDS: Array<{ name: PartnerBrandName; ariaLabel: string; logoUrl?: string }> = [
   { name: 'Apple', ariaLabel: 'Filtrar produtos Apple' },
   { name: 'Samsung', ariaLabel: 'Filtrar produtos Samsung' },
   { name: 'Dell', ariaLabel: 'Filtrar produtos Dell' },
@@ -261,7 +261,13 @@ export function HomeView() {
                   <div className="mt-6 flex flex-wrap items-center gap-3">
                     <MotionButton
                       type="button"
-                      onClick={() => navigate({ type: 'product', productId: activeSlide.productId })}
+                      onClick={() => {
+                        if (activeSlide.productId) {
+                          navigate({ type: 'product', productId: activeSlide.productId });
+                        } else {
+                          document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
+                        }
+                      }}
                       className="h-10 px-6 rounded-full bg-white text-[#0A3768] hover:bg-[#EAF6FC] text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer shadow-sm whitespace-nowrap shrink-0"
                     >
                       {activeSlide.cta}
@@ -327,7 +333,7 @@ export function HomeView() {
               <MotionButton
                 type="button"
                 onClick={() => {
-                  setFilters((prev) => ({ ...prev, category: subBanner1.category }));
+                  setFilters((prev) => ({ ...prev, category: subBanner1.category || 'Tablets' }));
                   setPageIdx(0);
                   document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
                 }}
@@ -357,7 +363,7 @@ export function HomeView() {
               <MotionButton
                 type="button"
                 onClick={() => {
-                  setFilters((prev) => ({ ...prev, category: subBanner2.category }));
+                  setFilters((prev) => ({ ...prev, category: subBanner2.category || 'Laptops' }));
                   setPageIdx(0);
                   document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
                 }}
@@ -828,7 +834,7 @@ export function HomeView() {
             <motion.button
               key={b.name}
               type="button"
-              aria-label={b.ariaLabel || `Filtrar produtos ${b.name}`}
+              aria-label={('ariaLabel' in b && b.ariaLabel) ? b.ariaLabel : `Filtrar produtos ${b.name}`}
               title={`Ver produtos ${b.name}`}
               whileHover={{ scale: 1.07, y: -2 }}
               whileTap={{ scale: 0.95 }}
@@ -840,9 +846,9 @@ export function HomeView() {
               }}
               className="h-12 px-3 flex items-center justify-center opacity-85 hover:opacity-100 transition-opacity cursor-pointer"
             >
-              {['Apple', 'Samsung', 'Dell', 'Sony', 'ASUS', 'Anker'].includes(b.name) && !b.logoUrl ? (
+              {['Apple', 'Samsung', 'Dell', 'Sony', 'ASUS', 'Anker'].includes(b.name) && !('logoUrl' in b && b.logoUrl) ? (
                 <BrandLogo brand={b.name as PartnerBrandName} />
-              ) : b.logoUrl ? (
+              ) : ('logoUrl' in b && b.logoUrl) ? (
                 <img
                   src={b.logoUrl}
                   alt={b.name}

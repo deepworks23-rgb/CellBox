@@ -108,7 +108,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
   const [editStock, setEditStock] = useState('');
 
   // Activation, KYC & Fee Payment State
-  const [kycDocType, setKycDocType] = useState<'bi' | 'nuit' | 'passaporte' | 'licenca'>('bi');
+  const [kycDocType, setKycDocType] = useState<'BI' | 'NUIT' | 'Passaporte' | 'Alvara'>('BI');
   const [kycDocNumber, setKycDocNumber] = useState(seller?.documentId ?? '');
   const [kycFullName, setKycFullName] = useState(currentUser?.name ?? '');
   const [kycDocFrontUrl, setKycDocFrontUrl] = useState('');
@@ -403,6 +403,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
       }
     }
 
+    if (!seller) return;
     const created = await createProduct({
       sellerId: seller.id,
       title: formState.title.trim(),
@@ -669,7 +670,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
     setUploadingPersonalAvatar(true);
     try {
       const result = await uploadImageAsset(file, 'avatars');
-      if (result.ok && result.url) {
+      if (result.ok && result.url && currentUser) {
         setPersonalAvatarUrl(result.url);
         await updateProfile({
           name: personalName || currentUser.name,
@@ -721,6 +722,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
 
   const handleSavePersonalProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentUser) return;
     setSavingPersonalProfile(true);
     try {
       await updateProfile({
@@ -2541,15 +2543,15 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
-                    { id: 'bi', label: 'B.I.' },
-                    { id: 'nuit', label: 'NUIT' },
-                    { id: 'passaporte', label: 'Passaporte' },
-                    { id: 'licenca', label: 'Alvará' },
+                    { id: 'BI' as const, label: 'B.I.' },
+                    { id: 'NUIT' as const, label: 'NUIT' },
+                    { id: 'Passaporte' as const, label: 'Passaporte' },
+                    { id: 'Alvara' as const, label: 'Alvará' },
                   ].map((t) => (
                     <button
                       key={t.id}
                       type="button"
-                      onClick={() => setKycDocType(t.id as any)}
+                      onClick={() => setKycDocType(t.id)}
                       className={`h-9 rounded-[3px] text-xs font-bold border transition-colors cursor-pointer ${
                         kycDocType === t.id
                           ? 'border-[#0475EE] bg-[#0475EE]/10 text-[#0475EE]'

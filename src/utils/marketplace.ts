@@ -451,6 +451,7 @@ export interface RegistrationInput {
   zipCode?: string;
   isSeller: boolean;
   storeName?: string;
+  documentId?: string;
   mainCategory?: string;
   description?: string;
   storeLocation?: string;

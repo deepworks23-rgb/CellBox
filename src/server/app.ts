@@ -1305,10 +1305,11 @@ export function createApiApp(): Express {
         return;
       }
       const updated = await db.setSiteCustomization(req.body as SiteCustomization);
+      const bootstrap = await buildBootstrapPayload(user);
       res.json({
         ok: true,
+        ...bootstrap,
         siteCustomization: updated,
-        ...(await buildBootstrapPayload(user)),
       });
     })
   );

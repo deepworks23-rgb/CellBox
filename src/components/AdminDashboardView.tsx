@@ -127,15 +127,15 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
   ) => {
     setUploadingField(fieldKey);
     try {
-      const url = await uploadImageAsset(file, 'banners');
-      if (url) {
-        callback(url);
+      const res = await uploadImageAsset(file, 'banners');
+      if (res.ok && res.url) {
+        callback(res.url);
         showToast('Imagem carregada com sucesso!', 'success');
       } else {
-        showToast('Falha no upload da imagem.', 'error');
+        showToast(res.error || 'Falha no upload da imagem.', 'warning');
       }
     } catch {
-      showToast('Erro ao enviar imagem.', 'error');
+      showToast('Erro ao enviar imagem.', 'warning');
     } finally {
       setUploadingField(null);
     }
@@ -149,10 +149,10 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
       if (ok) {
         showToast('Design e conteúdos atualizados com sucesso!', 'success');
       } else {
-        showToast('Erro ao salvar personalizações.', 'error');
+        showToast('Erro ao salvar personalizações.', 'warning');
       }
     } catch {
-      showToast('Erro de comunicação com o servidor.', 'error');
+      showToast('Erro de comunicação com o servidor.', 'warning');
     } finally {
       setSavingCms(false);
     }
@@ -786,11 +786,15 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                     </label>
                     <input
                       type="text"
-                      value={draftCustomization.header.topNotice}
+                      value={draftCustomization.header.topBarNotice || draftCustomization.header.topNotice || ''}
                       onChange={(e) =>
                         setDraftCustomization((prev) => ({
                           ...prev,
-                          header: { ...prev.header, topNotice: e.target.value },
+                          header: {
+                            ...prev.header,
+                            topBarNotice: e.target.value,
+                            topNotice: e.target.value,
+                          },
                         }))
                       }
                       placeholder="Ex: Entregas em todo Moçambique · Suporte oficial Cellbox"
@@ -804,11 +808,15 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                       </label>
                       <input
                         type="text"
-                        value={draftCustomization.header.supportPhone}
+                        value={draftCustomization.header.phone || draftCustomization.header.supportPhone || ''}
                         onChange={(e) =>
                           setDraftCustomization((prev) => ({
                             ...prev,
-                            header: { ...prev.header, supportPhone: e.target.value },
+                            header: {
+                              ...prev.header,
+                              phone: e.target.value,
+                              supportPhone: e.target.value,
+                            },
                           }))
                         }
                         placeholder="+258 84 400 2026"
@@ -821,11 +829,15 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                       </label>
                       <input
                         type="email"
-                        value={draftCustomization.header.supportEmail}
+                        value={draftCustomization.header.email || draftCustomization.header.supportEmail || ''}
                         onChange={(e) =>
                           setDraftCustomization((prev) => ({
                             ...prev,
-                            header: { ...prev.header, supportEmail: e.target.value },
+                            header: {
+                              ...prev.header,
+                              email: e.target.value,
+                              supportEmail: e.target.value,
+                            },
                           }))
                         }
                         placeholder="suporte@cellbox.co.mz"
@@ -839,11 +851,15 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                     </label>
                     <input
                       type="text"
-                      value={draftCustomization.header.currencyDisplay}
+                      value={draftCustomization.header.currencyLabel || draftCustomization.header.currencyDisplay || ''}
                       onChange={(e) =>
                         setDraftCustomization((prev) => ({
                           ...prev,
-                          header: { ...prev.header, currencyDisplay: e.target.value },
+                          header: {
+                            ...prev.header,
+                            currencyLabel: e.target.value,
+                            currencyDisplay: e.target.value,
+                          },
                         }))
                       }
                       placeholder="MZ | MZN (MT)"
@@ -864,12 +880,15 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                       type="button"
                       onClick={() => {
                         const newSlide: HeroSlideConfig = {
+                          id: `slide-${Date.now()}`,
                           kicker: 'Novidade',
                           title: 'Novo Destaque Cellbox',
                           subtitle: 'Descrição do novo produto em oferta especial.',
                           highlight: 'Preço promocional imperdível',
+                          ctaText: 'CONFERIR',
                           cta: 'CONFERIR',
                           productId: '',
+                          imageUrl: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop',
                           image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop',
                           imageAlt: 'Produto em destaque',
                         };
@@ -957,12 +976,12 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                             </label>
                             <input
                               type="text"
-                              value={slide.cta}
+                              value={slide.ctaText || slide.cta || ''}
                               onChange={(e) => {
                                 const val = e.target.value;
                                 setDraftCustomization((prev) => {
                                   const updated = [...prev.heroSlides];
-                                  updated[index] = { ...updated[index], cta: val };
+                                  updated[index] = { ...updated[index], ctaText: val, cta: val };
                                   return { ...prev, heroSlides: updated };
                                 });
                               }}
@@ -1017,12 +1036,12 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                           <div className="flex flex-col sm:flex-row items-center gap-3">
                             <input
                               type="text"
-                              value={slide.image}
+                              value={slide.imageUrl || slide.image || ''}
                               onChange={(e) => {
                                 const val = e.target.value;
                                 setDraftCustomization((prev) => {
                                   const updated = [...prev.heroSlides];
-                                  updated[index] = { ...updated[index], image: val };
+                                  updated[index] = { ...updated[index], imageUrl: val, image: val };
                                   return { ...prev, heroSlides: updated };
                                 });
                               }}
@@ -1043,7 +1062,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                                     handleUploadImage(`hero-${index}`, file, (url) => {
                                       setDraftCustomization((prev) => {
                                         const updated = [...prev.heroSlides];
-                                        updated[index] = { ...updated[index], image: url };
+                                        updated[index] = { ...updated[index], imageUrl: url, image: url };
                                         return { ...prev, heroSlides: updated };
                                       });
                                     });
@@ -1051,10 +1070,10 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                                 }}
                               />
                             </label>
-                            {slide.image && (
+                            {(slide.imageUrl || slide.image) && (
                               <div className="w-14 h-10 border border-[#CBD5E1] rounded overflow-hidden shrink-0 bg-white flex items-center justify-center">
                                 <img
-                                  src={slide.image}
+                                  src={slide.imageUrl || slide.image}
                                   alt="Preview"
                                   className="w-full h-full object-contain"
                                 />
@@ -1122,7 +1141,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                               <label className="block font-bold text-[#444444] mb-1">Categoria Vinculada</label>
                               <input
                                 type="text"
-                                value={sb.category}
+                                value={sb.category || ''}
                                 onChange={(e) => {
                                   const val = e.target.value;
                                   setDraftCustomization((prev) => {
@@ -1138,12 +1157,12 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                               <label className="block font-bold text-[#444444] mb-1">Texto do Botão</label>
                               <input
                                 type="text"
-                                value={sb.cta}
+                                value={sb.ctaText || sb.cta || ''}
                                 onChange={(e) => {
                                   const val = e.target.value;
                                   setDraftCustomization((prev) => {
                                     const updated = [...prev.subBanners];
-                                    updated[sbIdx] = { ...updated[sbIdx], cta: val };
+                                    updated[sbIdx] = { ...updated[sbIdx], ctaText: val, cta: val };
                                     return { ...prev, subBanners: updated };
                                   });
                                 }}
@@ -1156,12 +1175,12 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                             <div className="flex items-center gap-2">
                               <input
                                 type="text"
-                                value={sb.image}
+                                value={sb.imageUrl || sb.image || ''}
                                 onChange={(e) => {
                                   const val = e.target.value;
                                   setDraftCustomization((prev) => {
                                     const updated = [...prev.subBanners];
-                                    updated[sbIdx] = { ...updated[sbIdx], image: val };
+                                    updated[sbIdx] = { ...updated[sbIdx], imageUrl: val, image: val };
                                     return { ...prev, subBanners: updated };
                                   });
                                 }}
@@ -1181,7 +1200,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                                       handleUploadImage(`sb-${sbIdx}`, file, (url) => {
                                         setDraftCustomization((prev) => {
                                           const updated = [...prev.subBanners];
-                                          updated[sbIdx] = { ...updated[sbIdx], image: url };
+                                          updated[sbIdx] = { ...updated[sbIdx], imageUrl: url, image: url };
                                           return { ...prev, subBanners: updated };
                                         });
                                       });
@@ -1249,11 +1268,15 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                       <label className="block font-bold text-[#444444] mb-1">Texto do Botão (CTA)</label>
                       <input
                         type="text"
-                        value={draftCustomization.wideBanner.cta}
+                        value={draftCustomization.wideBanner.ctaText || draftCustomization.wideBanner.cta || ''}
                         onChange={(e) =>
                           setDraftCustomization((prev) => ({
                             ...prev,
-                            wideBanner: { ...prev.wideBanner, cta: e.target.value },
+                            wideBanner: {
+                              ...prev.wideBanner,
+                              ctaText: e.target.value,
+                              cta: e.target.value,
+                            },
                           }))
                         }
                         className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
@@ -1265,11 +1288,15 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                         <div className="flex items-center gap-2">
                           <input
                             type="text"
-                            value={draftCustomization.wideBanner.image1}
+                            value={draftCustomization.wideBanner.image1 || draftCustomization.wideBanner.imageUrl || ''}
                             onChange={(e) =>
                               setDraftCustomization((prev) => ({
                                 ...prev,
-                                wideBanner: { ...prev.wideBanner, image1: e.target.value },
+                                wideBanner: {
+                                  ...prev.wideBanner,
+                                  image1: e.target.value,
+                                  imageUrl: e.target.value,
+                                },
                               }))
                             }
                             className="flex-1 h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
@@ -1288,7 +1315,11 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                                   handleUploadImage('wide-1', file, (url) => {
                                     setDraftCustomization((prev) => ({
                                       ...prev,
-                                      wideBanner: { ...prev.wideBanner, image1: url },
+                                      wideBanner: {
+                                        ...prev.wideBanner,
+                                        image1: url,
+                                        imageUrl: url,
+                                      },
                                     }));
                                   });
                                 }
@@ -1302,7 +1333,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                         <div className="flex items-center gap-2">
                           <input
                             type="text"
-                            value={draftCustomization.wideBanner.image2}
+                            value={draftCustomization.wideBanner.image2 || ''}
                             onChange={(e) =>
                               setDraftCustomization((prev) => ({
                                 ...prev,
@@ -1350,6 +1381,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                       type="button"
                       onClick={() => {
                         const newBrand: PartnerBrandConfig = {
+                          id: `brand-${Date.now()}`,
                           name: 'Nova Marca',
                           logoUrl: '',
                           ariaLabel: 'Filtrar produtos da marca',
@@ -1572,11 +1604,18 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                         <label className="block font-semibold text-[#555555] mb-1">Facebook</label>
                         <input
                           type="text"
-                          value={draftCustomization.contact.facebook || ''}
+                          value={draftCustomization.contact.socials?.facebook || draftCustomization.contact.facebook || ''}
                           onChange={(e) =>
                             setDraftCustomization((prev) => ({
                               ...prev,
-                              contact: { ...prev.contact, facebook: e.target.value },
+                              contact: {
+                                ...prev.contact,
+                                facebook: e.target.value,
+                                socials: {
+                                  ...(prev.contact.socials || {}),
+                                  facebook: e.target.value,
+                                },
+                              },
                             }))
                           }
                           placeholder="https://facebook.com/cellbox"
@@ -1587,11 +1626,18 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                         <label className="block font-semibold text-[#555555] mb-1">Instagram</label>
                         <input
                           type="text"
-                          value={draftCustomization.contact.instagram || ''}
+                          value={draftCustomization.contact.socials?.instagram || draftCustomization.contact.instagram || ''}
                           onChange={(e) =>
                             setDraftCustomization((prev) => ({
                               ...prev,
-                              contact: { ...prev.contact, instagram: e.target.value },
+                              contact: {
+                                ...prev.contact,
+                                instagram: e.target.value,
+                                socials: {
+                                  ...(prev.contact.socials || {}),
+                                  instagram: e.target.value,
+                                },
+                              },
                             }))
                           }
                           placeholder="https://instagram.com/cellbox"
@@ -1602,11 +1648,18 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                         <label className="block font-semibold text-[#555555] mb-1">Twitter / X</label>
                         <input
                           type="text"
-                          value={draftCustomization.contact.twitter || ''}
+                          value={draftCustomization.contact.socials?.twitter || draftCustomization.contact.twitter || ''}
                           onChange={(e) =>
                             setDraftCustomization((prev) => ({
                               ...prev,
-                              contact: { ...prev.contact, twitter: e.target.value },
+                              contact: {
+                                ...prev.contact,
+                                twitter: e.target.value,
+                                socials: {
+                                  ...(prev.contact.socials || {}),
+                                  twitter: e.target.value,
+                                },
+                              },
                             }))
                           }
                           placeholder="https://x.com/cellbox"
@@ -1617,11 +1670,18 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                         <label className="block font-semibold text-[#555555] mb-1">YouTube</label>
                         <input
                           type="text"
-                          value={draftCustomization.contact.youtube || ''}
+                          value={draftCustomization.contact.socials?.youtube || draftCustomization.contact.youtube || ''}
                           onChange={(e) =>
                             setDraftCustomization((prev) => ({
                               ...prev,
-                              contact: { ...prev.contact, youtube: e.target.value },
+                              contact: {
+                                ...prev.contact,
+                                youtube: e.target.value,
+                                socials: {
+                                  ...(prev.contact.socials || {}),
+                                  youtube: e.target.value,
+                                },
+                              },
                             }))
                           }
                           placeholder="https://youtube.com/@cellbox"
@@ -1632,11 +1692,18 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                         <label className="block font-semibold text-[#555555] mb-1">TikTok</label>
                         <input
                           type="text"
-                          value={draftCustomization.contact.tiktok || ''}
+                          value={draftCustomization.contact.socials?.tiktok || draftCustomization.contact.tiktok || ''}
                           onChange={(e) =>
                             setDraftCustomization((prev) => ({
                               ...prev,
-                              contact: { ...prev.contact, tiktok: e.target.value },
+                              contact: {
+                                ...prev.contact,
+                                tiktok: e.target.value,
+                                socials: {
+                                  ...(prev.contact.socials || {}),
+                                  tiktok: e.target.value,
+                                },
+                              },
                             }))
                           }
                           placeholder="https://tiktok.com/@cellbox"
@@ -1657,7 +1724,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                     </label>
                     <input
                       type="text"
-                      value={draftCustomization.footer.aboutTitle}
+                      value={draftCustomization.footer.aboutTitle || ''}
                       onChange={(e) =>
                         setDraftCustomization((prev) => ({
                           ...prev,
@@ -1691,7 +1758,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                     </label>
                     <input
                       type="text"
-                      value={draftCustomization.footer.guaranteeTitle}
+                      value={draftCustomization.footer.guaranteeTitle || ''}
                       onChange={(e) =>
                         setDraftCustomization((prev) => ({
                           ...prev,

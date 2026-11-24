@@ -24,6 +24,7 @@ import type {
   SellerActivationStatus,
   SellerKycInfo,
   SellerPayoutInfo,
+  SellerSocials,
   SellerStatus,
   SellerStore,
   SiteCustomization,

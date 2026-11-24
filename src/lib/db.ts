@@ -1588,7 +1588,7 @@ export async function createBulkProducts(
       soldCount: 0,
       isFlashDeal: false,
       isBestSeller: false,
-      images: Array.isArray(it.images) && it.images.length > 0 ? it.images : [ASSET_IMAGES.hero],
+      images: Array.isArray(it.images) && it.images.length > 0 ? it.images : ['https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop'],
       description: it.description || '',
       specs: it.specs ?? {},
       createdAt: new Date().toISOString(),

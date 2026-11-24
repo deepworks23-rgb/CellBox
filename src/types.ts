@@ -94,7 +94,8 @@ export interface SellerSocials {
 }
 
 export interface SellerKycInfo {
-  status: 'not_submitted' | 'pending' | 'verified' | 'rejected';
+  status?: 'not_submitted' | 'pending' | 'verified' | 'rejected';
+  fullName?: string;
   documentType?: 'BI' | 'NUIT' | 'Passaporte' | 'Alvara';
   documentNumber?: string;
   documentFrontUrl?: string;
@@ -243,7 +244,11 @@ export interface HeroSlideConfig {
   subtitle: string;
   highlight: string;
   ctaText: string;
+  cta?: string;
   imageUrl: string;
+  image?: string;
+  imageAlt?: string;
+  productId?: string;
 }
 
 export interface PromoSubBannerConfig {
@@ -251,7 +256,11 @@ export interface PromoSubBannerConfig {
   title: string;
   subtitle: string;
   ctaText: string;
+  cta?: string;
+  category?: string;
   imageUrl: string;
+  image?: string;
+  imageAlt?: string;
 }
 
 export interface WidePromoBannerConfig {
@@ -259,13 +268,18 @@ export interface WidePromoBannerConfig {
   kicker: string;
   description: string;
   ctaText: string;
+  cta?: string;
   imageUrl: string;
+  image1?: string;
+  image2?: string;
+  actionType?: string;
 }
 
 export interface PartnerBrandConfig {
-  id: string;
+  id?: string;
   name: string;
   logoUrl?: string;
+  ariaLabel?: string;
 }
 
 export interface SiteContactConfig {
@@ -282,17 +296,28 @@ export interface SiteContactConfig {
     youtube?: string;
     tiktok?: string;
   };
+  facebook?: string;
+  instagram?: string;
+  twitter?: string;
+  youtube?: string;
+  tiktok?: string;
 }
 
 export interface SiteHeaderConfig {
   topBarNotice: string;
+  topNotice?: string;
   phone: string;
+  supportPhone?: string;
   email: string;
+  supportEmail?: string;
   currencyLabel: string;
+  currencyDisplay?: string;
 }
 
 export interface SiteFooterConfig {
+  aboutTitle?: string;
   aboutText: string;
+  guaranteeTitle?: string;
   guaranteeText: string;
   copyrightText: string;
 }
