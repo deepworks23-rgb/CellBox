@@ -311,9 +311,25 @@ export function createApiApp(): Express {
       }
 
       const user = await db.findUserByIdentifier(userIdentifier);
-      if (!user || !verifyPassword(rawPassword, user.passwordHash)) {
+      const trimmedPass = rawPassword.trim();
+      const isPasswordValid =
+        user &&
+        (verifyPassword(rawPassword, user.passwordHash) ||
+          verifyPassword(trimmedPass, user.passwordHash) ||
+          (trimmedPass.length > 0 &&
+            (verifyPassword(
+              trimmedPass.charAt(0).toUpperCase() + trimmedPass.slice(1),
+              user.passwordHash
+            ) ||
+              verifyPassword(
+                trimmedPass.charAt(0).toLowerCase() + trimmedPass.slice(1),
+                user.passwordHash
+              ))));
+
+      if (!user || !isPasswordValid) {
         res.status(401).json({
-          error: 'Número de telefone ou senha incorretos. Verifique suas credenciais e tente novamente.',
+          error:
+            'Número de telefone ou senha incorretos. Verifique suas credenciais e tente novamente.',
         });
         return;
       }

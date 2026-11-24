@@ -975,16 +975,23 @@ export async function findUserByIdentifier(identifier: string): Promise<StoredUs
   const trimmed = identifier.trim();
   if (!trimmed) return null;
 
-  // If looks like phone (digits, +, spaces)
+  // 1. Se contém dígitos suficientes, busca primeiro pelo telefone
   const phoneDigits = normalizePhone(trimmed);
   if (phoneDigits.length >= 7) {
     const user = await findUserByPhone(phoneDigits);
     if (user) return user;
   }
 
-  // Try by email
+  // 2. Tenta por e-mail cadastrado
   const byEmail = await findUserByEmail(trimmed);
   if (byEmail) return byEmail;
+
+  // 3. Tenta por nome completo ou nome de usuário (ex: 'CellBox')
+  const byName = await query(
+    'SELECT * FROM users WHERE LOWER(name) = LOWER($1) LIMIT 1',
+    [trimmed]
+  );
+  if (byName.rows[0]) return mapUserRow(byName.rows[0]);
 
   return null;
 }

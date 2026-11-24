@@ -409,25 +409,25 @@ export function AuthView({ initialMode = 'login' }: AuthViewProps) {
                     htmlFor="login-phone"
                     className="block text-xs font-bold text-[#334155] mb-1.5"
                   >
-                    Número de Telefone <span className="text-rose-500">*</span>
+                    Telefone, Nome de Usuário ou E-mail <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
                     <Phone className="w-4 h-4 text-[#94A3B8] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input
                       id="login-phone"
-                      type="tel"
-                      autoComplete="tel"
+                      type="text"
+                      autoComplete="username"
                       value={loginPhone}
                       onChange={(e) => {
                         setLoginPhone(e.target.value);
                         if (loginError) setLoginError('');
                       }}
-                      placeholder="Ex: 84 123 4567 ou 86 123 4567"
+                      placeholder="Ex: 869391382, CellBox ou seu e-mail"
                       className="w-full h-11 pl-10 pr-3.5 rounded-[3px] border border-[#CBD5E1] bg-white text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:border-[#0475EE] focus:ring-2 focus:ring-[#0475EE]/15 transition-colors font-mono"
                     />
                   </div>
                   <p className="text-[11px] text-[#94A3B8] mt-1">
-                    Também pode informar o seu e-mail cadastrado caso prefira.
+                    Pode utilizar o seu número de telefone (ex: 869391382), nome de conta (ex: CellBox) ou e-mail.
                   </p>
                 </div>
 
