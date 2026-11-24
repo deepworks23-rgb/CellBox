@@ -920,9 +920,24 @@ export async function initDatabase(createSeed: () => SeedPayload): Promise<void>
         (SELECT COUNT(*)::int FROM sellers) AS sellers
     `);
     const row = stats.rows[0];
-    console.log(
-      `[Cellbox PostgreSQL] Connected to Neon (${row.users} users, ${row.sellers} sellers, ${row.products} products).`
-    );
+    if (row.users === 0) {
+      console.log('[Cellbox PostgreSQL] Tabela de utilizadores vazia (0 users). Populando seed inicial...');
+      await insertSeedInClient(client, seed);
+      const postSeed = await client.query<{ users: number; products: number; sellers: number }>(`
+        SELECT
+          (SELECT COUNT(*)::int FROM users) AS users,
+          (SELECT COUNT(*)::int FROM products) AS products,
+          (SELECT COUNT(*)::int FROM sellers) AS sellers
+      `);
+      const r = postSeed.rows[0];
+      console.log(
+        `[Cellbox PostgreSQL] Seed inicial concluído (${r.users} users, ${r.sellers} sellers, ${r.products} products).`
+      );
+    } else {
+      console.log(
+        `[Cellbox PostgreSQL] Connected to Neon (${row.users} users, ${row.sellers} sellers, ${row.products} products).`
+      );
+    }
   });
 }
 
