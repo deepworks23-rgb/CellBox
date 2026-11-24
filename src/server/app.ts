@@ -614,6 +614,104 @@ export function createApiApp(): Express {
     })
   );
 
+  // ── EscalePay Webhook Listener (Instant Payment Notification - IPN) ────────
+  app.all(
+    '/api/webhooks/escalepay',
+    asyncHandler(async (req, res) => {
+      if (req.method === 'GET') {
+        res.json({
+          ok: true,
+          service: 'CellBox EscalePay Webhook Listener',
+          status: 'online',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      const payload = (req.body || {}) as Record<string, any>;
+      const data = payload.data || payload;
+      const customer = data.customer || payload.customer || {};
+
+      const transactionId = String(
+        data.transaction_id ||
+        data.transactionId ||
+        data.id ||
+        data.payment_id ||
+        payload.id ||
+        `TX-${Date.now()}`
+      );
+
+      const status = String(data.status || payload.status || payload.event || '').toLowerCase();
+
+      // Check if event/status signifies approved payment
+      const isSuccess =
+        !status ||
+        status.includes('paid') ||
+        status.includes('approved') ||
+        status.includes('success') ||
+        status.includes('completed') ||
+        status.includes('sale.approved');
+
+      // Extract seller reference from metadata / reference / params
+      const reference = String(
+        data.sellerId ||
+        data.seller_id ||
+        data.metadata?.sellerId ||
+        data.custom_fields?.sellerId ||
+        data.reference ||
+        data.external_reference ||
+        payload.sellerId ||
+        payload.reference ||
+        ''
+      );
+
+      const phone = String(customer.phone || data.phone || payload.phone || '');
+      const email = String(customer.email || data.email || payload.email || '');
+
+      const seller = await db.findSellerByAnyIdentifier({
+        sellerId: reference,
+        reference,
+        phone,
+        email,
+      });
+
+      if (!seller) {
+        console.warn('[EscalePay Webhook] No matching seller found for payload:', {
+          reference,
+          phone,
+          email,
+          transactionId,
+        });
+        res.status(200).json({
+          ok: true,
+          warning: 'Webhook recebido com sucesso pela CellBox, mas o lojista não foi localizado.',
+          receivedReference: reference,
+          receivedPhone: phone,
+          receivedEmail: email,
+        });
+        return;
+      }
+
+      if (isSuccess) {
+        await db.confirmSellerFeePayment(seller.id, {
+          method: 'escalepay',
+          transactionId,
+          phone,
+          receipt: `ESCALEPAY-${transactionId}`,
+        });
+        console.log(`[EscalePay Webhook] Taxa de 100 MT confirmada para: ${seller.name} (${seller.id})`);
+      }
+
+      res.status(200).json({
+        ok: true,
+        message: 'Notificação EscalePay processada com sucesso.',
+        sellerId: seller.id,
+        storeName: seller.name,
+        paid: isSuccess,
+      });
+    })
+  );
+
   app.post(
     '/api/auth/logout',
     asyncHandler(async (req, res) => {

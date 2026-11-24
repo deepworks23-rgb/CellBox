@@ -88,4 +88,8 @@ export const DEFAULT_SITE_CUSTOMIZATION: SiteCustomization = {
     guaranteeText: 'Compra 100% Garantida com devolução facilitada em até 30 dias e assistência técnica autorizada.',
     copyrightText: 'Copyright © 2026 Cellbox Moçambique. Todos os direitos reservados. Preços em Meticais (MZN).',
   },
+  gateways: {
+    escalePayCheckoutUrl: '',
+    escalePayWebhookSecret: '',
+  },
 };

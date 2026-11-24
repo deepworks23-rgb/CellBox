@@ -112,7 +112,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
 
   const [draftCustomization, setDraftCustomization] = useState<SiteCustomization>(siteCustomization);
   const [cmsSubTab, setCmsSubTab] = useState<
-    'header' | 'hero' | 'banners' | 'brands' | 'contacts' | 'footer'
+    'header' | 'hero' | 'banners' | 'brands' | 'contacts' | 'footer' | 'gateways'
   >('header');
   const [savingCms, setSavingCms] = useState(false);
   const [uploadingField, setUploadingField] = useState<string | null>(null);
@@ -764,6 +764,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                   { id: 'brands' as const, label: 'Marcas Parceiras' },
                   { id: 'contacts' as const, label: 'Contatos & Redes' },
                   { id: 'footer' as const, label: 'Rodapé (Footer)' },
+                  { id: 'gateways' as const, label: 'Gateway EscalePay (Taxa 100 MT)' },
                 ].map((st) => (
                   <button
                     key={st.id}
@@ -1803,6 +1804,96 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                         }))
                       }
                       className="w-full h-10 px-3 border border-[#DCDCDC] rounded-[2px] text-xs text-[#333333]"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* SUBTAB 7: GATEWAYS (ESCALEPAY) */}
+              {cmsSubTab === 'gateways' && (
+                <div className="space-y-6 max-w-3xl text-xs">
+                  <div className="bg-[#F0F7FF] border border-[#BFDBFE] rounded-[3px] p-4 space-y-2">
+                    <h3 className="font-bold text-[#0A3768] text-sm flex items-center gap-2">
+                      <CreditCard className="w-4 h-4 text-[#0475EE]" />
+                      Integração Automática com EscalePay (Moçambique)
+                    </h3>
+                    <p className="text-[#334155] leading-relaxed">
+                      Ao configurar o link do seu produto da EscalePay abaixo, os lojistas poderão pagar a taxa de adesão de 100 MT diretamente pelo checkout oficial com <strong>M-Pesa, e-Mola ou Cartão</strong>. Assim que o pagamento for concluído na EscalePay, a CellBox receberá o sinal via Webhook e ativará a loja automaticamente!
+                    </p>
+                  </div>
+
+                  {/* URL DO WEBHOOK PARA O USUÁRIO COPIAR */}
+                  <div className="p-4 bg-white border border-[#CBD5E1] rounded-[3px] space-y-2">
+                    <label className="block font-bold text-[#1E293B] text-xs">
+                      1. URL do Webhook da CellBox (Cole nas configurações da sua conta EscalePay):
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value="https://cellbox-psi.vercel.app/api/webhooks/escalepay"
+                        className="w-full h-10 px-3 bg-[#F8FAFC] border border-[#CBD5E1] rounded-[3px] font-mono text-xs text-[#0F172A] select-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText('https://cellbox-psi.vercel.app/api/webhooks/escalepay');
+                          showToast('URL do Webhook copiada para a área de transferência!', 'success');
+                        }}
+                        className="h-10 px-4 rounded-[3px] bg-[#0A3768] hover:bg-[#0475EE] text-white text-xs font-bold uppercase whitespace-nowrap cursor-pointer transition-colors"
+                      >
+                        Copiar URL
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-[#64748B]">
+                      No painel da EscalePay, cadastre essa URL em <em>Configurações / Webhooks</em> para o evento de venda aprovada.
+                    </p>
+                  </div>
+
+                  {/* LINK DO PRODUTO ESCALEPAY */}
+                  <div className="p-4 bg-white border border-[#CBD5E1] rounded-[3px] space-y-3">
+                    <label className="block font-bold text-[#1E293B] text-xs">
+                      2. Link do Produto / Checkout EscalePay (100 MT):
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="Ex: https://pay.escalepay.com/pay/abc123xyz"
+                      value={draftCustomization.gateways?.escalePayCheckoutUrl || ''}
+                      onChange={(e) =>
+                        setDraftCustomization((prev) => ({
+                          ...prev,
+                          gateways: {
+                            ...(prev.gateways ?? {}),
+                            escalePayCheckoutUrl: e.target.value.trim(),
+                          },
+                        }))
+                      }
+                      className="w-full h-10 px-3 border border-[#CBD5E1] rounded-[3px] text-xs focus:border-[#0475EE] focus:outline-none"
+                    />
+                    <p className="text-[11px] text-[#64748B]">
+                      Crie um produto na sua conta EscalePay com valor de 100 MT e cole aqui o link gerado. Esse link será aberto automaticamente quando o lojista clicar em pagar no painel do vendedor.
+                    </p>
+                  </div>
+
+                  {/* TOKEN SECRETO (OPCIONAL) */}
+                  <div className="p-4 bg-white border border-[#CBD5E1] rounded-[3px] space-y-3">
+                    <label className="block font-bold text-[#1E293B] text-xs">
+                      3. Chave Secreta / Token do Webhook (Opcional):
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="Token de segurança fornecido pela EscalePay (opcional)"
+                      value={draftCustomization.gateways?.escalePayWebhookSecret || ''}
+                      onChange={(e) =>
+                        setDraftCustomization((prev) => ({
+                          ...prev,
+                          gateways: {
+                            ...(prev.gateways ?? {}),
+                            escalePayWebhookSecret: e.target.value.trim(),
+                          },
+                        }))
+                      }
+                      className="w-full h-10 px-3 border border-[#CBD5E1] rounded-[3px] text-xs focus:border-[#0475EE] focus:outline-none"
                     />
                   </div>
                 </div>

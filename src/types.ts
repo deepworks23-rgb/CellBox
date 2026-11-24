@@ -327,6 +327,11 @@ export interface SiteFooterConfig {
   copyrightText: string;
 }
 
+export interface SitePaymentGatewaysConfig {
+  escalePayCheckoutUrl?: string;
+  escalePayWebhookSecret?: string;
+}
+
 export interface SiteCustomization {
   header: SiteHeaderConfig;
   heroSlides: HeroSlideConfig[];
@@ -335,4 +340,5 @@ export interface SiteCustomization {
   partnerBrands: PartnerBrandConfig[];
   contact: SiteContactConfig;
   footer: SiteFooterConfig;
+  gateways?: SitePaymentGatewaysConfig;
 }

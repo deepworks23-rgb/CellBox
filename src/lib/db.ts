@@ -1584,6 +1584,102 @@ export async function adminReviewSellerFee(
   return res.rows[0] ? mapSellerRow(res.rows[0]) : null;
 }
 
+export async function confirmSellerFeePayment(
+  sellerId: string,
+  info: {
+    method: 'escalepay' | 'mpesa' | 'emola';
+    transactionId: string;
+    phone?: string;
+    receipt?: string;
+    amount?: number;
+  }
+): Promise<SellerStore | null> {
+  const seller = await findSellerById(sellerId);
+  if (!seller) return null;
+
+  const currentActivation = seller.activation ?? {
+    profileCompleted: true,
+    kycCompleted: false,
+    feePaid: false,
+  };
+
+  const updatedActivation: SellerActivationStatus = {
+    ...currentActivation,
+    feePaid: true,
+    feeStatus: 'verified',
+    feePaymentMethod: info.method === 'escalepay' ? 'mpesa' : info.method,
+    feePhone: info.phone || currentActivation.feePhone,
+    feeTransactionId: info.transactionId,
+    feeReceipt: info.receipt || (`ESCALEPAY-${info.transactionId || Date.now()}`),
+    feePaidAt: new Date().toISOString(),
+  };
+
+  const shouldBeActive = updatedActivation.kycCompleted;
+
+  const res = await query(
+    `UPDATE sellers
+     SET activation = $2::jsonb,
+         verified = CASE WHEN $3 = TRUE THEN TRUE ELSE verified END,
+         status = CASE WHEN $3 = TRUE THEN 'active' ELSE status END,
+         tenure_label = CASE WHEN $3 = TRUE THEN 'Loja Oficial Verificada' ELSE tenure_label END
+     WHERE id = $1
+     RETURNING *`,
+    [
+      sellerId,
+      JSON.stringify(updatedActivation),
+      shouldBeActive,
+    ]
+  );
+  return res.rows[0] ? mapSellerRow(res.rows[0]) : null;
+}
+
+export async function findSellerByAnyIdentifier(criteria: {
+  sellerId?: string;
+  reference?: string;
+  phone?: string;
+  email?: string;
+}): Promise<SellerStore | null> {
+  // 1. Direct ID / Slug / Reference match
+  const ref = criteria.sellerId?.trim() || criteria.reference?.trim();
+  if (ref) {
+    const s = await findSellerById(ref);
+    if (s) return s;
+    const resSlug = await query(`SELECT * FROM sellers WHERE id = $1 OR slug = $1 LIMIT 1`, [ref]);
+    if (resSlug.rows[0]) return mapSellerRow(resSlug.rows[0]);
+  }
+
+  // 2. Phone match
+  const rawPhone = criteria.phone?.replace(/\D/g, '') || '';
+  if (rawPhone.length >= 8) {
+    const clean9 = rawPhone.slice(-9);
+    const resPhone = await query(
+      `SELECT s.* FROM sellers s
+       LEFT JOIN users u ON u.id = s.owner_user_id
+       WHERE s.payout_info->>'pixOrWallet' LIKE '%' || $1
+          OR s.activation->>'feePhone' LIKE '%' || $1
+          OR u.phone LIKE '%' || $1
+       LIMIT 1`,
+      [clean9]
+    );
+    if (resPhone.rows[0]) return mapSellerRow(resPhone.rows[0]);
+  }
+
+  // 3. Email match
+  const email = criteria.email?.trim().toLowerCase();
+  if (email && email.includes('@')) {
+    const resEmail = await query(
+      `SELECT s.* FROM sellers s
+       JOIN users u ON u.id = s.owner_user_id
+       WHERE LOWER(u.email) = $1
+       LIMIT 1`,
+      [email]
+    );
+    if (resEmail.rows[0]) return mapSellerRow(resEmail.rows[0]);
+  }
+
+  return null;
+}
+
 export async function doesUserOwnSeller(
   targetSellerId: string,
   userId: string,
@@ -2110,6 +2206,10 @@ export async function getSiteCustomization(): Promise<SiteCustomization> {
         },
       },
       footer: { ...DEFAULT_SITE_CUSTOMIZATION.footer, ...(raw.footer ?? {}) },
+      gateways: {
+        ...DEFAULT_SITE_CUSTOMIZATION.gateways,
+        ...(raw.gateways ?? {}),
+      },
     };
   } catch (err) {
     console.warn('[Cellbox DB] Failed to read siteCustomization, using defaults:', err);

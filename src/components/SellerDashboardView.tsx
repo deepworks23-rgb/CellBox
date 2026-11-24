@@ -9,6 +9,7 @@ import {
   Clock,
   CreditCard,
   Download,
+  ExternalLink,
   FileSpreadsheet,
   FileText,
   Image as ImageIcon,
@@ -85,6 +86,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
     uploadImageAsset,
     submitSellerKyc,
     paySellerActivationFee,
+    siteCustomization,
     navigate,
     showToast,
   } = useMarketplace();
@@ -136,7 +138,10 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
       setKycFullName((prev) => prev || currentUser.name || '');
       setFeePhone((prev) => prev || currentUser.phone || '');
     }
-  }, [seller, currentUser]);
+    if (typeof window !== 'undefined' && window.location.search.includes('payment=success')) {
+      showToast('Pagamento detectado! Atualizando status da sua loja...', 'success');
+    }
+  }, [seller, currentUser, showToast]);
 
   const isPublicActive = seller ? isStorePubliclyActive(seller) : false;
   const profileDone = Boolean(
@@ -2756,6 +2761,62 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
               >
                 <X className="w-5 h-5" />
               </button>
+            </div>
+
+            {/* OPÇÃO 1: PAGAMENTO AUTOMÁTICO ESCALEPAY */}
+            {siteCustomization?.gateways?.escalePayCheckoutUrl?.trim() ? (
+              <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-[4px] p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <p className="font-bold text-[#166534] text-xs uppercase tracking-wider">
+                      Recomendado · Ativação Instantânea
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded">
+                    EscalePay
+                  </span>
+                </div>
+                <p className="text-xs text-[#14532D] leading-relaxed">
+                  Pague com <strong>M-Pesa, e-Mola ou Cartão</strong> no checkout oficial da EscalePay. Assim que concluir o pagamento, a CellBox recebe o sinal do Webhook e aprova a taxa da sua loja automaticamente!
+                </p>
+                <a
+                  href={(() => {
+                    const base = siteCustomization.gateways?.escalePayCheckoutUrl?.trim() || '';
+                    if (!base) return '#';
+                    try {
+                      const u = new URL(base);
+                      u.searchParams.set('sellerId', seller?.id || '');
+                      u.searchParams.set('reference', seller?.id || '');
+                      u.searchParams.set('name', currentUser?.name || seller?.name || '');
+                      if (currentUser?.email) u.searchParams.set('email', currentUser.email);
+                      if (feePhone || currentUser?.phone) u.searchParams.set('phone', feePhone || currentUser?.phone || '');
+                      return u.toString();
+                    } catch {
+                      const sep = base.includes('?') ? '&' : '?';
+                      return `${base}${sep}sellerId=${encodeURIComponent(seller?.id || '')}&reference=${encodeURIComponent(seller?.id || '')}&phone=${encodeURIComponent(feePhone || currentUser?.phone || '')}`;
+                    }
+                  })()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full h-11 px-4 rounded-[3px] bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider inline-flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
+                >
+                  <CreditCard className="w-4 h-4" />
+                  Ir para Checkout EscalePay (100 MT)
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            ) : null}
+
+            {/* SEPARADOR OU OPÇÃO MANUAL */}
+            <div className="relative flex py-1 items-center">
+              <div className="flex-grow border-t border-[#EAEAEA]"></div>
+              <span className="flex-shrink mx-3 text-[11px] font-bold uppercase text-[#888888]">
+                {siteCustomization?.gateways?.escalePayCheckoutUrl?.trim()
+                  ? 'Ou pague por transferência manual'
+                  : 'Pagamento via Transferência Móvel'}
+              </span>
+              <div className="flex-grow border-t border-[#EAEAEA]"></div>
             </div>
 
             {/* INSTRUÇÕES OFICIAIS DE PAGAMENTO EM MOÇAMBIQUE */}
