@@ -117,7 +117,7 @@ export function createInitialSeed(): SeedPayload {
       logoUrl: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=300&auto=format&fit=crop',
       accentColor: '#1D4ED8',
       bannerImage: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=1200&auto=format&fit=crop',
-      status: 'approved',
+      status: 'active',
       verified: true,
       rating: 5.0,
       reviewCount: 0,
@@ -559,16 +559,20 @@ export function createApiApp(): Express {
 
   app.all(
     '/api/seed',
-    asyncHandler(async (_req, res) => {
+    asyncHandler(async (req, res) => {
       const stats = await db.getDatabaseHealthStats();
-      if (stats.users > 0) {
-        res.json({ ok: true, message: 'Banco já possui utilizadores cadastrados.', stats });
+      const shouldReset = req.query.reset === '1';
+      if (stats.users === 0 || shouldReset) {
+        const seed = createInitialSeed();
+        await db.resetDatabaseToSeed(seed);
+        const postStats = await db.getDatabaseHealthStats();
+        res.json({ ok: true, message: 'Seed inicial populado com sucesso.', stats: postStats });
         return;
       }
-      const seed = createInitialSeed();
-      await db.resetDatabaseToSeed(seed);
-      const postStats = await db.getDatabaseHealthStats();
-      res.json({ ok: true, message: 'Seed inicial populado com sucesso.', stats: postStats });
+      // Garante que a loja oficial esteja ativa para os produtos serem exibidos na vitrine
+      await db.setSellerStatus('seller-1795423493110', 'active');
+      const refreshedStats = await db.getDatabaseHealthStats();
+      res.json({ ok: true, message: 'Status dos utilizadores e lojas sincronizado.', stats: refreshedStats });
     })
   );
 

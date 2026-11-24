@@ -1857,6 +1857,11 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                     </label>
                     <input
                       type="url"
+                      id="cellbox_escalepay_checkout_link"
+                      name="cellbox_escalepay_checkout_link"
+                      autoComplete="off"
+                      data-lpignore="true"
+                      data-form-type="other"
                       placeholder="Ex: https://pay.escalepay.com/pay/abc123xyz"
                       value={draftCustomization.gateways?.escalePayCheckoutUrl || ''}
                       onChange={(e) =>
@@ -1881,7 +1886,12 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                       3. Chave Secreta / Token do Webhook (Opcional):
                     </label>
                     <input
-                      type="password"
+                      type="text"
+                      id="cellbox_escalepay_webhook_token"
+                      name="cellbox_escalepay_webhook_token"
+                      autoComplete="off"
+                      data-lpignore="true"
+                      data-form-type="other"
                       placeholder="Token de segurança fornecido pela EscalePay (opcional)"
                       value={draftCustomization.gateways?.escalePayWebhookSecret || ''}
                       onChange={(e) =>
@@ -1893,7 +1903,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                           },
                         }))
                       }
-                      className="w-full h-10 px-3 border border-[#CBD5E1] rounded-[3px] text-xs focus:border-[#0475EE] focus:outline-none"
+                      className="w-full h-10 px-3 border border-[#CBD5E1] rounded-[3px] text-xs font-mono focus:border-[#0475EE] focus:outline-none"
                     />
                   </div>
                 </div>

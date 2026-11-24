@@ -99,8 +99,9 @@ export function pathToView(pathname: string, search = ''): AppView {
     return { type: 'seller_dashboard', tab: 'overview' };
   }
 
-  if (clean === '/admin' || clean.startsWith('/admin/')) {
-    const sub = clean.slice('/admin'.length).replace(/^\//, '');
+  if (clean === '/admin' || clean.startsWith('/admin/') || clean === '/painel-admin' || clean.startsWith('/painel-admin/')) {
+    const prefix = clean.startsWith('/painel-admin') ? '/painel-admin' : '/admin';
+    const sub = clean.slice(prefix.length).replace(/^\//, '');
     if (sub === 'vendedores') return { type: 'admin_dashboard', tab: 'sellers' };
     if (sub === 'catalogo') return { type: 'admin_dashboard', tab: 'catalog' };
     if (sub === 'financeiro') return { type: 'admin_dashboard', tab: 'finance' };

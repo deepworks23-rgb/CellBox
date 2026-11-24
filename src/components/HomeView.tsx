@@ -270,7 +270,7 @@ export function HomeView() {
                       }}
                       className="h-10 px-6 rounded-full bg-white text-[#0A3768] hover:bg-[#EAF6FC] text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer shadow-sm whitespace-nowrap shrink-0"
                     >
-                      {activeSlide.cta}
+                      {(activeSlide as any).ctaText || (activeSlide as any).cta || 'VER OFERTAS'}
                     </MotionButton>
                     <MotionButton
                       type="button"
@@ -288,8 +288,8 @@ export function HomeView() {
                 <div className="md:col-span-6 flex items-center justify-center z-10 min-w-0">
                   <div className="w-full h-[210px] sm:h-[260px] lg:h-[290px] flex items-center justify-center px-2">
                     <img
-                      src={activeSlide.image}
-                      alt={activeSlide.imageAlt}
+                      src={(activeSlide as any).imageUrl || (activeSlide as any).image || CUTOUT_IMAGES.heroSmartphones}
+                      alt={(activeSlide as any).imageAlt || activeSlide.title}
                       referrerPolicy="no-referrer"
                       className="max-h-full max-w-full w-auto h-auto object-contain drop-shadow-[0_22px_28px_rgba(7,40,80,0.45)] select-none pointer-events-none"
                     />
@@ -333,19 +333,19 @@ export function HomeView() {
               <MotionButton
                 type="button"
                 onClick={() => {
-                  setFilters((prev) => ({ ...prev, category: subBanner1.category || 'Tablets' }));
+                  setFilters((prev) => ({ ...prev, category: (subBanner1 as any).category || 'Tablets' }));
                   setPageIdx(0);
                   document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
                 }}
                 className="mt-3.5 h-7 px-4 rounded-full bg-[#18A3DE] hover:bg-[#0A3768] text-white text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap"
               >
-                {subBanner1.cta}
+                {(subBanner1 as any).ctaText || (subBanner1 as any).cta || 'VER AGORA'}
               </MotionButton>
             </div>
-            {subBanner1.image && (
+            {((subBanner1 as any).imageUrl || (subBanner1 as any).image) && (
               <img
-                src={subBanner1.image}
-                alt={subBanner1.imageAlt || subBanner1.title}
+                src={(subBanner1 as any).imageUrl || (subBanner1 as any).image}
+                alt={(subBanner1 as any).imageAlt || subBanner1.title}
                 className="h-24 sm:h-28 w-auto max-w-[140px] object-contain shrink-0 drop-shadow-[0_10px_16px_rgba(10,55,104,0.22)] select-none pointer-events-none"
               />
             )}
@@ -363,22 +363,22 @@ export function HomeView() {
               <MotionButton
                 type="button"
                 onClick={() => {
-                  setFilters((prev) => ({ ...prev, category: subBanner2.category || 'Laptops' }));
+                  setFilters((prev) => ({ ...prev, category: (subBanner2 as any).category || 'Laptops' }));
                   setPageIdx(0);
                   document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
                 }}
                 className="mt-3.5 h-8 px-4 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
               >
                 <ShoppingCart className="w-3.5 h-3.5" />
-                {subBanner2.cta}
+                {(subBanner2 as any).ctaText || (subBanner2 as any).cta || 'COMPRAR AGORA'}
               </MotionButton>
             </div>
 
             <div className="flex items-end justify-end gap-1 shrink-0 self-end sm:self-center">
-              {subBanner2.image && (
+              {((subBanner2 as any).imageUrl || (subBanner2 as any).image) && (
                 <img
-                  src={subBanner2.image}
-                  alt={subBanner2.imageAlt || subBanner2.title}
+                  src={(subBanner2 as any).imageUrl || (subBanner2 as any).image}
+                  alt={(subBanner2 as any).imageAlt || subBanner2.title}
                   className="h-28 md:h-32 w-auto object-contain drop-shadow-[0_12px_20px_rgba(10,55,104,0.28)] select-none pointer-events-none"
                 />
               )}
@@ -672,21 +672,21 @@ export function HomeView() {
               className="mt-4 h-8 px-5 rounded-full bg-[#0A3768] hover:bg-[#0475EE] text-white text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <ShoppingCart className="w-3.5 h-3.5" />
-              {wideBanner.cta}
+              {(wideBanner as any).ctaText || (wideBanner as any).cta || 'VER SEMINOVOS CERTIFICADOS'}
             </MotionButton>
           </div>
 
           <div className="flex items-end justify-center gap-2 sm:gap-4 self-center md:self-auto">
-            {wideBanner.image1 && (
+            {((wideBanner as any).imageUrl || (wideBanner as any).image1) && (
               <img
-                src={wideBanner.image1}
+                src={(wideBanner as any).imageUrl || (wideBanner as any).image1}
                 alt="Destaque 1"
                 className="h-24 sm:h-32 w-auto object-contain drop-shadow-[0_12px_18px_rgba(10,55,104,0.2)] select-none pointer-events-none"
               />
             )}
-            {wideBanner.image2 && (
+            {(wideBanner as any).image2 && (
               <img
-                src={wideBanner.image2}
+                src={(wideBanner as any).image2}
                 alt="Destaque 2"
                 className="h-28 sm:h-36 w-auto object-contain -ml-4 drop-shadow-[0_14px_22px_rgba(10,55,104,0.24)] select-none pointer-events-none"
               />
@@ -828,7 +828,7 @@ export function HomeView() {
         <section
           aria-label="Marcas parceiras"
           data-testid="partner-brands-strip"
-          className="pt-8 pb-4 border-t border-[#EFEFEF] grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6 items-center"
+          className="pt-8 pb-4 border-t border-[#EFEFEF] grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4 sm:gap-6 items-center"
         >
           {partnerBrands.map((b) => (
             <motion.button
