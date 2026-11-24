@@ -1,4 +1,4 @@
-import type { AppView, User, UserRole } from '../types';
+import type { AppView, User, UserRole } from '../types.ts';
 
 export function viewToPath(view: AppView): string {
   switch (view.type) {

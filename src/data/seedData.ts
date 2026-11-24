@@ -1,4 +1,4 @@
-import type { Address, Coupon, Order, Product, SellerStore, User } from '../types';
+import type { Address, Coupon, Order, Product, SellerStore, User } from '../types.ts';
 
 export const ACTIVE_COUPONS: Coupon[] = [];
 
