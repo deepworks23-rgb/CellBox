@@ -920,7 +920,8 @@ export async function initDatabase(createSeed: () => SeedPayload): Promise<void>
         (SELECT COUNT(*)::int FROM sellers) AS sellers
     `);
     const row = stats.rows[0];
-    if (row.users === 0) {
+    const userCount = Number(row?.users ?? 0);
+    if (userCount === 0) {
       console.log('[Cellbox PostgreSQL] Tabela de utilizadores vazia (0 users). Populando seed inicial...');
       await insertSeedInClient(client, seed);
       const postSeed = await client.query<{ users: number; products: number; sellers: number }>(`
