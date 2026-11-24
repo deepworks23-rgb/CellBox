@@ -1426,42 +1426,38 @@ export async function updateSellerKyc(
 
   const updatedActivation: SellerActivationStatus = {
     ...currentActivation,
-    kycCompleted: kyc.status === 'verified',
+    kycCompleted: false, // Must be approved by admin
   };
 
-  const isFullyReady =
-    updatedActivation.profileCompleted &&
-    updatedActivation.kycCompleted &&
-    updatedActivation.feePaid;
+  const newKyc: SellerKycInfo = {
+    ...kyc,
+    status: 'pending',
+    submittedAt: new Date().toISOString(),
+  };
 
-  const nextStatus = isFullyReady ? 'active' : (seller.status === 'active' ? 'active' : 'pending');
-  const nextVerified = isFullyReady;
-  const nextTenure = isFullyReady ? 'Loja Verificada' : seller.tenureLabel;
+  const docId = kyc.documentNumber?.trim() || seller.documentId;
 
   const res = await query(
     `UPDATE sellers
      SET kyc = $2::jsonb,
          activation = $3::jsonb,
-         status = $4,
-         verified = $5,
-         tenure_label = $6
+         document_id = $4,
+         verified = FALSE
      WHERE id = $1
      RETURNING *`,
     [
       sellerId,
-      JSON.stringify(kyc),
+      JSON.stringify(newKyc),
       JSON.stringify(updatedActivation),
-      nextStatus,
-      nextVerified,
-      nextTenure,
+      docId,
     ]
   );
   return res.rows[0] ? mapSellerRow(res.rows[0]) : null;
 }
 
-export async function paySellerActivationFee(
+export async function submitSellerActivationFee(
   sellerId: string,
-  data: { method: 'mpesa' | 'emola'; phone: string }
+  data: { method: 'mpesa' | 'emola'; phone: string; transactionId: string; proofUrl?: string }
 ): Promise<SellerStore | null> {
   const seller = await findSellerById(sellerId);
   if (!seller) return null;
@@ -1474,36 +1470,115 @@ export async function paySellerActivationFee(
 
   const updatedActivation: SellerActivationStatus = {
     ...currentActivation,
-    feePaid: true,
+    feePaid: false, // Real validation required: not marked paid automatically!
+    feeStatus: 'pending',
     feePaymentMethod: data.method,
     feePhone: data.phone,
-    feePaidAt: new Date().toISOString(),
-    feeReceipt: `MZN-100-${Date.now().toString().slice(-6)}`,
+    feeTransactionId: data.transactionId,
+    feeProofUrl: data.proofUrl,
+    feeSubmittedAt: new Date().toISOString(),
   };
-
-  const isFullyReady =
-    updatedActivation.profileCompleted &&
-    updatedActivation.kycCompleted &&
-    updatedActivation.feePaid;
-
-  const nextStatus = isFullyReady ? 'active' : seller.status;
-  const nextVerified = isFullyReady;
-  const nextTenure = isFullyReady ? 'Loja Verificada' : seller.tenureLabel;
 
   const res = await query(
     `UPDATE sellers
-     SET activation = $2::jsonb,
-         status = $3,
-         verified = $4,
-         tenure_label = $5
+     SET activation = $2::jsonb
      WHERE id = $1
      RETURNING *`,
     [
       sellerId,
       JSON.stringify(updatedActivation),
-      nextStatus,
-      nextVerified,
-      nextTenure,
+    ]
+  );
+  return res.rows[0] ? mapSellerRow(res.rows[0]) : null;
+}
+
+export async function adminReviewSellerKyc(
+  sellerId: string,
+  action: 'approve' | 'reject',
+  reason?: string
+): Promise<SellerStore | null> {
+  const seller = await findSellerById(sellerId);
+  if (!seller) return null;
+
+  const currentKyc = seller.kyc ?? {};
+  const currentActivation = seller.activation ?? {
+    profileCompleted: true,
+    kycCompleted: false,
+    feePaid: false,
+  };
+
+  const isApproved = action === 'approve';
+  const updatedKyc: SellerKycInfo = {
+    ...currentKyc,
+    status: isApproved ? 'verified' : 'rejected',
+    reviewedAt: new Date().toISOString(),
+    rejectionReason: isApproved ? undefined : (reason || 'Documento ilegível ou divergente dos dados cadastrais.'),
+  };
+
+  const updatedActivation: SellerActivationStatus = {
+    ...currentActivation,
+    kycCompleted: isApproved,
+  };
+
+  const shouldBeActive = isApproved && updatedActivation.feePaid;
+
+  const res = await query(
+    `UPDATE sellers
+     SET kyc = $2::jsonb,
+         activation = $3::jsonb,
+         verified = CASE WHEN $4 = TRUE THEN TRUE ELSE verified END,
+         status = CASE WHEN $4 = TRUE THEN 'active' ELSE status END,
+         tenure_label = CASE WHEN $4 = TRUE THEN 'Loja Oficial Verificada' ELSE tenure_label END
+     WHERE id = $1
+     RETURNING *`,
+    [
+      sellerId,
+      JSON.stringify(updatedKyc),
+      JSON.stringify(updatedActivation),
+      shouldBeActive,
+    ]
+  );
+  return res.rows[0] ? mapSellerRow(res.rows[0]) : null;
+}
+
+export async function adminReviewSellerFee(
+  sellerId: string,
+  action: 'approve' | 'reject',
+  reason?: string
+): Promise<SellerStore | null> {
+  const seller = await findSellerById(sellerId);
+  if (!seller) return null;
+
+  const currentActivation = seller.activation ?? {
+    profileCompleted: true,
+    kycCompleted: false,
+    feePaid: false,
+  };
+
+  const isApproved = action === 'approve';
+  const updatedActivation: SellerActivationStatus = {
+    ...currentActivation,
+    feePaid: isApproved,
+    feeStatus: isApproved ? 'verified' : 'rejected',
+    feePaidAt: isApproved ? new Date().toISOString() : undefined,
+    feeReceipt: isApproved ? (currentActivation.feeTransactionId || `CBX-FEE-${Date.now().toString().slice(-6)}`) : undefined,
+    feeRejectionReason: isApproved ? undefined : (reason || 'Transação M-Pesa / e-Mola não localizada no extrato bancário.'),
+  };
+
+  const shouldBeActive = isApproved && updatedActivation.kycCompleted;
+
+  const res = await query(
+    `UPDATE sellers
+     SET activation = $2::jsonb,
+         verified = CASE WHEN $3 = TRUE THEN TRUE ELSE verified END,
+         status = CASE WHEN $3 = TRUE THEN 'active' ELSE status END,
+         tenure_label = CASE WHEN $3 = TRUE THEN 'Loja Oficial Verificada' ELSE tenure_label END
+     WHERE id = $1
+     RETURNING *`,
+    [
+      sellerId,
+      JSON.stringify(updatedActivation),
+      shouldBeActive,
     ]
   );
   return res.rows[0] ? mapSellerRow(res.rows[0]) : null;

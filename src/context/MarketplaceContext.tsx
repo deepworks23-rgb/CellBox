@@ -159,8 +159,10 @@ interface MarketplaceContextValue {
   submitSellerKyc: (sellerId: string, kyc: SellerKycInfo) => Promise<boolean>;
   paySellerActivationFee: (
     sellerId: string,
-    data: { method: 'mpesa' | 'emola'; phone: string }
+    data: { method: 'mpesa' | 'emola'; phone: string; transactionId: string; proofUrl?: string }
   ) => Promise<boolean>;
+  reviewSellerKyc: (sellerId: string, action: 'approve' | 'reject', reason?: string) => Promise<boolean>;
+  reviewSellerFee: (sellerId: string, action: 'approve' | 'reject', reason?: string) => Promise<boolean>;
   submitReview: (
     targetType: 'seller' | 'product',
     targetId: string,
@@ -523,7 +525,7 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
     });
     if (res.ok) {
       applyBootstrap(res.data);
-      showToast('Documentos de verificação (KYC) submetidos com sucesso!', 'success');
+      showToast('Documentos KYC submetidos! Aguarde a verificação da equipa CellBox.', 'success');
       return true;
     }
     showToast(res.data.error ?? 'Falha ao enviar documentos KYC.', 'warning');
@@ -532,7 +534,7 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
 
   const paySellerActivationFee = async (
     sellerId: string,
-    data: { method: 'mpesa' | 'emola'; phone: string }
+    data: { method: 'mpesa' | 'emola'; phone: string; transactionId: string; proofUrl?: string }
   ): Promise<boolean> => {
     const res = await apiRequest<BootstrapResponse>('/api/seller/activate-fee', {
       method: 'POST',
@@ -540,10 +542,46 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
     });
     if (res.ok) {
       applyBootstrap(res.data);
-      showToast('Taxa de inscrição de 100 MZN confirmada! Loja ativada!', 'success');
+      showToast('Transação de 100 MT submetida! Aguarde a conferência financeira da CellBox.', 'success');
       return true;
     }
-    showToast(res.data.error ?? 'Falha ao processar pagamento.', 'warning');
+    showToast(res.data.error ?? 'Falha ao submeter taxa.', 'warning');
+    return false;
+  };
+
+  const reviewSellerKyc = async (
+    sellerId: string,
+    action: 'approve' | 'reject',
+    reason?: string
+  ): Promise<boolean> => {
+    const res = await apiRequest<{ sellers: SellerStore[] }>(`/api/sellers/${encodeURIComponent(sellerId)}/kyc`, {
+      method: 'PATCH',
+      body: JSON.stringify({ action, reason }),
+    });
+    if (res.ok && Array.isArray(res.data.sellers)) {
+      setState((prev) => ({ ...prev, sellers: res.data.sellers }));
+      showToast(action === 'approve' ? 'Documento KYC aprovado com sucesso!' : 'Documento KYC rejeitado.', 'success');
+      return true;
+    }
+    showToast(res.data.error ?? 'Falha ao avaliar KYC.', 'warning');
+    return false;
+  };
+
+  const reviewSellerFee = async (
+    sellerId: string,
+    action: 'approve' | 'reject',
+    reason?: string
+  ): Promise<boolean> => {
+    const res = await apiRequest<{ sellers: SellerStore[] }>(`/api/sellers/${encodeURIComponent(sellerId)}/fee`, {
+      method: 'PATCH',
+      body: JSON.stringify({ action, reason }),
+    });
+    if (res.ok && Array.isArray(res.data.sellers)) {
+      setState((prev) => ({ ...prev, sellers: res.data.sellers }));
+      showToast(action === 'approve' ? 'Pagamento de 100 MT confirmado com sucesso!' : 'Pagamento rejeitado.', 'success');
+      return true;
+    }
+    showToast(res.data.error ?? 'Falha ao avaliar taxa.', 'warning');
     return false;
   };
 
@@ -1189,6 +1227,8 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
         registerUser,
         submitSellerKyc,
         paySellerActivationFee,
+        reviewSellerKyc,
+        reviewSellerFee,
         submitReview,
         fetchReviews,
         logout,

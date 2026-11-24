@@ -109,10 +109,15 @@ export interface SellerActivationStatus {
   profileCompleted: boolean;
   kycCompleted: boolean;
   feePaid: boolean;
+  feeStatus?: 'not_submitted' | 'pending' | 'verified' | 'rejected';
   feePaymentMethod?: 'mpesa' | 'emola';
   feePhone?: string;
+  feeTransactionId?: string;
+  feeProofUrl?: string;
+  feeSubmittedAt?: string;
   feePaidAt?: string;
   feeReceipt?: string;
+  feeRejectionReason?: string;
 }
 
 export interface SellerStore {

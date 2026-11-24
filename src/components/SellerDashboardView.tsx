@@ -112,18 +112,25 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
   const [kycDocNumber, setKycDocNumber] = useState(seller?.documentId ?? '');
   const [kycFullName, setKycFullName] = useState(currentUser?.name ?? '');
   const [kycDocFrontUrl, setKycDocFrontUrl] = useState('');
+  const [kycDocBackUrl, setKycDocBackUrl] = useState('');
   const [uploadingKycDoc, setUploadingKycDoc] = useState(false);
+  const [uploadingKycDocBack, setUploadingKycDocBack] = useState(false);
   const [submittingKyc, setSubmittingKyc] = useState(false);
   const [kycModalOpen, setKycModalOpen] = useState(false);
 
   const [feeMethod, setFeeMethod] = useState<'mpesa' | 'emola'>('mpesa');
   const [feePhone, setFeePhone] = useState(currentUser?.phone ?? '');
+  const [feeTransactionId, setFeeTransactionId] = useState('');
+  const [feeProofUrl, setFeeProofUrl] = useState('');
+  const [uploadingFeeProof, setUploadingFeeProof] = useState(false);
   const [payingFee, setPayingFee] = useState(false);
   const [feeModalOpen, setFeeModalOpen] = useState(false);
 
   useEffect(() => {
     if (seller) {
       setKycDocNumber((prev) => prev || seller.documentId || '');
+      setFeeTransactionId((prev) => prev || seller.activation?.feeTransactionId || '');
+      setFeeProofUrl((prev) => prev || seller.activation?.feeProofUrl || '');
     }
     if (currentUser) {
       setKycFullName((prev) => prev || currentUser.name || '');
@@ -139,7 +146,11 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
     seller?.activation?.kycCompleted || seller?.kyc?.status === 'verified'
   );
   const kycPending = seller?.kyc?.status === 'pending';
+  const kycRejected = seller?.kyc?.status === 'rejected';
+
   const feeDone = Boolean(seller?.activation?.feePaid);
+  const feePending = Boolean(!feeDone && (seller?.activation?.feeStatus === 'pending' || seller?.activation?.feeTransactionId));
+  const feeRejected = Boolean(!feeDone && seller?.activation?.feeStatus === 'rejected');
 
   const completedStepsCount = (profileDone ? 1 : 0) + (kycDone ? 1 : 0) + (feeDone ? 1 : 0);
   const progressPercent = Math.round((completedStepsCount / 3) * 100);
@@ -159,6 +170,36 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
     }
   };
 
+  const handleUploadKycDocBack = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploadingKycDocBack(true);
+    try {
+      const result = await uploadImageAsset(file, 'kyc');
+      if (result.ok && result.url) {
+        setKycDocBackUrl(result.url);
+      }
+    } finally {
+      setUploadingKycDocBack(false);
+    }
+  };
+
+  const handleUploadFeeProof = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploadingFeeProof(true);
+    try {
+      const result = await uploadImageAsset(file, 'proofs');
+      if (result.ok && result.url) {
+        setFeeProofUrl(result.url);
+      }
+    } finally {
+      setUploadingFeeProof(false);
+    }
+  };
+
   const handleSubmitKyc = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!seller || !kycDocNumber.trim() || !kycFullName.trim()) return;
@@ -169,6 +210,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
         documentNumber: kycDocNumber.trim(),
         fullName: kycFullName.trim(),
         documentFrontUrl: kycDocFrontUrl || undefined,
+        documentBackUrl: kycDocBackUrl || undefined,
       });
       if (ok) {
         setKycModalOpen(false);
@@ -180,12 +222,14 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
 
   const handlePayFee = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!seller || !feePhone.trim()) return;
+    if (!seller || !feePhone.trim() || !feeTransactionId.trim()) return;
     setPayingFee(true);
     try {
       const ok = await paySellerActivationFee(seller.id, {
         method: feeMethod,
         phone: feePhone.trim(),
+        transactionId: feeTransactionId.trim(),
+        proofUrl: feeProofUrl || undefined,
       });
       if (ok) {
         setFeeModalOpen(false);
@@ -913,6 +957,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
             </div>
 
             {/* Step 2: KYC Identity Verification */}
+            {/* Step 2: KYC Verification */}
             <div className="bg-white/10 rounded-[3px] p-4 border border-white/15 flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between gap-2 mb-2">
@@ -921,27 +966,37 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                   </span>
                   {kycDone ? (
                     <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Verificado
+                      <CheckCircle2 className="w-3.5 h-3.5" /> KYC Aprovado
                     </span>
                   ) : kycPending ? (
                     <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-300">
-                      <Clock className="w-3.5 h-3.5" /> Em Análise
+                      <Clock className="w-3.5 h-3.5" /> KYC em Análise
+                    </span>
+                  ) : kycRejected ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-300">
+                      <ShieldAlert className="w-3.5 h-3.5" /> KYC Rejeitado
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-300">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-white/70">
                       <ShieldAlert className="w-3.5 h-3.5" /> Obrigatório
                     </span>
                   )}
                 </div>
                 <h3 className="font-bold text-sm text-white">Verificação de Identidade (KYC)</h3>
                 <p className="text-xs text-white/80 mt-1 leading-relaxed">
-                  Envio de BI, NUIT ou Passaporte do responsável legal pela loja.
+                  {kycDone
+                    ? `Documento oficial ${seller?.kyc?.documentType ?? 'BI'} validado com sucesso pela administração.`
+                    : kycPending
+                      ? `Documento ${seller?.kyc?.documentType ?? 'BI'} submetido. A equipa CellBox está a conferir a sua identidade.`
+                      : kycRejected
+                        ? `Atenção: ${seller?.kyc?.rejectionReason || 'Documento rejeitado. Reenvie fotos legíveis.'}`
+                        : 'Envio de BI, NUIT ou Passaporte do responsável legal pela loja.'}
                 </p>
               </div>
               <div className="mt-4 pt-3 border-t border-white/10">
                 {kycDone ? (
                   <span className="text-xs font-semibold text-emerald-300 block text-center py-1">
-                    Documento Aprovado
+                    Documento Aprovado ✓
                   </span>
                 ) : (
                   <button
@@ -949,7 +1004,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                     onClick={() => setKycModalOpen(true)}
                     className="w-full h-8 px-3 rounded-[3px] bg-white text-[#0A3768] hover:bg-white/90 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
                   >
-                    {kycPending ? 'Atualizar Documentos' : 'Enviar Documento (KYC)'}
+                    {kycPending ? 'Atualizar Documentos' : kycRejected ? 'Reenviar Documentos' : 'Enviar Documento (KYC)'}
                   </button>
                 )}
               </div>
@@ -964,7 +1019,15 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                   </span>
                   {feeDone ? (
                     <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> 100 MT Pago
+                      <CheckCircle2 className="w-3.5 h-3.5" /> 100 MT Confirmado
+                    </span>
+                  ) : feePending ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-300">
+                      <Clock className="w-3.5 h-3.5" /> Em Análise Financeira
+                    </span>
+                  ) : feeRejected ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-300">
+                      <ShieldAlert className="w-3.5 h-3.5" /> Pagamento Rejeitado
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-300">
@@ -974,7 +1037,13 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                 </div>
                 <h3 className="font-bold text-sm text-white">Taxa de Inscrição (100 MZN)</h3>
                 <p className="text-xs text-white/80 mt-1 leading-relaxed">
-                  Taxa única de ativação via <strong>M-Pesa</strong> ou <strong>e-Mola</strong>.
+                  {feeDone
+                    ? `Taxa paga e confirmada via ${seller?.activation?.feePaymentMethod === 'emola' ? 'e-Mola' : 'M-Pesa'} (Ref: ${seller?.activation?.feeReceipt || seller?.activation?.feeTransactionId || 'OK'}).`
+                    : feePending
+                      ? `Transação ${seller?.activation?.feeTransactionId || 'enviada'}. A equipa CellBox está a conferir o extrato bancário.`
+                      : feeRejected
+                        ? `Atenção: ${seller?.activation?.feeRejectionReason || 'Transação não encontrada no extrato.'}`
+                        : 'Taxa única de 100 MT de ativação via M-Pesa ou e-Mola.'}
                 </p>
               </div>
               <div className="mt-4 pt-3 border-t border-white/10">
@@ -988,7 +1057,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                     onClick={() => setFeeModalOpen(true)}
                     className="w-full h-8 px-3 rounded-[3px] bg-[#E50914] hover:bg-[#c20811] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
                   >
-                    Pagar 100 MZN
+                    {feePending ? 'Atualizar Transação' : feeRejected ? 'Tentar Novamente' : 'Pagar 100 MT'}
                   </button>
                 )}
               </div>
@@ -2594,27 +2663,53 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-[#444444] mb-1">
-                  Foto ou Cópia do Documento (Frente)
-                </label>
-                <div className="flex items-center gap-3">
-                  <label className="h-10 px-4 rounded-[3px] border border-[#DCDCDC] hover:border-[#0475EE] bg-[#F9FAFB] text-xs font-bold text-[#333333] inline-flex items-center gap-2 cursor-pointer transition-colors">
-                    <Upload className="w-4 h-4 text-[#0475EE]" />
-                    {uploadingKycDoc ? 'Carregando...' : 'Carregar Imagem'}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleUploadKycDoc}
-                      className="hidden"
-                      disabled={uploadingKycDoc}
-                    />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-[#444444] mb-1">
+                    Foto da Frente do Documento *
                   </label>
-                  {kycDocFrontUrl && (
-                    <span className="text-xs text-emerald-600 font-semibold inline-flex items-center gap-1">
-                      <Check className="w-3.5 h-3.5" /> Arquivo anexado
-                    </span>
-                  )}
+                  <div className="flex items-center gap-3">
+                    <label className="h-10 px-4 rounded-[3px] border border-[#DCDCDC] hover:border-[#0475EE] bg-[#F9FAFB] text-xs font-bold text-[#333333] inline-flex items-center gap-2 cursor-pointer transition-colors">
+                      <Upload className="w-4 h-4 text-[#0475EE]" />
+                      {uploadingKycDoc ? 'Carregando...' : 'Carregar Frente'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleUploadKycDoc}
+                        className="hidden"
+                        disabled={uploadingKycDoc}
+                      />
+                    </label>
+                    {kycDocFrontUrl && (
+                      <span className="text-xs text-emerald-600 font-semibold inline-flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5" /> Anexado
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#444444] mb-1">
+                    Foto do Verso do Documento (Opcional)
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <label className="h-10 px-4 rounded-[3px] border border-[#DCDCDC] hover:border-[#0475EE] bg-[#F9FAFB] text-xs font-bold text-[#333333] inline-flex items-center gap-2 cursor-pointer transition-colors">
+                      <Upload className="w-4 h-4 text-[#0475EE]" />
+                      {uploadingKycDocBack ? 'Carregando...' : 'Carregar Verso'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleUploadKycDocBack}
+                        className="hidden"
+                        disabled={uploadingKycDocBack}
+                      />
+                    </label>
+                    {kycDocBackUrl && (
+                      <span className="text-xs text-emerald-600 font-semibold inline-flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5" /> Anexado
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -2631,7 +2726,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                   disabled={submittingKyc || !kycDocNumber.trim() || !kycFullName.trim()}
                   className="h-9 px-6 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider disabled:opacity-50 cursor-pointer"
                 >
-                  {submittingKyc ? 'Submetendo...' : 'Submeter Documento'}
+                  {submittingKyc ? 'Submetendo...' : 'Submeter Documentos para Análise'}
                 </button>
               </div>
             </form>
@@ -2639,19 +2734,19 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
         </div>
       )}
 
-      {/* MODAL: PAGAR TAXA DE INSCRIÇÃO (100 MZN) */}
+      {/* MODAL: PAGAR TAXA DE INSCRIÇÃO (100 MZN REAL) */}
       {feeModalOpen && (
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs"
+          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs overflow-y-auto"
         >
-          <div className="bg-white rounded-[4px] max-w-md w-full p-6 space-y-5 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-[4px] max-w-lg w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150 my-8">
             <div className="flex items-center justify-between border-b border-[#EAEAEA] pb-3">
               <div className="flex items-center gap-2">
                 <CreditCard className="w-5 h-5 text-[#E50914]" />
                 <h3 className="font-condensed text-xl font-bold uppercase text-[#0A3768]">
-                  Taxa de Inscrição de Loja
+                  Taxa de Ativação de Loja (100,00 MT)
                 </h3>
               </div>
               <button
@@ -2663,69 +2758,74 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
               </button>
             </div>
 
-            <div className="bg-[#FFF5F5] border border-[#FFD6D6] rounded-[3px] p-3.5 flex items-center justify-between">
-              <div>
-                <p className="text-xs text-[#777777] font-semibold">Valor da Taxa de Adesão</p>
-                <p className="font-condensed text-2xl font-bold text-[#E50914] mt-0.5">
-                  100,00 MT (MZN)
-                </p>
+            {/* INSTRUÇÕES OFICIAIS DE PAGAMENTO EM MOÇAMBIQUE */}
+            <div className="bg-[#F8FAFC] border border-[#CBD5E1] rounded-[3px] p-3.5 space-y-2 text-xs">
+              <p className="font-bold text-[#0A3768] uppercase text-[11px] tracking-wider flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-[#0475EE]" />
+                Contas Oficiais CellBox Moçambique para Transferência
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <div className="bg-white p-2.5 rounded border border-[#E2E8F0]">
+                  <p className="text-[10px] font-bold text-[#E50914] uppercase">Vodacom M-Pesa</p>
+                  <p className="text-sm font-bold text-[#1E293B] font-mono mt-0.5">869391382</p>
+                  <p className="text-[10px] text-[#64748B]">Nome: CellBox / Joswil</p>
+                </div>
+                <div className="bg-white p-2.5 rounded border border-[#E2E8F0]">
+                  <p className="text-[10px] font-bold text-[#F58220] uppercase">Movitel e-Mola</p>
+                  <p className="text-sm font-bold text-[#1E293B] font-mono mt-0.5">869391382</p>
+                  <p className="text-[10px] text-[#64748B]">Nome: CellBox / Joswil</p>
+                </div>
               </div>
-              <span className="text-[10px] font-extrabold uppercase px-2.5 py-1 bg-white border border-[#FFD6D6] rounded-full text-[#E50914]">
-                Pagamento Único
-              </span>
+              <p className="text-[11px] text-[#475569] leading-relaxed pt-1">
+                Efetue a transferência de <strong>100 MT</strong>. Em seguida, informe abaixo o número que transferiu, o <strong>ID da Transação</strong> recebido no SMS da operadora e anexe o comprovante.
+              </p>
             </div>
 
-            <p className="text-xs text-[#666666] leading-relaxed">
-              O pagamento da taxa de adesão ativa permanentemente a vitrine da sua loja para receber pedidos de todo o território nacional.
-            </p>
-
-            <form onSubmit={handlePayFee} className="space-y-4">
+            <form onSubmit={handlePayFee} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-bold text-[#444444] mb-2">
-                  Escolha a Carteira Móvel *
+                <label className="block text-xs font-bold text-[#444444] mb-1.5">
+                  Carteira Móvel Utilizada *
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setFeeMethod('mpesa')}
-                    className={`p-3 rounded-[3px] border text-left transition-all cursor-pointer ${
+                    className={`p-2.5 rounded-[3px] border text-left transition-all cursor-pointer ${
                       feeMethod === 'mpesa'
                         ? 'border-[#E50914] bg-[#E50914]/5 ring-1 ring-[#E50914]'
                         : 'border-[#DCDCDC] hover:bg-[#F9FAFB]'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-sm text-[#E50914]">M-Pesa</span>
+                      <span className="font-bold text-xs text-[#E50914]">M-Pesa (Vodacom)</span>
                       <span className="w-3.5 h-3.5 rounded-full border border-[#E50914] flex items-center justify-center">
                         {feeMethod === 'mpesa' && <span className="w-2 h-2 rounded-full bg-[#E50914]" />}
                       </span>
                     </div>
-                    <p className="text-[11px] text-[#777777] mt-1">Vodacom Moçambique (84 / 85)</p>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setFeeMethod('emola')}
-                    className={`p-3 rounded-[3px] border text-left transition-all cursor-pointer ${
+                    className={`p-2.5 rounded-[3px] border text-left transition-all cursor-pointer ${
                       feeMethod === 'emola'
                         ? 'border-[#F58220] bg-[#F58220]/5 ring-1 ring-[#F58220]'
                         : 'border-[#DCDCDC] hover:bg-[#F9FAFB]'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-sm text-[#F58220]">e-Mola</span>
+                      <span className="font-bold text-xs text-[#F58220]">e-Mola (Movitel)</span>
                       <span className="w-3.5 h-3.5 rounded-full border border-[#F58220] flex items-center justify-center">
                         {feeMethod === 'emola' && <span className="w-2 h-2 rounded-full bg-[#F58220]" />}
                       </span>
                     </div>
-                    <p className="text-[11px] text-[#777777] mt-1">Movitel Moçambique (86 / 87)</p>
                   </button>
                 </div>
               </div>
 
               <div>
                 <label htmlFor="fee-phone" className="block text-xs font-bold text-[#444444] mb-1">
-                  Número de Celular {feeMethod === 'mpesa' ? 'M-Pesa' : 'e-Mola'} *
+                  Número de Celular que Transferiu *
                 </label>
                 <div className="relative">
                   <Smartphone className="w-4 h-4 text-[#888888] absolute left-3 top-1/2 -translate-y-1/2" />
@@ -2739,12 +2839,51 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                     className="w-full h-10 pl-9 pr-3 rounded-[3px] border border-[#DCDCDC] text-sm focus:border-[#0475EE] focus:outline-none"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label htmlFor="fee-tx-id" className="block text-xs font-bold text-[#444444] mb-1">
+                  Código / ID da Transação no SMS *
+                </label>
+                <input
+                  id="fee-tx-id"
+                  type="text"
+                  required
+                  value={feeTransactionId}
+                  onChange={(e) => setFeeTransactionId(e.target.value)}
+                  placeholder="Ex: PP261124.1624.A12345 ou 2K38X99A"
+                  className="w-full h-10 px-3 rounded-[3px] border border-[#DCDCDC] text-sm font-mono uppercase focus:border-[#0475EE] focus:outline-none"
+                />
                 <p className="text-[11px] text-[#777777] mt-1">
-                  Você receberá uma solicitação USSD para inserir seu PIN e confirmar o pagamento de 100 MT.
+                  Insira o código de confirmação recebido por SMS da Vodacom ou Movitel.
                 </p>
               </div>
 
-              <div className="pt-4 border-t border-[#EAEAEA] flex items-center justify-end gap-3">
+              <div>
+                <label className="block text-xs font-bold text-[#444444] mb-1">
+                  Foto do Comprovante / Screenshot do SMS (Opcional)
+                </label>
+                <div className="flex items-center gap-3">
+                  <label className="h-9 px-3 rounded-[3px] border border-[#DCDCDC] hover:border-[#0475EE] bg-[#F9FAFB] text-xs font-bold text-[#333333] inline-flex items-center gap-2 cursor-pointer transition-colors">
+                    <Upload className="w-3.5 h-3.5 text-[#0475EE]" />
+                    {uploadingFeeProof ? 'Carregando...' : 'Anexar Comprovante'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleUploadFeeProof}
+                      className="hidden"
+                      disabled={uploadingFeeProof}
+                    />
+                  </label>
+                  {feeProofUrl && (
+                    <span className="text-xs text-emerald-600 font-semibold inline-flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5" /> Anexado
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-[#EAEAEA] flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setFeeModalOpen(false)}
@@ -2754,14 +2893,14 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                 </button>
                 <button
                   type="submit"
-                  disabled={payingFee || !feePhone.trim()}
+                  disabled={payingFee || !feePhone.trim() || !feeTransactionId.trim()}
                   className="h-9 px-6 rounded-full bg-[#E50914] hover:bg-[#c20811] text-white text-xs font-bold uppercase tracking-wider disabled:opacity-50 cursor-pointer inline-flex items-center gap-1.5"
                 >
                   {payingFee ? (
-                    'Confirmando...'
+                    'Enviando...'
                   ) : (
                     <>
-                      <Check className="w-4 h-4" /> Pagar 100 MT agora
+                      <Check className="w-4 h-4" /> Submeter Transação para Validação
                     </>
                   )}
                 </button>

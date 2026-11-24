@@ -531,18 +531,24 @@ export function createApiApp(): Express {
         res.status(404).json({ error: 'Loja não encontrada.' });
         return;
       }
-      const { documentType, documentNumber, documentFrontUrl, documentBackUrl } = req.body as {
+      const { fullName, documentType, documentNumber, documentFrontUrl, documentBackUrl } = req.body as {
+        fullName?: string;
         documentType?: 'BI' | 'NUIT' | 'Passaporte' | 'Alvara';
         documentNumber?: string;
         documentFrontUrl?: string;
         documentBackUrl?: string;
       };
+      if (!fullName?.trim()) {
+        res.status(400).json({ error: 'Informe o nome completo do titular do documento.' });
+        return;
+      }
       if (!documentNumber?.trim()) {
         res.status(400).json({ error: 'Informe o número do documento de identificação.' });
         return;
       }
       const kycData: SellerKycInfo = {
         status: 'pending',
+        fullName: fullName.trim(),
         documentType: documentType || 'BI',
         documentNumber: documentNumber.trim(),
         documentFrontUrl: documentFrontUrl?.trim() || undefined,
@@ -550,7 +556,12 @@ export function createApiApp(): Express {
         submittedAt: new Date().toISOString(),
       };
       const updated = await db.updateSellerKyc(seller.id, kycData);
-      res.json({ ok: true, seller: updated, ...(await buildBootstrapPayload(user)) });
+      res.json({
+        ok: true,
+        message: 'Documentos KYC submetidos para análise da equipa CellBox.',
+        seller: updated,
+        ...(await buildBootstrapPayload(user)),
+      });
     })
   );
 
@@ -568,16 +579,38 @@ export function createApiApp(): Express {
         res.status(404).json({ error: 'Loja não encontrada.' });
         return;
       }
-      const { method, phone } = req.body as { method?: 'mpesa' | 'emola'; phone?: string };
-      if (!method || !phone?.trim()) {
-        res.status(400).json({ error: 'Selecione M-Pesa ou e-Mola e informe o número de telefone.' });
+      const { method, phone, transactionId, proofUrl } = req.body as {
+        method?: 'mpesa' | 'emola';
+        phone?: string;
+        transactionId?: string;
+        proofUrl?: string;
+      };
+      if (!method || (method !== 'mpesa' && method !== 'emola')) {
+        res.status(400).json({ error: 'Selecione a carteira móvel (M-Pesa ou e-Mola).' });
         return;
       }
-      const updated = await db.paySellerActivationFee(seller.id, {
+      if (!phone?.trim() || phone.replace(/\D/g, '').length < 9) {
+        res.status(400).json({ error: 'Informe um número de celular válido de Moçambique com 9 dígitos.' });
+        return;
+      }
+      if (!transactionId?.trim() || transactionId.trim().length < 4) {
+        res.status(400).json({
+          error: 'Informe o Código / ID da Transação recebido por SMS do M-Pesa / e-Mola para validação real.',
+        });
+        return;
+      }
+      const updated = await db.submitSellerActivationFee(seller.id, {
         method,
         phone: phone.trim(),
+        transactionId: transactionId.trim().toUpperCase(),
+        proofUrl: proofUrl?.trim() || undefined,
       });
-      res.json({ ok: true, seller: updated, ...(await buildBootstrapPayload(user)) });
+      res.json({
+        ok: true,
+        message: 'Transação de 100 MT submetida com sucesso! A equipa CellBox fará a validação financeira.',
+        seller: updated,
+        ...(await buildBootstrapPayload(user)),
+      });
     })
   );
 
@@ -1221,6 +1254,44 @@ export function createApiApp(): Express {
       }
 
       await db.updateSellerStatus(req.params.id, status);
+      res.json({ sellers: await db.listSellers() });
+    })
+  );
+
+  app.patch(
+    '/api/sellers/:id/kyc',
+    asyncHandler(async (req, res) => {
+      const user = await getAuthenticatedUser(req);
+      if (!user || user.role !== 'admin') {
+        res.status(403).json({ error: 'Apenas Super Admin pode avaliar documentos KYC.' });
+        return;
+      }
+      const { action, reason } = req.body as { action?: 'approve' | 'reject'; reason?: string };
+      if (!action || !['approve', 'reject'].includes(action)) {
+        res.status(400).json({ error: 'Ação inválida. Use approve ou reject.' });
+        return;
+      }
+
+      await db.adminReviewSellerKyc(req.params.id, action, reason);
+      res.json({ sellers: await db.listSellers() });
+    })
+  );
+
+  app.patch(
+    '/api/sellers/:id/fee',
+    asyncHandler(async (req, res) => {
+      const user = await getAuthenticatedUser(req);
+      if (!user || user.role !== 'admin') {
+        res.status(403).json({ error: 'Apenas Super Admin pode avaliar pagamentos de taxas.' });
+        return;
+      }
+      const { action, reason } = req.body as { action?: 'approve' | 'reject'; reason?: string };
+      if (!action || !['approve', 'reject'].includes(action)) {
+        res.status(400).json({ error: 'Ação inválida. Use approve ou reject.' });
+        return;
+      }
+
+      await db.adminReviewSellerFee(req.params.id, action, reason);
       res.json({ sellers: await db.listSellers() });
     })
   );

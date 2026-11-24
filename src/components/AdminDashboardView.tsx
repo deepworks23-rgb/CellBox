@@ -3,6 +3,7 @@ import {
   Ban,
   BarChart3,
   CheckCircle2,
+  CreditCard,
   ExternalLink,
   Eye,
   Globe,
@@ -54,6 +55,8 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
     orders,
     commissionRate,
     setSellerStatus,
+    reviewSellerKyc,
+    reviewSellerFee,
     addCategory,
     removeCategory,
     deleteProduct,
@@ -1913,96 +1916,277 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                       {inspectedSeller.payoutInfo.pixOrWallet}
                     </p>
 
-                    {/* Dados de Verificação KYC e Taxa de Inscrição */}
-                    <div className="mt-3 p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-[3px] space-y-2">
-                      <p className="font-bold text-[#0A3768] text-xs uppercase tracking-wider">
-                        Documentação KYC & Ativação
-                      </p>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <p>
-                          <strong>Tipo de Documento:</strong>{' '}
-                          {inspectedSeller.kyc?.documentType || 'BI'}
-                        </p>
-                        <p>
-                          <strong>Número:</strong>{' '}
-                          {inspectedSeller.kyc?.documentNumber || inspectedSeller.documentId || 'Não informado'}
-                        </p>
-                        <p>
-                          <strong>Status KYC:</strong>{' '}
-                          <span className="font-semibold uppercase text-xs">
-                            {inspectedSeller.kyc?.status === 'verified'
-                              ? 'Aprovado'
-                              : inspectedSeller.kyc?.status === 'pending'
-                                ? 'Em Análise'
-                                : 'Não Submetido'}
-                          </span>
-                        </p>
-                        <p>
-                          <strong>Taxa de 100 MT:</strong>{' '}
-                          {inspectedSeller.activation?.feePaid ? (
-                            <span className="text-emerald-700 font-bold">Confirmada</span>
-                          ) : (
-                            <span className="text-amber-700 font-bold">Pendente</span>
-                          )}
-                        </p>
-                      </div>
+                    {/* Dados e Controles de Verificação KYC e Taxa de Inscrição */}
+                    {(() => {
+                      const cur = sellers.find((it) => it.id === inspectedSeller.id) || inspectedSeller;
+                      const kycStatus = cur.kyc?.status || (cur.activation?.kycCompleted ? 'verified' : 'not_submitted');
+                      const feeStatus = cur.activation?.feePaid ? 'verified' : cur.activation?.feeStatus || (cur.activation?.feeTransactionId ? 'pending' : 'not_submitted');
 
-                      {inspectedSeller.kyc?.documentFrontUrl && (
-                        <div className="pt-2 border-t border-[#E2E8F0]">
-                          <p className="font-semibold text-xs text-[#333333] mb-1">
-                            Comprovante / Foto do Documento:
-                          </p>
-                          <a
-                            href={inspectedSeller.kyc.documentFrontUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-block border border-[#CBD5E1] rounded overflow-hidden max-w-[200px] hover:border-[#0475EE]"
-                          >
-                            <img
-                              src={inspectedSeller.kyc.documentFrontUrl}
-                              alt="Documento do Vendedor"
-                              className="w-full h-24 object-cover"
-                            />
-                            <span className="block text-[10px] text-center bg-white py-0.5 text-[#0475EE] font-bold">
-                              Clique para ampliar
-                            </span>
-                          </a>
+                      return (
+                        <div className="space-y-3 pt-2">
+                          {/* SEÇÃO 1: VALIDAÇÃO KYC */}
+                          <div className="p-3.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-[3px] space-y-3">
+                            <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-2">
+                              <p className="font-bold text-[#0A3768] text-xs uppercase tracking-wider flex items-center gap-1.5">
+                                <ShieldCheck className="w-4 h-4 text-[#0475EE]" />
+                                Validação de Identidade (KYC)
+                              </p>
+                              <span
+                                className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                                  kycStatus === 'verified'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : kycStatus === 'pending'
+                                      ? 'bg-amber-100 text-amber-800'
+                                      : kycStatus === 'rejected'
+                                        ? 'bg-rose-100 text-rose-800'
+                                        : 'bg-neutral-100 text-neutral-600'
+                                }`}
+                              >
+                                {kycStatus === 'verified'
+                                  ? 'Aprovado ✓'
+                                  : kycStatus === 'pending'
+                                    ? 'Em Análise ⏳'
+                                    : kycStatus === 'rejected'
+                                      ? 'Rejeitado ✕'
+                                      : 'Não Submetido'}
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-xs text-[#334155]">
+                              <p>
+                                <strong>Titular:</strong> {cur.kyc?.fullName || 'Não informado'}
+                              </p>
+                              <p>
+                                <strong>Tipo:</strong> {cur.kyc?.documentType || 'BI'}
+                              </p>
+                              <p className="col-span-2 font-mono">
+                                <strong>Número do Doc:</strong> {cur.kyc?.documentNumber || cur.documentId || 'Não informado'}
+                              </p>
+                              {cur.kyc?.rejectionReason && (
+                                <p className="col-span-2 text-rose-700 bg-rose-50 p-1.5 rounded border border-rose-200">
+                                  <strong>Motivo da Rejeição:</strong> {cur.kyc.rejectionReason}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Imagens do documento (Frente e Verso) */}
+                            <div className="flex flex-wrap gap-3 pt-1">
+                              {cur.kyc?.documentFrontUrl && (
+                                <div>
+                                  <p className="text-[10px] font-bold text-[#64748B] mb-1">Foto da Frente:</p>
+                                  <a
+                                    href={cur.kyc.documentFrontUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block border border-[#CBD5E1] rounded overflow-hidden w-28 hover:border-[#0475EE]"
+                                  >
+                                    <img
+                                      src={cur.kyc.documentFrontUrl}
+                                      alt="Frente do Documento"
+                                      className="w-full h-16 object-cover"
+                                    />
+                                    <span className="block text-[9px] text-center bg-white py-0.5 text-[#0475EE] font-bold">
+                                      Ampliar
+                                    </span>
+                                  </a>
+                                </div>
+                              )}
+                              {cur.kyc?.documentBackUrl && (
+                                <div>
+                                  <p className="text-[10px] font-bold text-[#64748B] mb-1">Foto do Verso:</p>
+                                  <a
+                                    href={cur.kyc.documentBackUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block border border-[#CBD5E1] rounded overflow-hidden w-28 hover:border-[#0475EE]"
+                                  >
+                                    <img
+                                      src={cur.kyc.documentBackUrl}
+                                      alt="Verso do Documento"
+                                      className="w-full h-16 object-cover"
+                                    />
+                                    <span className="block text-[9px] text-center bg-white py-0.5 text-[#0475EE] font-bold">
+                                      Ampliar
+                                    </span>
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Botões de Ação KYC */}
+                            <div className="pt-2 border-t border-[#E2E8F0] flex items-center justify-end gap-2">
+                              {kycStatus !== 'verified' && (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    await reviewSellerKyc(cur.id, 'approve');
+                                  }}
+                                  className="h-7 px-3 rounded-[3px] bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold uppercase cursor-pointer"
+                                >
+                                  Aprovar KYC
+                                </button>
+                              )}
+                              {kycStatus !== 'rejected' && (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    const reason = window.prompt('Informe o motivo da rejeição do KYC:', 'Documento ilegível ou inválido.');
+                                    if (reason) {
+                                      await reviewSellerKyc(cur.id, 'reject', reason);
+                                    }
+                                  }}
+                                  className="h-7 px-3 rounded-[3px] border border-rose-300 text-rose-700 hover:bg-rose-50 text-[11px] font-bold uppercase cursor-pointer"
+                                >
+                                  Rejeitar KYC
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* SEÇÃO 2: VALIDAÇÃO DA TAXA DE ADESÃO (100 MT) */}
+                          <div className="p-3.5 bg-[#FFFDF5] border border-[#FDE68A] rounded-[3px] space-y-3">
+                            <div className="flex items-center justify-between border-b border-[#FDE68A] pb-2">
+                              <p className="font-bold text-[#92400E] text-xs uppercase tracking-wider flex items-center gap-1.5">
+                                <CreditCard className="w-4 h-4 text-[#D97706]" />
+                                Pagamento da Taxa de Inscrição (100,00 MT)
+                              </p>
+                              <span
+                                className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                                  feeStatus === 'verified'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : feeStatus === 'pending'
+                                      ? 'bg-amber-100 text-amber-800'
+                                      : feeStatus === 'rejected'
+                                        ? 'bg-rose-100 text-rose-800'
+                                        : 'bg-neutral-100 text-neutral-600'
+                                }`}
+                              >
+                                {feeStatus === 'verified'
+                                  ? '100 MT Confirmado ✓'
+                                  : feeStatus === 'pending'
+                                    ? 'Transação em Análise ⏳'
+                                    : feeStatus === 'rejected'
+                                      ? 'Rejeitado ✕'
+                                      : 'Pendente'}
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-xs text-[#334155]">
+                              <p>
+                                <strong>Carteira:</strong> {cur.activation?.feePaymentMethod === 'emola' ? 'Movitel e-Mola' : 'Vodacom M-Pesa'}
+                              </p>
+                              <p>
+                                <strong>Celular Pagador:</strong> {cur.activation?.feePhone || 'Não informado'}
+                              </p>
+                              <div className="col-span-2 bg-white p-2 rounded border border-[#FDE68A]">
+                                <p className="text-[10px] font-bold text-[#78350F] uppercase">Código / ID da Transação (SMS):</p>
+                                <p className="font-mono text-xs font-bold text-[#1E293B] mt-0.5">
+                                  {cur.activation?.feeTransactionId || cur.activation?.feeReceipt || 'Nenhum código informado'}
+                                </p>
+                              </div>
+                              {cur.activation?.feeRejectionReason && (
+                                <p className="col-span-2 text-rose-700 bg-rose-50 p-1.5 rounded border border-rose-200">
+                                  <strong>Motivo da Rejeição:</strong> {cur.activation.feeRejectionReason}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Comprovante anexado */}
+                            {cur.activation?.feeProofUrl && (
+                              <div>
+                                <p className="text-[10px] font-bold text-[#64748B] mb-1">Comprovante de Pagamento:</p>
+                                <a
+                                  href={cur.activation.feeProofUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-block border border-[#CBD5E1] rounded overflow-hidden w-28 hover:border-[#0475EE]"
+                                >
+                                  <img
+                                    src={cur.activation.feeProofUrl}
+                                    alt="Comprovante de Pagamento"
+                                    className="w-full h-16 object-cover"
+                                  />
+                                  <span className="block text-[9px] text-center bg-white py-0.5 text-[#0475EE] font-bold">
+                                    Ampliar
+                                  </span>
+                                </a>
+                              </div>
+                            )}
+
+                            {/* Botões de Ação da Taxa */}
+                            <div className="pt-2 border-t border-[#FDE68A] flex items-center justify-end gap-2">
+                              {feeStatus !== 'verified' && (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    await reviewSellerFee(cur.id, 'approve');
+                                  }}
+                                  className="h-7 px-3 rounded-[3px] bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold uppercase cursor-pointer"
+                                >
+                                  Confirmar 100 MT
+                                </button>
+                              )}
+                              {feeStatus !== 'rejected' && (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    const reason = window.prompt('Informe o motivo da rejeição do pagamento:', 'Transação não encontrada no extrato.');
+                                    if (reason) {
+                                      await reviewSellerFee(cur.id, 'reject', reason);
+                                    }
+                                  }}
+                                  className="h-7 px-3 rounded-[3px] border border-rose-300 text-rose-700 hover:bg-rose-50 text-[11px] font-bold uppercase cursor-pointer"
+                                >
+                                  Rejeitar Taxa
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* SEÇÃO 3: CONTROLE GERAL DA LOJA */}
+                          <div className="pt-2 flex items-center justify-between border-t border-[#EAEAEA]">
+                            <div>
+                              <p className="text-xs font-bold text-[#334155]">
+                                Status Oficial: <span className="uppercase text-[#0475EE]">{cur.status}</span>
+                              </p>
+                              <p className="text-[11px] text-[#64748B]">
+                                {cur.verified ? '✓ Loja Oficial Verificada' : 'Pendente de Verificação Completa'}
+                              </p>
+                            </div>
+                            <div className="flex gap-2">
+                              {cur.status !== 'active' ? (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    await setSellerStatus(cur.id, 'active');
+                                  }}
+                                  className="h-9 px-5 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase cursor-pointer"
+                                >
+                                  Ativar Loja
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    await setSellerStatus(cur.id, 'suspended');
+                                  }}
+                                  className="h-9 px-5 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold uppercase cursor-pointer"
+                                >
+                                  Suspender Loja
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setInspectedSeller(null)}
+                                className="h-9 px-4 rounded-full border border-[#DCDCDC] text-xs font-bold uppercase text-[#555555] cursor-pointer"
+                              >
+                                Fechar
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-2">
-                    {inspectedSeller.status !== 'active' ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSellerStatus(inspectedSeller.id, 'active');
-                          setInspectedSeller(null);
-                        }}
-                        className="h-9 px-5 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase cursor-pointer"
-                      >
-                        Aprovar Loja e KYC
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSellerStatus(inspectedSeller.id, 'suspended');
-                          setInspectedSeller(null);
-                        }}
-                        className="h-9 px-5 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold uppercase cursor-pointer"
-                      >
-                        Suspender Loja
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setInspectedSeller(null)}
-                      className="h-9 px-4 rounded-full border border-[#DCDCDC] text-xs font-bold uppercase text-[#555555] cursor-pointer"
-                    >
-                      Fechar
-                    </button>
+                      );
+                    })()}
                   </div>
                 </>
               );
