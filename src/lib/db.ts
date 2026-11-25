@@ -2055,6 +2055,18 @@ export async function getSiteCustomization(): Promise<SiteCustomization> {
       gateways: {
         ...DEFAULT_SITE_CUSTOMIZATION.gateways,
         ...(raw.gateways ?? {}),
+        paySuite: {
+          ...DEFAULT_SITE_CUSTOMIZATION.gateways?.paySuite,
+          ...(raw.gateways?.paySuite ?? {}),
+        },
+        debitoPay: {
+          ...DEFAULT_SITE_CUSTOMIZATION.gateways?.debitoPay,
+          ...(raw.gateways?.debitoPay ?? {}),
+        },
+        mpesaDirect: {
+          ...DEFAULT_SITE_CUSTOMIZATION.gateways?.mpesaDirect,
+          ...(raw.gateways?.mpesaDirect ?? {}),
+        },
       },
     };
   } catch (err) {

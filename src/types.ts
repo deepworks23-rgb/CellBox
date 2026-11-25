@@ -350,9 +350,46 @@ export interface SiteFooterConfig {
   copyrightText: string;
 }
 
+export type GatewayEnvironment = 'sandbox' | 'production';
+export type ActiveCartGateway = 'manual' | 'paysuite' | 'debitopay' | 'mpesa_direct';
+
+export interface PaySuiteGatewayConfig {
+  enabled?: boolean;
+  environment?: GatewayEnvironment;
+  apiKey?: string;
+  merchantId?: string;
+  webhookSecret?: string;
+  baseUrl?: string;
+}
+
+export interface DebitoPayGatewayConfig {
+  enabled?: boolean;
+  environment?: GatewayEnvironment;
+  apiKey?: string;
+  walletId?: string;
+  webhookSecret?: string;
+  baseUrl?: string;
+}
+
+export interface MpesaDirectGatewayConfig {
+  enabled?: boolean;
+  environment?: GatewayEnvironment;
+  apiKey?: string;
+  publicKey?: string;
+  serviceProviderCode?: string;
+  originHost?: string;
+  emolaApiKey?: string;
+  emolaApiSecret?: string;
+  emolaShortcode?: string;
+}
+
 export interface SitePaymentGatewaysConfig {
+  activeCartGateway?: ActiveCartGateway;
   escalePayCheckoutUrl?: string;
   escalePayWebhookSecret?: string;
+  paySuite?: PaySuiteGatewayConfig;
+  debitoPay?: DebitoPayGatewayConfig;
+  mpesaDirect?: MpesaDirectGatewayConfig;
 }
 
 export interface SiteCustomization {

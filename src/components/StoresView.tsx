@@ -137,11 +137,10 @@ export function StoresView() {
                   hoverScale={1.03}
                   hoverY={0}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`h-8 px-3.5 rounded-full text-[11px] font-bold uppercase tracking-wide transition-colors cursor-pointer whitespace-nowrap ${
-                    active
-                      ? 'bg-[#0475EE] text-white'
-                      : 'bg-white border border-[#DCDCDC] text-[#555555] hover:border-[#0475EE] hover:text-[#0475EE]'
-                  }`}
+                  className={`h-8 px-3.5 rounded-full text-[11px] font-bold uppercase tracking-wide transition-colors cursor-pointer whitespace-nowrap ${active
+                    ? 'bg-[#0475EE] text-white'
+                    : 'bg-white border border-[#DCDCDC] text-[#555555] hover:border-[#0475EE] hover:text-[#0475EE]'
+                    }`}
                 >
                   {cat}
                 </MotionButton>

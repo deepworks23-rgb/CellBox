@@ -164,6 +164,34 @@ function clearSessionCookie(req: Request, res: Response): void {
   );
 }
 
+function sanitizeSiteCustomizationForRole(
+  settings: SiteCustomization,
+  role?: User['role'] | null
+): SiteCustomization {
+  if (role === 'admin') return settings;
+  const g = settings.gateways;
+  if (!g) return settings;
+  return {
+    ...settings,
+    gateways: {
+      activeCartGateway: g.activeCartGateway ?? 'manual',
+      escalePayCheckoutUrl: g.escalePayCheckoutUrl ?? '',
+      paySuite: {
+        enabled: Boolean(g.paySuite?.enabled),
+        environment: g.paySuite?.environment ?? 'sandbox',
+      },
+      debitoPay: {
+        enabled: Boolean(g.debitoPay?.enabled),
+        environment: g.debitoPay?.environment ?? 'sandbox',
+      },
+      mpesaDirect: {
+        enabled: Boolean(g.mpesaDirect?.enabled),
+        environment: g.mpesaDirect?.environment ?? 'sandbox',
+      },
+    },
+  };
+}
+
 async function buildBootstrapPayload(user: StoredUser | null) {
   const [
     sellers,
@@ -204,7 +232,7 @@ async function buildBootstrapPayload(user: StoredUser | null) {
     addresses,
     wishlist,
     commissionRate,
-    siteCustomization,
+    siteCustomization: sanitizeSiteCustomizationForRole(siteCustomization, user?.role),
     payouts,
   };
 }
@@ -695,6 +723,79 @@ export function createApiApp(): Express {
       });
     })
   );
+
+  // ── Dynamic Payment Gateways Webhook Listeners (PaySuite, Debito Pay, M-Pesa/e-Mola) ──
+  const handleDynamicGatewayWebhook = (provider: 'paysuite' | 'debitopay' | 'mpesa') =>
+    asyncHandler(async (req, res) => {
+      const customization = await db.getSiteCustomization();
+      const gateways = customization.gateways ?? {};
+      const providerConfig =
+        provider === 'paysuite'
+          ? gateways.paySuite
+          : provider === 'debitopay'
+            ? gateways.debitoPay
+            : gateways.mpesaDirect;
+
+      if (req.method === 'GET') {
+        const isConfigured =
+          provider === 'mpesa'
+            ? Boolean(gateways.mpesaDirect?.apiKey?.trim() || gateways.mpesaDirect?.emolaApiKey?.trim())
+            : Boolean(
+                provider === 'paysuite'
+                  ? gateways.paySuite?.apiKey?.trim()
+                  : gateways.debitoPay?.apiKey?.trim()
+              );
+        res.json({
+          ok: true,
+          service: `CellBox ${provider.toUpperCase()} Webhook Listener`,
+          status: 'online',
+          enabled: Boolean(providerConfig?.enabled),
+          configured: isConfigured,
+          environment: providerConfig?.environment ?? 'sandbox',
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      const expectedSecret =
+        provider === 'paysuite'
+          ? gateways.paySuite?.webhookSecret?.trim()
+          : provider === 'debitopay'
+            ? gateways.debitoPay?.webhookSecret?.trim()
+            : '';
+
+      if (expectedSecret) {
+        const providedHeader = String(
+          req.headers['x-webhook-secret'] ||
+            req.headers['x-paysuite-signature'] ||
+            req.headers['x-debito-signature'] ||
+            req.headers['x-signature'] ||
+            req.headers.authorization?.replace(/^Bearer\s+/i, '') ||
+            ''
+        ).trim();
+        const bodySecret = String((req.body as Record<string, unknown> | undefined)?.secret || '').trim();
+        if (providedHeader !== expectedSecret && bodySecret !== expectedSecret) {
+          res.status(401).json({ ok: false, error: 'Assinatura/segredo do webhook inválido.' });
+          return;
+        }
+      }
+
+      console.log(`[CellBox Webhook:${provider}] Notificação recebida:`, {
+        timestamp: new Date().toISOString(),
+        keys: Object.keys((req.body as Record<string, unknown>) || {}),
+      });
+
+      res.status(200).json({
+        ok: true,
+        received: true,
+        provider,
+        timestamp: new Date().toISOString(),
+      });
+    });
+
+  app.all('/api/webhooks/paysuite', handleDynamicGatewayWebhook('paysuite'));
+  app.all('/api/webhooks/debitopay', handleDynamicGatewayWebhook('debitopay'));
+  app.all('/api/webhooks/mpesa', handleDynamicGatewayWebhook('mpesa'));
 
   app.post(
     '/api/auth/logout',
@@ -1675,9 +1776,12 @@ export function createApiApp(): Express {
   // ── Site Customization (Header, Hero, Banners, Contacts, Partner Logos, Footer) ──
   app.get(
     '/api/site-customization',
-    asyncHandler(async (_req, res) => {
+    asyncHandler(async (req, res) => {
+      const user = await getAuthenticatedUser(req);
       const siteCustomization = await db.getSiteCustomization();
-      res.json({ siteCustomization });
+      res.json({
+        siteCustomization: sanitizeSiteCustomizationForRole(siteCustomization, user?.role),
+      });
     })
   );
 

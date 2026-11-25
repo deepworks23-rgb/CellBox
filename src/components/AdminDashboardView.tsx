@@ -7,6 +7,7 @@ import {
   CreditCard,
   ExternalLink,
   Eye,
+  EyeOff,
   Globe,
   Image as ImageIcon,
   Layers,
@@ -26,6 +27,8 @@ import {
 } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
 import type {
+  ActiveCartGateway,
+  GatewayEnvironment,
   HeroSlideConfig,
   PartnerBrandConfig,
   PayoutStatus,
@@ -189,6 +192,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
   >('header');
   const [savingCms, setSavingCms] = useState(false);
   const [uploadingField, setUploadingField] = useState<string | null>(null);
+  const [showGatewaySecrets, setShowGatewaySecrets] = useState(false);
 
   useEffect(() => {
     if (siteCustomization) {
@@ -1108,7 +1112,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                   { id: 'brands' as const, label: 'Marcas Parceiras' },
                   { id: 'contacts' as const, label: 'Contatos & Redes' },
                   { id: 'footer' as const, label: 'Rodapé (Footer)' },
-                  { id: 'gateways' as const, label: 'Gateway EscalePay (Taxa 100 MT)' },
+                  { id: 'gateways' as const, label: 'Gateways de Pagamento (APIs)' },
                 ].map((st) => (
                   <button
                     key={st.id}
@@ -2153,102 +2157,831 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                 </div>
               )}
 
-              {/* SUBTAB 7: GATEWAYS (ESCALEPAY) */}
+              {/* SUBTAB 7: GATEWAYS DE PAGAMENTO (APIS DINÂMICAS + ESCALEPAY) */}
               {cmsSubTab === 'gateways' && (
-                <div className="space-y-6 max-w-3xl text-xs">
-                  <div className="bg-[#F0F7FF] border border-[#BFDBFE] rounded-[3px] p-4 space-y-2">
-                    <h3 className="font-bold text-[#0A3768] text-sm flex items-center gap-2">
-                      <CreditCard className="w-4 h-4 text-[#0475EE]" />
-                      Integração Automática com EscalePay (Moçambique)
-                    </h3>
-                    <p className="text-[#334155] leading-relaxed">
-                      Ao configurar o link do seu produto da EscalePay abaixo, os lojistas poderão pagar a taxa de adesão de 100 MT diretamente pelo checkout oficial com <strong>M-Pesa, e-Mola ou Cartão</strong>. Assim que o pagamento for concluído na EscalePay, a CellBox receberá o sinal via Webhook e ativará a loja automaticamente!
-                    </p>
-                  </div>
-
-                  {/* URL DO WEBHOOK PARA O USUÁRIO COPIAR */}
-                  <div className="p-4 bg-white border border-[#CBD5E1] rounded-[3px] space-y-2">
-                    <label className="block font-bold text-[#1E293B] text-xs">
-                      1. URL do Webhook da CellBox (Cole nas configurações da sua conta EscalePay):
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        readOnly
-                        value="https://cellbox-psi.vercel.app/api/webhooks/escalepay"
-                        className="w-full h-10 px-3 bg-[#F8FAFC] border border-[#CBD5E1] rounded-[3px] font-mono text-xs text-[#0F172A] select-all"
-                      />
+                <div className="space-y-6 max-w-4xl text-xs">
+                  {/* Cabeçalho + Seletor do Gateway Ativo do Carrinho */}
+                  <div className="bg-[#F0F7FF] border border-[#BFDBFE] rounded-[3px] p-5 space-y-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <h3 className="font-bold text-[#0A3768] text-sm flex items-center gap-2">
+                          <CreditCard className="w-4 h-4 text-[#0475EE]" />
+                          Configuração dos Gateways de Pagamento (Moçambique)
+                        </h3>
+                        <p className="text-[#334155] leading-relaxed max-w-2xl">
+                          Configure abaixo as credenciais das suas contas assim que as obtiver. As chaves secretas ficam protegidas no servidor (nunca são expostas a compradores ou lojistas). Clique em <strong>Salvar Alterações do Site</strong> no rodapé para gravar no PostgreSQL.
+                        </p>
+                      </div>
                       <button
                         type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText('https://cellbox-psi.vercel.app/api/webhooks/escalepay');
-                          showToast('URL do Webhook copiada para a área de transferência!', 'success');
-                        }}
-                        className="h-10 px-4 rounded-[3px] bg-[#0A3768] hover:bg-[#0475EE] text-white text-xs font-bold uppercase whitespace-nowrap cursor-pointer transition-colors"
+                        onClick={() => setShowGatewaySecrets((prev) => !prev)}
+                        className="h-8 px-3 rounded-[3px] bg-white border border-[#CBD5E1] text-[#334155] hover:border-[#0475EE] text-[11px] font-bold inline-flex items-center gap-1.5 cursor-pointer"
                       >
-                        Copiar URL
+                        {showGatewaySecrets ? (
+                          <>
+                            <EyeOff className="w-3.5 h-3.5" /> Ocultar Chaves
+                          </>
+                        ) : (
+                          <>
+                            <Eye className="w-3.5 h-3.5" /> Mostrar Chaves
+                          </>
+                        )}
                       </button>
                     </div>
-                    <p className="text-[11px] text-[#64748B]">
-                      No painel da EscalePay, cadastre essa URL em <em>Configurações / Webhooks</em> para o evento de venda aprovada.
-                    </p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-[#BFDBFE]/70">
+                      <div>
+                        <label
+                          htmlFor="active_cart_gateway_select"
+                          className="block font-bold text-[#0A3768] text-xs mb-1.5"
+                        >
+                          Gateway Ativo para o Carrinho de Compras (Valores Variáveis):
+                        </label>
+                        <select
+                          id="active_cart_gateway_select"
+                          value={draftCustomization.gateways?.activeCartGateway || 'manual'}
+                          onChange={(e) =>
+                            setDraftCustomization((prev) => ({
+                              ...prev,
+                              gateways: {
+                                ...(prev.gateways ?? {}),
+                                activeCartGateway: e.target.value as ActiveCartGateway,
+                              },
+                            }))
+                          }
+                          className="w-full h-10 px-3 bg-white border border-[#93C5FD] rounded-[3px] text-xs font-semibold text-[#0F172A] focus:border-[#0475EE] focus:outline-none"
+                        >
+                          <option value="manual">Nenhum / Confirmação Manual (Padrão atual)</option>
+                          <option value="paysuite">Opção 1: PaySuite (M-Pesa, e-Mola, mKesh, Cartão)</option>
+                          <option value="debitopay">Opção 2: Debito Pay (M-Pesa, e-Mola, Cartão)</option>
+                          <option value="mpesa_direct">Opção 3: API Oficial Vodacom M-Pesa / e-Mola</option>
+                        </select>
+                      </div>
+                      <div className="bg-white/80 border border-[#BFDBFE] rounded-[3px] p-3 flex flex-col justify-center">
+                        <span className="text-[11px] font-bold text-[#0A3768] uppercase">
+                          Status das Credenciais Preenchidas
+                        </span>
+                        <span className="text-xs text-[#334155] mt-1">
+                          {[
+                            draftCustomization.gateways?.paySuite?.apiKey?.trim() ? 'PaySuite' : null,
+                            draftCustomization.gateways?.debitoPay?.apiKey?.trim() ? 'Debito Pay' : null,
+                            draftCustomization.gateways?.mpesaDirect?.apiKey?.trim() ||
+                            draftCustomization.gateways?.mpesaDirect?.emolaApiKey?.trim()
+                              ? 'M-Pesa / e-Mola'
+                              : null,
+                            draftCustomization.gateways?.escalePayCheckoutUrl?.trim()
+                              ? 'EscalePay (100 MT)'
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ') || 'Nenhum gateway configurado ainda'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* LINK DO PRODUTO ESCALEPAY */}
-                  <div className="p-4 bg-white border border-[#CBD5E1] rounded-[3px] space-y-3">
-                    <label className="block font-bold text-[#1E293B] text-xs">
-                      2. Link do Produto / Checkout EscalePay (100 MT):
-                    </label>
-                    <input
-                      type="url"
-                      id="cellbox_escalepay_checkout_link"
-                      name="cellbox_escalepay_checkout_link"
-                      autoComplete="off"
-                      data-lpignore="true"
-                      data-form-type="other"
-                      placeholder="Ex: https://pay.escalepay.com/pay/abc123xyz"
-                      value={draftCustomization.gateways?.escalePayCheckoutUrl || ''}
-                      onChange={(e) =>
-                        setDraftCustomization((prev) => ({
-                          ...prev,
-                          gateways: {
-                            ...(prev.gateways ?? {}),
-                            escalePayCheckoutUrl: e.target.value.trim(),
-                          },
-                        }))
-                      }
-                      className="w-full h-10 px-3 border border-[#CBD5E1] rounded-[3px] text-xs focus:border-[#0475EE] focus:outline-none"
-                    />
-                    <p className="text-[11px] text-[#64748B]">
-                      Crie um produto na sua conta EscalePay com valor de 100 MT e cole aqui o link gerado. Esse link será aberto automaticamente quando o lojista clicar em pagar no painel do vendedor.
-                    </p>
+                  {/* OPÇÃO 1: PAYSUITE */}
+                  <div className="p-5 bg-white border border-[#CBD5E1] rounded-[3px] space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#EAEAEA] pb-3">
+                      <div>
+                        <h4 className="font-bold text-[#0A3768] text-sm">
+                          Opção 1 — PaySuite (paysuite.co.mz)
+                        </h4>
+                        <p className="text-[11px] text-[#64748B]">
+                          Agregador moçambicano unificado para M-Pesa, e-Mola, mKesh, Ponto24 e Visa/Mastercard.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <select
+                          aria-label="Ambiente PaySuite"
+                          value={draftCustomization.gateways?.paySuite?.environment || 'sandbox'}
+                          onChange={(e) =>
+                            setDraftCustomization((prev) => ({
+                              ...prev,
+                              gateways: {
+                                ...(prev.gateways ?? {}),
+                                paySuite: {
+                                  ...(prev.gateways?.paySuite ?? {}),
+                                  environment: e.target.value as GatewayEnvironment,
+                                },
+                              },
+                            }))
+                          }
+                          className="h-8 px-2.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-[3px] text-[11px] font-bold"
+                        >
+                          <option value="sandbox">Sandbox (Testes)</option>
+                          <option value="production">Produção (Real)</option>
+                        </select>
+                        <label className="inline-flex items-center gap-1.5 font-bold text-[#1E293B] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(draftCustomization.gateways?.paySuite?.enabled)}
+                            onChange={(e) =>
+                              setDraftCustomization((prev) => ({
+                                ...prev,
+                                gateways: {
+                                  ...(prev.gateways ?? {}),
+                                  paySuite: {
+                                    ...(prev.gateways?.paySuite ?? {}),
+                                    enabled: e.target.checked,
+                                  },
+                                },
+                              }))
+                            }
+                          />
+                          Ativar PaySuite
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block font-bold text-[#475569] text-[11px]">
+                        URL do Webhook PaySuite (Cole no painel da PaySuite):
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          readOnly
+                          value="https://cellbox-psi.vercel.app/api/webhooks/paysuite"
+                          className="w-full h-9 px-3 bg-[#F8FAFC] border border-[#CBD5E1] rounded-[3px] font-mono text-[11px] text-[#0F172A] select-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText('https://cellbox-psi.vercel.app/api/webhooks/paysuite');
+                            showToast('URL do Webhook PaySuite copiada!', 'success');
+                          }}
+                          className="h-9 px-3.5 rounded-[3px] bg-[#0A3768] hover:bg-[#0475EE] text-white text-[11px] font-bold uppercase whitespace-nowrap cursor-pointer"
+                        >
+                          Copiar URL
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="paysuite_api_key" className="block font-bold text-[#1E293B] mb-1">
+                          API Key / Bearer Token:
+                        </label>
+                        <input
+                          id="paysuite_api_key"
+                          name="paysuite_api_key"
+                          type={showGatewaySecrets ? 'text' : 'password'}
+                          autoComplete="off"
+                          data-lpignore="true"
+                          placeholder="Cole aqui o Token / API Key da PaySuite"
+                          value={draftCustomization.gateways?.paySuite?.apiKey || ''}
+                          onChange={(e) =>
+                            setDraftCustomization((prev) => ({
+                              ...prev,
+                              gateways: {
+                                ...(prev.gateways ?? {}),
+                                paySuite: {
+                                  ...(prev.gateways?.paySuite ?? {}),
+                                  apiKey: e.target.value.trim(),
+                                },
+                              },
+                            }))
+                          }
+                          className="w-full h-10 px-3 border border-[#CBD5E1] rounded-[3px] font-mono text-xs focus:border-[#0475EE] focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="paysuite_merchant_id" className="block font-bold text-[#1E293B] mb-1">
+                          Merchant ID / Client ID (opcional):
+                        </label>
+                        <input
+                          id="paysuite_merchant_id"
+                          name="paysuite_merchant_id"
+                          type="text"
+                          autoComplete="off"
+                          placeholder="ID da conta comercial PaySuite"
+                          value={draftCustomization.gateways?.paySuite?.merchantId || ''}
+                          onChange={(e) =>
+                            setDraftCustomization((prev) => ({
+                              ...prev,
+                              gateways: {
+                                ...(prev.gateways ?? {}),
+                                paySuite: {
+                                  ...(prev.gateways?.paySuite ?? {}),
+                                  merchantId: e.target.value.trim(),
+                                },
+                              },
+                            }))
+                          }
+                          className="w-full h-10 px-3 border border-[#CBD5E1] rounded-[3px] font-mono text-xs focus:border-[#0475EE] focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="paysuite_webhook_secret" className="block font-bold text-[#1E293B] mb-1">
+                          Webhook Secret:
+                        </label>
+                        <input
+                          id="paysuite_webhook_secret"
+                          name="paysuite_webhook_secret"
+                          type={showGatewaySecrets ? 'text' : 'password'}
+                          autoComplete="off"
+                          data-lpignore="true"
+                          placeholder="Segredo para validar notificações"
+                          value={draftCustomization.gateways?.paySuite?.webhookSecret || ''}
+                          onChange={(e) =>
+                            setDraftCustomization((prev) => ({
+                              ...prev,
+                              gateways: {
+                                ...(prev.gateways ?? {}),
+                                paySuite: {
+                                  ...(prev.gateways?.paySuite ?? {}),
+                                  webhookSecret: e.target.value.trim(),
+                                },
+                              },
+                            }))
+                          }
+                          className="w-full h-10 px-3 border border-[#CBD5E1] rounded-[3px] font-mono text-xs focus:border-[#0475EE] focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="paysuite_base_url" className="block font-bold text-[#1E293B] mb-1">
+                          Base URL da API:
+                        </label>
+                        <input
+                          id="paysuite_base_url"
+                          name="paysuite_base_url"
+                          type="url"
+                          autoComplete="off"
+                          placeholder="https://paysuite.tech/api/v1"
+                          value={draftCustomization.gateways?.paySuite?.baseUrl || ''}
+                          onChange={(e) =>
+                            setDraftCustomization((prev) => ({
+                              ...prev,
+                              gateways: {
+                                ...(prev.gateways ?? {}),
+                                paySuite: {
+                                  ...(prev.gateways?.paySuite ?? {}),
+                                  baseUrl: e.target.value.trim(),
+                                },
+                              },
+                            }))
+                          }
+                          className="w-full h-10 px-3 border border-[#CBD5E1] rounded-[3px] font-mono text-xs focus:border-[#0475EE] focus:outline-none"
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  {/* TOKEN SECRETO (OPCIONAL) */}
-                  <div className="p-4 bg-white border border-[#CBD5E1] rounded-[3px] space-y-3">
-                    <label className="block font-bold text-[#1E293B] text-xs">
-                      3. Chave Secreta / Token do Webhook (Opcional):
-                    </label>
-                    <input
-                      type="text"
-                      id="cellbox_escalepay_webhook_token"
-                      name="cellbox_escalepay_webhook_token"
-                      autoComplete="off"
-                      data-lpignore="true"
-                      data-form-type="other"
-                      placeholder="Token de segurança fornecido pela EscalePay (opcional)"
-                      value={draftCustomization.gateways?.escalePayWebhookSecret || ''}
-                      onChange={(e) =>
-                        setDraftCustomization((prev) => ({
-                          ...prev,
-                          gateways: {
-                            ...(prev.gateways ?? {}),
-                            escalePayWebhookSecret: e.target.value.trim(),
-                          },
-                        }))
-                      }
-                      className="w-full h-10 px-3 border border-[#CBD5E1] rounded-[3px] text-xs font-mono focus:border-[#0475EE] focus:outline-none"
-                    />
+                  {/* OPÇÃO 2: DEBITO PAY */}
+                  <div className="p-5 bg-white border border-[#CBD5E1] rounded-[3px] space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#EAEAEA] pb-3">
+                      <div>
+                        <h4 className="font-bold text-[#0A3768] text-sm">
+                          Opção 2 — Debito Pay (debito.co.mz)
+                        </h4>
+                        <p className="text-[11px] text-[#64748B]">
+                          API REST unificada para M-Pesa, e-Mola e cartões Visa/Mastercard com suporte a HMAC e carteiras.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <select
+                          aria-label="Ambiente Debito Pay"
+                          value={draftCustomization.gateways?.debitoPay?.environment || 'sandbox'}
+                          onChange={(e) =>
+                            setDraftCustomization((prev) => ({
+                              ...prev,
+                              gateways: {
+                                ...(prev.gateways ?? {}),
+                                debitoPay: {
+                                  ...(prev.gateways?.debitoPay ?? {}),
+                                  environment: e.target.value as GatewayEnvironment,
+                                },
+                              },
+                            }))
+                          }
+                          className="h-8 px-2.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-[3px] text-[11px] font-bold"
+                        >
+                          <option value="sandbox">Sandbox (Testes)</option>
+                          <option value="production">Produção (Real)</option>
+                        </select>
+                        <label className="inline-flex items-center gap-1.5 font-bold text-[#1E293B] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(draftCustomization.gateways?.debitoPay?.enabled)}
+                            onChange={(e) =>
+                              setDraftCustomization((prev) => ({
+                                ...prev,
+                                gateways: {
+                                  ...(prev.gateways ?? {}),
+                                  debitoPay: {
+                                    ...(prev.gateways?.debitoPay ?? {}),
+                                    enabled: e.target.checked,
+                                  },
+                                },
+                              }))
+                            }
+                          />
+                          Ativar Debito Pay
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block font-bold text-[#475569] text-[11px]">
+                        URL do Webhook Debito Pay (Cole no painel da Debito Pay):
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          readOnly
+                          value="https://cellbox-psi.vercel.app/api/webhooks/debitopay"
+                          className="w-full h-9 px-3 bg-[#F8FAFC] border border-[#CBD5E1] rounded-[3px] font-mono text-[11px] text-[#0F172A] select-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText('https://cellbox-psi.vercel.app/api/webhooks/debitopay');
+                            showToast('URL do Webhook Debito Pay copiada!', 'success');
+                          }}
+                          className="h-9 px-3.5 rounded-[3px] bg-[#0A3768] hover:bg-[#0475EE] text-white text-[11px] font-bold uppercase whitespace-nowrap cursor-pointer"
+                        >
+                          Copiar URL
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="debitopay_api_key" className="block font-bold text-[#1E293B] mb-1">
+                          API Key (sk_live_... / sk_test_...):
+                        </label>
+                        <input
+                          id="debitopay_api_key"
+                          name="debitopay_api_key"
+                          type={showGatewaySecrets ? 'text' : 'password'}
+                          autoComplete="off"
+                          data-lpignore="true"
+                          placeholder="Chave secreta da API Debito Pay"
+                          value={draftCustomization.gateways?.debitoPay?.apiKey || ''}
+                          onChange={(e) =>
+                            setDraftCustomization((prev) => ({
+                              ...prev,
+                              gateways: {
+                                ...(prev.gateways ?? {}),
+                                debitoPay: {
+                                  ...(prev.gateways?.debitoPay ?? {}),
+                                  apiKey: e.target.value.trim(),
+                                },
+                              },
+                            }))
+                          }
+                          className="w-full h-10 px-3 border border-[#CBD5E1] rounded-[3px] font-mono text-xs focus:border-[#0475EE] focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="debitopay_wallet_id" className="block font-bold text-[#1E293B] mb-1">
+                          Wallet ID / Merchant ID:
+                        </label>
+                        <input
+                          id="debitopay_wallet_id"
+                          name="debitopay_wallet_id"
+                          type="text"
+                          autoComplete="off"
+                          placeholder="ID da carteira Debito Pay"
+                          value={draftCustomization.gateways?.debitoPay?.walletId || ''}
+                          onChange={(e) =>
+                            setDraftCustomization((prev) => ({
+                              ...prev,
+                              gateways: {
+                                ...(prev.gateways ?? {}),
+                                debitoPay: {
+                                  ...(prev.gateways?.debitoPay ?? {}),
+                                  walletId: e.target.value.trim(),
+                                },
+                              },
+                            }))
+                          }
+                          className="w-full h-10 px-3 border border-[#CBD5E1] rounded-[3px] font-mono text-xs focus:border-[#0475EE] focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="debitopay_webhook_secret" className="block font-bold text-[#1E293B] mb-1">
+                          Webhook Secret (HMAC):
+                        </label>
+                        <input
+                          id="debitopay_webhook_secret"
+                          name="debitopay_webhook_secret"
+                          type={showGatewaySecrets ? 'text' : 'password'}
+                          autoComplete="off"
+                          data-lpignore="true"
+                          placeholder="Segredo HMAC do webhook"
+                          value={draftCustomization.gateways?.debitoPay?.webhookSecret || ''}
+                          onChange={(e) =>
+                            setDraftCustomization((prev) => ({
+                              ...prev,
+                              gateways: {
+                                ...(prev.gateways ?? {}),
+                                debitoPay: {
+                                  ...(prev.gateways?.debitoPay ?? {}),
+                                  webhookSecret: e.target.value.trim(),
+                                },
+                              },
+                            }))
+                          }
+                          className="w-full h-10 px-3 border border-[#CBD5E1] rounded-[3px] font-mono text-xs focus:border-[#0475EE] focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="debitopay_base_url" className="block font-bold text-[#1E293B] mb-1">
+                          Base URL da API:
+                        </label>
+                        <input
+                          id="debitopay_base_url"
+                          name="debitopay_base_url"
+                          type="url"
+                          autoComplete="off"
+                          placeholder="https://my.debito.co.mz/api"
+                          value={draftCustomization.gateways?.debitoPay?.baseUrl || ''}
+                          onChange={(e) =>
+                            setDraftCustomization((prev) => ({
+                              ...prev,
+                              gateways: {
+                                ...(prev.gateways ?? {}),
+                                debitoPay: {
+                                  ...(prev.gateways?.debitoPay ?? {}),
+                                  baseUrl: e.target.value.trim(),
+                                },
+                              },
+                            }))
+                          }
+                          className="w-full h-10 px-3 border border-[#CBD5E1] rounded-[3px] font-mono text-xs focus:border-[#0475EE] focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* OPÇÃO 3: API OFICIAL VODACOM M-PESA + MOVITEL E-MOLA */}
+                  <div className="p-5 bg-white border border-[#CBD5E1] rounded-[3px] space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#EAEAEA] pb-3">
+                      <div>
+                        <h4 className="font-bold text-[#0A3768] text-sm">
+                          Opção 3 — API Oficial Vodacom M-Pesa &amp; Movitel e-Mola
+                        </h4>
+                        <p className="text-[11px] text-[#64748B]">
+                          Integração direta com as operadoras (USSD Push na tela da CellBox). Sandbox disponível em developer.mpesa.vm.co.mz.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <select
+                          aria-label="Ambiente API Oficial M-Pesa"
+                          value={draftCustomization.gateways?.mpesaDirect?.environment || 'sandbox'}
+                          onChange={(e) =>
+                            setDraftCustomization((prev) => ({
+                              ...prev,
+                              gateways: {
+                                ...(prev.gateways ?? {}),
+                                mpesaDirect: {
+                                  ...(prev.gateways?.mpesaDirect ?? {}),
+                                  environment: e.target.value as GatewayEnvironment,
+                                },
+                              },
+                            }))
+                          }
+                          className="h-8 px-2.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-[3px] text-[11px] font-bold"
+                        >
+                          <option value="sandbox">Sandbox (Testes)</option>
+                          <option value="production">Produção (Real)</option>
+                        </select>
+                        <label className="inline-flex items-center gap-1.5 font-bold text-[#1E293B] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(draftCustomization.gateways?.mpesaDirect?.enabled)}
+                            onChange={(e) =>
+                              setDraftCustomization((prev) => ({
+                                ...prev,
+                                gateways: {
+                                  ...(prev.gateways ?? {}),
+                                  mpesaDirect: {
+                                    ...(prev.gateways?.mpesaDirect ?? {}),
+                                    enabled: e.target.checked,
+                                  },
+                                },
+                              }))
+                            }
+                          />
+                          Ativar API Direta
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block font-bold text-[#475569] text-[11px]">
+                        URL de Callback / Webhook M-Pesa &amp; e-Mola:
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          readOnly
+                          value="https://cellbox-psi.vercel.app/api/webhooks/mpesa"
+                          className="w-full h-9 px-3 bg-[#F8FAFC] border border-[#CBD5E1] rounded-[3px] font-mono text-[11px] text-[#0F172A] select-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText('https://cellbox-psi.vercel.app/api/webhooks/mpesa');
+                            showToast('URL de Callback M-Pesa/e-Mola copiada!', 'success');
+                          }}
+                          className="h-9 px-3.5 rounded-[3px] bg-[#0A3768] hover:bg-[#0475EE] text-white text-[11px] font-bold uppercase whitespace-nowrap cursor-pointer"
+                        >
+                          Copiar URL
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label htmlFor="mpesa_api_key" className="block font-bold text-[#1E293B] mb-1">
+                          Vodacom M-Pesa API Key:
+                        </label>
+                        <input
+                          id="mpesa_api_key"
+                          name="mpesa_api_key"
+                          type={showGatewaySecrets ? 'text' : 'password'}
+                          autoComplete="off"
+                          data-lpignore="true"
+                          placeholder="API Key do portal M-Pesa"
+                          value={draftCustomization.gateways?.mpesaDirect?.apiKey || ''}
+                          onChange={(e) =>
+                            setDraftCustomization((prev) => ({
+                              ...prev,
+                              gateways: {
+                                ...(prev.gateways ?? {}),
+                                mpesaDirect: {
+                                  ...(prev.gateways?.mpesaDirect ?? {}),
+                                  apiKey: e.target.value.trim(),
+                                },
+                              },
+                            }))
+                          }
+                          className="w-full h-10 px-3 border border-[#CBD5E1] rounded-[3px] font-mono text-xs focus:border-[#0475EE] focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="mpesa_service_code" className="block font-bold text-[#1E293B] mb-1">
+                          Service Provider Code (Shortcode):
+                        </label>
+                        <input
+                          id="mpesa_service_code"
+                          name="mpesa_service_code"
+                          type="text"
+                          autoComplete="off"
+                          placeholder="Ex: 171717"
+                          value={draftCustomization.gateways?.mpesaDirect?.serviceProviderCode || ''}
+                          onChange={(e) =>
+                            setDraftCustomization((prev) => ({
+                              ...prev,
+                              gateways: {
+                                ...(prev.gateways ?? {}),
+                                mpesaDirect: {
+                                  ...(prev.gateways?.mpesaDirect ?? {}),
+                                  serviceProviderCode: e.target.value.trim(),
+                                },
+                              },
+                            }))
+                          }
+                          className="w-full h-10 px-3 border border-[#CBD5E1] rounded-[3px] font-mono text-xs focus:border-[#0475EE] focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="mpesa_origin_host" className="block font-bold text-[#1E293B] mb-1">
+                          Host da API (Origin):
+                        </label>
+                        <input
+                          id="mpesa_origin_host"
+                          name="mpesa_origin_host"
+                          type="text"
+                          autoComplete="off"
+                          placeholder="api.sandbox.vm.co.mz"
+                          value={draftCustomization.gateways?.mpesaDirect?.originHost || ''}
+                          onChange={(e) =>
+                            setDraftCustomization((prev) => ({
+                              ...prev,
+                              gateways: {
+                                ...(prev.gateways ?? {}),
+                                mpesaDirect: {
+                                  ...(prev.gateways?.mpesaDirect ?? {}),
+                                  originHost: e.target.value.trim(),
+                                },
+                              },
+                            }))
+                          }
+                          className="w-full h-10 px-3 border border-[#CBD5E1] rounded-[3px] font-mono text-xs focus:border-[#0475EE] focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label htmlFor="mpesa_public_key" className="block font-bold text-[#1E293B] mb-1">
+                        Vodacom M-Pesa Public Key (RSA):
+                      </label>
+                      <textarea
+                        id="mpesa_public_key"
+                        name="mpesa_public_key"
+                        rows={2}
+                        autoComplete="off"
+                        placeholder="Cole aqui a Public Key RSA fornecida no portal M-Pesa Developer"
+                        value={draftCustomization.gateways?.mpesaDirect?.publicKey || ''}
+                        onChange={(e) =>
+                          setDraftCustomization((prev) => ({
+                            ...prev,
+                            gateways: {
+                              ...(prev.gateways ?? {}),
+                              mpesaDirect: {
+                                ...(prev.gateways?.mpesaDirect ?? {}),
+                                publicKey: e.target.value.trim(),
+                              },
+                            },
+                          }))
+                        }
+                        className="w-full p-2.5 border border-[#CBD5E1] rounded-[3px] font-mono text-[11px] focus:border-[#0475EE] focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="pt-3 border-t border-[#EAEAEA] grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label htmlFor="emola_api_key" className="block font-bold text-[#1E293B] mb-1">
+                          Movitel e-Mola API Key / Client ID (opcional):
+                        </label>
+                        <input
+                          id="emola_api_key"
+                          name="emola_api_key"
+                          type={showGatewaySecrets ? 'text' : 'password'}
+                          autoComplete="off"
+                          data-lpignore="true"
+                          placeholder="Client ID e-Mola"
+                          value={draftCustomization.gateways?.mpesaDirect?.emolaApiKey || ''}
+                          onChange={(e) =>
+                            setDraftCustomization((prev) => ({
+                              ...prev,
+                              gateways: {
+                                ...(prev.gateways ?? {}),
+                                mpesaDirect: {
+                                  ...(prev.gateways?.mpesaDirect ?? {}),
+                                  emolaApiKey: e.target.value.trim(),
+                                },
+                              },
+                            }))
+                          }
+                          className="w-full h-10 px-3 border border-[#CBD5E1] rounded-[3px] font-mono text-xs focus:border-[#0475EE] focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="emola_api_secret" className="block font-bold text-[#1E293B] mb-1">
+                          Movitel e-Mola API Secret (opcional):
+                        </label>
+                        <input
+                          id="emola_api_secret"
+                          name="emola_api_secret"
+                          type={showGatewaySecrets ? 'text' : 'password'}
+                          autoComplete="off"
+                          data-lpignore="true"
+                          placeholder="Secret Key e-Mola"
+                          value={draftCustomization.gateways?.mpesaDirect?.emolaApiSecret || ''}
+                          onChange={(e) =>
+                            setDraftCustomization((prev) => ({
+                              ...prev,
+                              gateways: {
+                                ...(prev.gateways ?? {}),
+                                mpesaDirect: {
+                                  ...(prev.gateways?.mpesaDirect ?? {}),
+                                  emolaApiSecret: e.target.value.trim(),
+                                },
+                              },
+                            }))
+                          }
+                          className="w-full h-10 px-3 border border-[#CBD5E1] rounded-[3px] font-mono text-xs focus:border-[#0475EE] focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="emola_shortcode" className="block font-bold text-[#1E293B] mb-1">
+                          e-Mola Shortcode / Número Comercial:
+                        </label>
+                        <input
+                          id="emola_shortcode"
+                          name="emola_shortcode"
+                          type="text"
+                          autoComplete="off"
+                          placeholder="Código comercial e-Mola"
+                          value={draftCustomization.gateways?.mpesaDirect?.emolaShortcode || ''}
+                          onChange={(e) =>
+                            setDraftCustomization((prev) => ({
+                              ...prev,
+                              gateways: {
+                                ...(prev.gateways ?? {}),
+                                mpesaDirect: {
+                                  ...(prev.gateways?.mpesaDirect ?? {}),
+                                  emolaShortcode: e.target.value.trim(),
+                                },
+                              },
+                            }))
+                          }
+                          className="w-full h-10 px-3 border border-[#CBD5E1] rounded-[3px] font-mono text-xs focus:border-[#0475EE] focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* OPÇÃO 4: ESCALEPAY (TAXA FIXA DE 100 MT) */}
+                  <div className="p-5 bg-white border border-[#CBD5E1] rounded-[3px] space-y-4">
+                    <div className="border-b border-[#EAEAEA] pb-3">
+                      <h4 className="font-bold text-[#0A3768] text-sm">
+                        Opção 4 — EscalePay (Taxa Fixa de Ativação de Lojistas — 100 MT)
+                      </h4>
+                      <p className="text-[11px] text-[#64748B]">
+                        Ao configurar o link do seu produto da EscalePay abaixo, os lojistas pagam a taxa de adesão de 100 MT diretamente pelo checkout oficial e a loja é ativada automaticamente via Webhook.
+                      </p>
+                    </div>
+
+                    {/* URL DO WEBHOOK PARA O USUÁRIO COPIAR */}
+                    <div className="space-y-2">
+                      <label className="block font-bold text-[#1E293B] text-xs">
+                        1. URL do Webhook da CellBox (Cole nas configurações da sua conta EscalePay):
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          readOnly
+                          value="https://cellbox-psi.vercel.app/api/webhooks/escalepay"
+                          className="w-full h-10 px-3 bg-[#F8FAFC] border border-[#CBD5E1] rounded-[3px] font-mono text-xs text-[#0F172A] select-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText('https://cellbox-psi.vercel.app/api/webhooks/escalepay');
+                            showToast('URL do Webhook copiada para a área de transferência!', 'success');
+                          }}
+                          className="h-10 px-4 rounded-[3px] bg-[#0A3768] hover:bg-[#0475EE] text-white text-xs font-bold uppercase whitespace-nowrap cursor-pointer transition-colors"
+                        >
+                          Copiar URL
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-[#64748B]">
+                        No painel da EscalePay, cadastre essa URL em <em>Configurações / Webhooks</em> para o evento de venda aprovada.
+                      </p>
+                    </div>
+
+                    {/* LINK DO PRODUTO ESCALEPAY */}
+                    <div className="space-y-2">
+                      <label className="block font-bold text-[#1E293B] text-xs">
+                        2. Link do Produto / Checkout EscalePay (100 MT):
+                      </label>
+                      <input
+                        type="url"
+                        id="cellbox_escalepay_checkout_link"
+                        name="cellbox_escalepay_checkout_link"
+                        autoComplete="off"
+                        data-lpignore="true"
+                        data-form-type="other"
+                        placeholder="Ex: https://pay.escalepay.com/pay/abc123xyz"
+                        value={draftCustomization.gateways?.escalePayCheckoutUrl || ''}
+                        onChange={(e) =>
+                          setDraftCustomization((prev) => ({
+                            ...prev,
+                            gateways: {
+                              ...(prev.gateways ?? {}),
+                              escalePayCheckoutUrl: e.target.value.trim(),
+                            },
+                          }))
+                        }
+                        className="w-full h-10 px-3 border border-[#CBD5E1] rounded-[3px] text-xs focus:border-[#0475EE] focus:outline-none"
+                      />
+                      <p className="text-[11px] text-[#64748B]">
+                        Crie um produto na sua conta EscalePay com valor de 100 MT e cole aqui o link gerado. Esse link será aberto automaticamente quando o lojista clicar em pagar no painel do vendedor.
+                      </p>
+                    </div>
+
+                    {/* TOKEN SECRETO (OPCIONAL) */}
+                    <div className="space-y-2">
+                      <label className="block font-bold text-[#1E293B] text-xs">
+                        3. Chave Secreta / Token do Webhook (Opcional):
+                      </label>
+                      <input
+                        type={showGatewaySecrets ? 'text' : 'password'}
+                        id="cellbox_escalepay_webhook_token"
+                        name="cellbox_escalepay_webhook_token"
+                        autoComplete="off"
+                        data-lpignore="true"
+                        data-form-type="other"
+                        placeholder="Token de segurança fornecido pela EscalePay (opcional)"
+                        value={draftCustomization.gateways?.escalePayWebhookSecret || ''}
+                        onChange={(e) =>
+                          setDraftCustomization((prev) => ({
+                            ...prev,
+                            gateways: {
+                              ...(prev.gateways ?? {}),
+                              escalePayWebhookSecret: e.target.value.trim(),
+                            },
+                          }))
+                        }
+                        className="w-full h-10 px-3 border border-[#CBD5E1] rounded-[3px] text-xs font-mono focus:border-[#0475EE] focus:outline-none"
+                      />
+                    </div>
                   </div>
                 </div>
               )}
