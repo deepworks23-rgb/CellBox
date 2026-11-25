@@ -1,13 +1,4 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import {
-  ACTIVE_COUPONS,
-  INITIAL_ADDRESSES,
-  INITIAL_CATEGORIES,
-  INITIAL_ORDERS,
-  INITIAL_PRODUCTS,
-  INITIAL_SELLERS,
-  INITIAL_USERS,
-} from '../data/seedData';
 import type {
   Address,
   AppView,
@@ -258,8 +249,9 @@ interface MarketplaceContextValue {
     subject: string;
     message: string;
   }) => Promise<{ ok: boolean; error?: string }>;
-  resetDemoData: () => Promise<void>;
 }
+
+const ACTIVE_COUPONS: Coupon[] = [];
 
 const DEFAULT_FILTERS: CatalogFilters = {
   search: '',
@@ -306,15 +298,15 @@ const MarketplaceContext = createContext<MarketplaceContextValue | null>(null);
 
 export function MarketplaceProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<MarketplaceState>(() => ({
-    users: INITIAL_USERS,
+    users: [],
     currentUser: null,
-    sellers: INITIAL_SELLERS,
-    products: INITIAL_PRODUCTS,
-    categories: INITIAL_CATEGORIES,
-    orders: INITIAL_ORDERS,
+    sellers: [],
+    products: [],
+    categories: [],
+    orders: [],
     cart: typeof window !== 'undefined' ? readStoredCart() : [],
     wishlist: typeof window !== 'undefined' ? readGuestWishlist() : [],
-    addresses: INITIAL_ADDRESSES,
+    addresses: [],
     commissionRate: 10,
     siteCustomization: DEFAULT_SITE_CUSTOMIZATION,
   }));
@@ -1179,19 +1171,6 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
     return { ok: true };
   };
 
-  const resetDemoData = async () => {
-    const res = await apiRequest<BootstrapResponse>('/api/reset-demo', {
-      method: 'POST',
-    });
-    if (res.ok) {
-      applyBootstrap(res.data);
-      setState((prev) => ({ ...prev, cart: [] }));
-      setFilters(DEFAULT_FILTERS);
-      setCompareIds([]);
-      showToast('Dados da plataforma restaurados com sucesso.', 'info');
-    }
-  };
-
   return (
     <MarketplaceContext.Provider
       value={{
@@ -1261,7 +1240,6 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
         setCommissionRate,
         subscribeNewsletter,
         sendContactMessage,
-        resetDemoData,
       }}
     >
       {children}

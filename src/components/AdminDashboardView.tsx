@@ -61,7 +61,6 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
     removeCategory,
     deleteProduct,
     setCommissionRate,
-    resetDemoData,
     logout,
     siteCustomization,
     updateSiteCustomization,
@@ -235,14 +234,6 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
           </nav>
 
           <div className="pt-4 border-t border-white/15 space-y-2">
-            <button
-              type="button"
-              onClick={resetDemoData}
-              className="w-full h-9 px-3 rounded-full bg-white/10 hover:bg-white/20 text-xs font-semibold text-white inline-flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              Restaurar Dados Base
-            </button>
             <button
               type="button"
               onClick={() => void logout()}

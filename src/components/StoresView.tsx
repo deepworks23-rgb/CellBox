@@ -11,21 +11,13 @@ import {
   X,
 } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
-import { ASSET_IMAGES } from '../data/seedData';
 import type { SellerStore } from '../types';
 import { formatCurrency, isStorePubliclyActive } from '../utils/marketplace';
 import { MotionButton } from './MotionPrimitives';
 import { ProductImage } from './ProductImage';
 
-function getStoreCoverImage(store: SellerStore, index: number): string {
-  if (store.bannerImage) return store.bannerImage;
-  const cat = store.mainCategory.toLowerCase();
-  if (cat.includes('laptop')) return ASSET_IMAGES.macbookPro;
-  if (cat.includes('smartphone')) return ASSET_IMAGES.iphone16Pro;
-  if (cat.includes('áudio') || cat.includes('audio')) return ASSET_IMAGES.sonyHeadphones;
-  if (cat.includes('gaming')) return ASSET_IMAGES.gamingHandheld;
-  if (cat.includes('tablet')) return ASSET_IMAGES.ipadPro;
-  return index % 2 === 0 ? ASSET_IMAGES.hero : ASSET_IMAGES.dellXps;
+function getStoreCoverImage(store: SellerStore): string {
+  return store.bannerImage || store.logoUrl || '';
 }
 
 export function StoresView() {
@@ -185,7 +177,7 @@ export function StoresView() {
             {filteredStores.map((store, idx) => {
               const storeProducts = products.filter((p) => p.sellerId === store.id);
               const previewProducts = storeProducts.slice(0, 3);
-              const coverImg = getStoreCoverImage(store, idx);
+              const coverImg = getStoreCoverImage(store);
 
               return (
                 <article

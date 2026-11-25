@@ -1,5 +1,5 @@
 import type { SiteCustomization } from '../types.ts';
-import { CUTOUT_IMAGES } from './seedData.ts';
+import { CUTOUT_IMAGES } from '../constants/assets.ts';
 
 export const DEFAULT_SITE_CUSTOMIZATION: SiteCustomization = {
   header: {

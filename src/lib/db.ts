@@ -47,17 +47,6 @@ export interface UploadedAssetRecord {
   sizeBytes: number;
 }
 
-export interface SeedPayload {
-  users: StoredUser[];
-  sellers: SellerStore[];
-  products: Product[];
-  categories: string[];
-  orders: Order[];
-  addressesByUser: Record<string, Address[]>;
-  wishlistsByUser: Record<string, string[]>;
-  commissionRate: number;
-}
-
 export interface DatabaseEnvDiagnostics {
   configured: boolean;
   source: string | null;
@@ -564,354 +553,25 @@ export async function ensureDatabaseSchema(): Promise<void> {
   `);
 }
 
-async function insertSeedInClient(client: PoolClient, seed: SeedPayload): Promise<void> {
-  for (const u of seed.users) {
-    await client.query(
-      `INSERT INTO users (id, name, email, role, phone, seller_id, password_hash, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       ON CONFLICT (id) DO NOTHING`,
-      [u.id, u.name, u.email, u.role, u.phone ?? null, u.sellerId ?? null, u.passwordHash, u.createdAt]
-    );
-  }
-
-  for (let i = 0; i < seed.sellers.length; i++) {
-    const s = seed.sellers[i];
-    await client.query(
-      `INSERT INTO sellers (
-        id, owner_user_id, name, slug, document_id, main_category, description,
-        logo_text, logo_url, accent_color, banner_image, status, verified, rating,
-        review_count, joined_date, tenure_label, location, payout_info,
-        socials, kyc, activation, sort_order
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7,
-        $8, $9, $10, $11, $12, $13, $14,
-        $15, $16, $17, $18, $19::jsonb,
-        $20::jsonb, $21::jsonb, $22::jsonb, $23
-      ) ON CONFLICT (id) DO NOTHING`,
-      [
-        s.id,
-        s.ownerUserId,
-        s.name,
-        s.slug,
-        s.documentId,
-        s.mainCategory,
-        s.description,
-        s.logoText,
-        s.logoUrl ?? null,
-        s.accentColor,
-        s.bannerImage,
-        s.status,
-        true,
-        s.rating,
-        s.reviewCount,
-        s.joinedDate,
-        s.tenureLabel,
-        s.location,
-        JSON.stringify(s.payoutInfo),
-        JSON.stringify(s.socials ?? {}),
-        JSON.stringify({ status: 'verified' }),
-        JSON.stringify({ profileCompleted: true, kycCompleted: true, feePaid: true }),
-        i,
-      ]
-    );
-  }
-
-  for (let i = 0; i < seed.categories.length; i++) {
-    await client.query(
-      'INSERT INTO categories (name, sort_order) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING',
-      [seed.categories[i], i]
-    );
-  }
-
-  for (let i = 0; i < seed.products.length; i++) {
-    const p = seed.products[i];
-    await client.query(
-      `INSERT INTO products (
-        id, seller_id, title, brand, category, condition, price, original_price,
-        stock, rating, review_count, sold_count, is_flash_deal, is_best_seller,
-        images, description, specs, created_at, sort_order
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8,
-        $9, $10, $11, $12, $13, $14,
-        $15::jsonb, $16, $17::jsonb, $18, $19
-      )`,
-      [
-        p.id,
-        p.sellerId,
-        p.title,
-        p.brand,
-        p.category,
-        p.condition,
-        p.price,
-        p.originalPrice ?? null,
-        p.stock,
-        p.rating,
-        p.reviewCount,
-        p.soldCount,
-        Boolean(p.isFlashDeal),
-        Boolean(p.isBestSeller),
-        JSON.stringify(p.images),
-        p.description,
-        JSON.stringify(p.specs ?? {}),
-        p.createdAt,
-        i,
-      ]
-    );
-  }
-
-  for (let i = 0; i < seed.orders.length; i++) {
-    const o = seed.orders[i];
-    await client.query(
-      `INSERT INTO orders (
-        id, buyer_id, buyer_name, buyer_email, created_at, shipping_address,
-        payment_method, commission_rate_snapshot, subtotal, discount_total,
-        coupon_code, shipping_total, total, fulfillments, sort_order
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6::jsonb,
-        $7, $8, $9, $10,
-        $11, $12, $13, $14::jsonb, $15
-      )`,
-      [
-        o.id,
-        o.buyerId,
-        o.buyerName,
-        o.buyerEmail,
-        o.createdAt,
-        JSON.stringify(o.shippingAddress),
-        o.paymentMethod,
-        o.commissionRateSnapshot,
-        o.subtotal,
-        o.discountTotal ?? null,
-        o.couponCode ?? null,
-        o.shippingTotal,
-        o.total,
-        JSON.stringify(o.fulfillments),
-        i,
-      ]
-    );
-  }
-
-  for (const [userId, addresses] of Object.entries(seed.addressesByUser)) {
-    for (let i = 0; i < addresses.length; i++) {
-      const a = addresses[i];
-      await client.query(
-        `INSERT INTO addresses (
-          id, user_id, label, recipient, street, city, state, zip_code, is_default, sort_order
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [a.id, userId, a.label, a.recipient, a.street, a.city, a.state, a.zipCode, a.isDefault, i]
-      );
-    }
-  }
-
-  for (const [userId, productIds] of Object.entries(seed.wishlistsByUser)) {
-    for (let i = 0; i < productIds.length; i++) {
-      await client.query(
-        `INSERT INTO wishlists (user_id, product_id, sort_order)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (user_id, product_id) DO NOTHING`,
-        [userId, productIds[i], i]
-      );
-    }
-  }
-
-  await client.query(
-    `INSERT INTO platform_settings (key, value, updated_at)
-     VALUES ('commissionRate', $1::jsonb, NOW())
-     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
-    [JSON.stringify(seed.commissionRate)]
-  );
-}
-
-export async function initDatabase(createSeed: () => SeedPayload): Promise<void> {
+export async function initDatabase(): Promise<void> {
+  await ensureDatabaseSchema();
   await withTransaction(async (client) => {
-    // Serialize concurrent cold-start schema/seed initialization across serverless instances
-    await client.query('SELECT pg_advisory_xact_lock(728391042)');
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        email TEXT NOT NULL UNIQUE,
-        role TEXT NOT NULL,
-        phone TEXT,
-        seller_id TEXT,
-        password_hash TEXT NOT NULL,
-        created_at TEXT NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS sellers (
-        id TEXT PRIMARY KEY,
-        owner_user_id TEXT NOT NULL,
-        name TEXT NOT NULL,
-        slug TEXT NOT NULL,
-        document_id TEXT NOT NULL,
-        main_category TEXT NOT NULL,
-        description TEXT NOT NULL,
-        logo_text TEXT NOT NULL,
-        accent_color TEXT NOT NULL,
-        banner_image TEXT NOT NULL,
-        status TEXT NOT NULL,
-        verified BOOLEAN NOT NULL DEFAULT FALSE,
-        rating DOUBLE PRECISION NOT NULL DEFAULT 5.0,
-        review_count INTEGER NOT NULL DEFAULT 0,
-        joined_date TEXT NOT NULL,
-        tenure_label TEXT NOT NULL,
-        location TEXT NOT NULL,
-        payout_info JSONB NOT NULL,
-        sort_order INTEGER NOT NULL DEFAULT 0
-      );
-
-      CREATE TABLE IF NOT EXISTS categories (
-        name TEXT PRIMARY KEY,
-        sort_order INTEGER NOT NULL DEFAULT 0
-      );
-
-      CREATE TABLE IF NOT EXISTS products (
-        id TEXT PRIMARY KEY,
-        seller_id TEXT NOT NULL,
-        title TEXT NOT NULL,
-        brand TEXT NOT NULL,
-        category TEXT NOT NULL,
-        condition TEXT NOT NULL,
-        price DOUBLE PRECISION NOT NULL,
-        original_price DOUBLE PRECISION,
-        stock INTEGER NOT NULL DEFAULT 0,
-        rating DOUBLE PRECISION NOT NULL DEFAULT 5.0,
-        review_count INTEGER NOT NULL DEFAULT 0,
-        sold_count INTEGER NOT NULL DEFAULT 0,
-        is_flash_deal BOOLEAN NOT NULL DEFAULT FALSE,
-        is_best_seller BOOLEAN NOT NULL DEFAULT FALSE,
-        images JSONB NOT NULL,
-        description TEXT NOT NULL,
-        specs JSONB NOT NULL,
-        badge TEXT,
-        created_at TEXT NOT NULL,
-        sort_order INTEGER NOT NULL DEFAULT 0
-      );
-
-      ALTER TABLE products ADD COLUMN IF NOT EXISTS is_flash_deal BOOLEAN NOT NULL DEFAULT FALSE;
-      ALTER TABLE products ADD COLUMN IF NOT EXISTS is_best_seller BOOLEAN NOT NULL DEFAULT FALSE;
-
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS province TEXT;
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS city TEXT;
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS neighborhood TEXT;
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS zip_code TEXT;
-      ALTER TABLE users ALTER COLUMN email DROP NOT NULL;
-
-      ALTER TABLE sellers ADD COLUMN IF NOT EXISTS logo_url TEXT;
-      ALTER TABLE sellers ADD COLUMN IF NOT EXISTS socials JSONB DEFAULT '{}'::jsonb;
-      ALTER TABLE sellers ADD COLUMN IF NOT EXISTS kyc JSONB DEFAULT '{"status":"not_submitted"}'::jsonb;
-      ALTER TABLE sellers ADD COLUMN IF NOT EXISTS activation JSONB DEFAULT '{"profileCompleted":true,"kycCompleted":false,"feePaid":false}'::jsonb;
-
-      CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
-
-      CREATE TABLE IF NOT EXISTS orders (
-        id TEXT PRIMARY KEY,
-        buyer_id TEXT NOT NULL,
-        buyer_name TEXT NOT NULL,
-        buyer_email TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        shipping_address JSONB NOT NULL,
-        payment_method TEXT NOT NULL,
-        commission_rate_snapshot DOUBLE PRECISION NOT NULL,
-        subtotal DOUBLE PRECISION NOT NULL,
-        discount_total DOUBLE PRECISION,
-        coupon_code TEXT,
-        shipping_total DOUBLE PRECISION NOT NULL,
-        total DOUBLE PRECISION NOT NULL,
-        fulfillments JSONB NOT NULL,
-        sort_order INTEGER NOT NULL DEFAULT 0
-      );
-
-      CREATE TABLE IF NOT EXISTS addresses (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        label TEXT NOT NULL,
-        recipient TEXT NOT NULL,
-        street TEXT NOT NULL,
-        city TEXT NOT NULL,
-        state TEXT NOT NULL,
-        zip_code TEXT NOT NULL,
-        is_default BOOLEAN NOT NULL DEFAULT FALSE,
-        sort_order INTEGER NOT NULL DEFAULT 0
-      );
-
-      CREATE TABLE IF NOT EXISTS wishlists (
-        user_id TEXT NOT NULL,
-        product_id TEXT NOT NULL,
-        sort_order INTEGER NOT NULL DEFAULT 0,
-        PRIMARY KEY (user_id, product_id)
-      );
-
-      CREATE TABLE IF NOT EXISTS newsletter_subscribers (
-        email TEXT PRIMARY KEY,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-
-      CREATE TABLE IF NOT EXISTS contact_messages (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        email TEXT NOT NULL,
-        subject TEXT NOT NULL,
-        message TEXT NOT NULL,
-        created_at TEXT NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS platform_settings (
-        key TEXT PRIMARY KEY,
-        value JSONB NOT NULL,
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-
-      CREATE TABLE IF NOT EXISTS uploaded_assets (
-        key TEXT PRIMARY KEY,
-        bucket TEXT NOT NULL,
-        owner_user_id TEXT NOT NULL,
-        original_name TEXT NOT NULL,
-        content_type TEXT NOT NULL,
-        size_bytes INTEGER NOT NULL,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-
-      CREATE TABLE IF NOT EXISTS reviews (
-        id TEXT PRIMARY KEY,
-        target_type TEXT NOT NULL,
-        target_id TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        user_name TEXT NOT NULL,
-        rating DOUBLE PRECISION NOT NULL,
-        comment TEXT NOT NULL,
-        created_at TEXT NOT NULL
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_reviews_target ON reviews(target_type, target_id);
-
-      CREATE TABLE IF NOT EXISTS password_reset_tokens (
-        token_hash TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        expires_at TIMESTAMPTZ NOT NULL,
-        used_at TIMESTAMPTZ,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id
-        ON password_reset_tokens (user_id);
-    `);
-
-    // Ensure categories and settings exist
-    const seed = createSeed();
-    for (let i = 0; i < seed.categories.length; i++) {
-      await client.query(
-        'INSERT INTO categories (name, sort_order) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING',
-        [seed.categories[i], i]
-      );
-    }
     await client.query(
       `INSERT INTO platform_settings (key, value, updated_at)
-       VALUES ('commissionRate', $1::jsonb, NOW())
-       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
-      [JSON.stringify(seed.commissionRate)]
+       VALUES ('commissionRate', '10'::jsonb, NOW())
+       ON CONFLICT (key) DO NOTHING`
     );
+
+    const catCount = await client.query('SELECT COUNT(*)::int as count FROM categories');
+    if (Number(catCount.rows[0]?.count ?? 0) === 0) {
+      const defaultCategories = ['Smartphones', 'Laptops', 'Tablets', 'Áudio', 'Carregadores/Cabos', 'Peças', 'Gaming'];
+      for (let i = 0; i < defaultCategories.length; i++) {
+        await client.query(
+          'INSERT INTO categories (name, sort_order) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING',
+          [defaultCategories[i], i]
+        );
+      }
+    }
 
     const stats = await client.query<{ users: number; products: number; sellers: number }>(`
       SELECT
@@ -920,34 +580,9 @@ export async function initDatabase(createSeed: () => SeedPayload): Promise<void>
         (SELECT COUNT(*)::int FROM sellers) AS sellers
     `);
     const row = stats.rows[0];
-    const userCount = Number(row?.users ?? 0);
-    if (userCount === 0) {
-      console.log('[Cellbox PostgreSQL] Tabela de utilizadores vazia (0 users). Populando seed inicial...');
-      await insertSeedInClient(client, seed);
-      const postSeed = await client.query<{ users: number; products: number; sellers: number }>(`
-        SELECT
-          (SELECT COUNT(*)::int FROM users) AS users,
-          (SELECT COUNT(*)::int FROM products) AS products,
-          (SELECT COUNT(*)::int FROM sellers) AS sellers
-      `);
-      const r = postSeed.rows[0];
-      console.log(
-        `[Cellbox PostgreSQL] Seed inicial concluído (${r.users} users, ${r.sellers} sellers, ${r.products} products).`
-      );
-    } else {
-      console.log(
-        `[Cellbox PostgreSQL] Connected to Neon (${row.users} users, ${row.sellers} sellers, ${row.products} products).`
-      );
-    }
-  });
-}
-
-export async function resetDatabaseToSeed(seed: SeedPayload): Promise<void> {
-  await withTransaction(async (client) => {
-    await client.query(
-      'TRUNCATE TABLE password_reset_tokens, users, sellers, categories, products, orders, addresses, wishlists, newsletter_subscribers, contact_messages CASCADE'
+    console.log(
+      `[Cellbox PostgreSQL] Neon Database Ready (${row?.users ?? 0} users, ${row?.sellers ?? 0} sellers, ${row?.products ?? 0} products).`
     );
-    await insertSeedInClient(client, seed);
   });
 }
 

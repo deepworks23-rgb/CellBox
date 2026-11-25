@@ -30,7 +30,6 @@ import {
   X,
 } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
-import { IMAGE_PRESET_OPTIONS } from '../data/seedData';
 import { MOZAMBIQUE_PROVINCES, type ProductCondition } from '../types';
 import {
   calculateSellerAnalytics,

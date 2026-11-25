@@ -9,53 +9,10 @@ import {
   X,
 } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
-import { ASSET_IMAGES, CUTOUT_IMAGES } from '../data/seedData';
 import { filterVisibleProducts, isStorePubliclyActive } from '../utils/marketplace';
 import { MotionButton, SPRING_CARD, SPRING_SNAPPY } from './MotionPrimitives';
 import { ProductCard } from './ProductCard';
 import { BrandLogo, type PartnerBrandName } from './BrandLogo';
-
-const HERO_SLIDES = [
-  {
-    kicker: 'Lançamento Oficial',
-    title: 'iPhone 16 Pro & Tech 2026',
-    subtitle: 'Smartphones e acessórios de lojas verificadas com entrega em todo Moçambique.',
-    highlight: 'A partir de 98.500 MT · Garantia oficial de 12 meses',
-    productId: 'prod-iphone-16-pro',
-    cta: 'VER OFERTA',
-    image: CUTOUT_IMAGES.heroSmartphones,
-    imageAlt: 'Smartphones iPhone 16 Pro em titânio natural',
-  },
-  {
-    kicker: 'Estação Pro',
-    title: 'Laptops M3 Pro & OLED',
-    subtitle: 'Performance profissional para trabalho criativo com frete grátis acima de 15.000 MT.',
-    highlight: 'A partir de 129.900 MT · Envio segurado',
-    productId: 'prod-macbook-pro-m3',
-    cta: 'CONFERIR LAPTOPS',
-    image: CUTOUT_IMAGES.heroLaptop,
-    imageAlt: 'Laptop Pro Space Black com tela de alto brilho',
-  },
-  {
-    kicker: 'Gaming & Áudio',
-    title: 'Consoles & Fones ANC',
-    subtitle: 'Desempenho portátil com ROG Ally X e cancelamento de ruído de estúdio.',
-    highlight: 'A partir de 21.500 MT · Envio imediato',
-    productId: 'prod-rog-ally-x',
-    cta: 'EXPLORAR GAMING',
-    image: CUTOUT_IMAGES.heroGamingAudio,
-    imageAlt: 'Console portátil gaming e headphone wireless com cancelamento de ruído',
-  },
-];
-
-const PARTNER_BRANDS: Array<{ name: PartnerBrandName; ariaLabel: string; logoUrl?: string }> = [
-  { name: 'Apple', ariaLabel: 'Filtrar produtos Apple' },
-  { name: 'Samsung', ariaLabel: 'Filtrar produtos Samsung' },
-  { name: 'Dell', ariaLabel: 'Filtrar produtos Dell' },
-  { name: 'Sony', ariaLabel: 'Filtrar produtos Sony' },
-  { name: 'ASUS', ariaLabel: 'Filtrar produtos ASUS' },
-  { name: 'Anker', ariaLabel: 'Filtrar produtos Anker' },
-];
 
 export function HomeView() {
   const {
@@ -69,9 +26,7 @@ export function HomeView() {
     siteCustomization,
   } = useMarketplace();
 
-  const heroSlides = (siteCustomization?.heroSlides && siteCustomization.heroSlides.length > 0)
-    ? siteCustomization.heroSlides
-    : HERO_SLIDES;
+  const heroSlides = siteCustomization?.heroSlides ?? [];
 
   const [heroIdx, setHeroIdx] = useState(0);
   const [heroDirection, setHeroDirection] = useState<1 | -1>(1);
@@ -98,40 +53,12 @@ export function HomeView() {
   };
 
   const safeHeroIdx = heroSlides.length > 0 ? heroIdx % heroSlides.length : 0;
-  const activeSlide = heroSlides[safeHeroIdx] || heroSlides[0];
+  const activeSlide = heroSlides[safeHeroIdx];
 
-  const subBanner1 = siteCustomization?.subBanners?.[0] || {
-    id: 'sub-tablets',
-    title: 'NOVOS TABLETS!',
-    subtitle: 'Até 20% OFF em iPad Pro',
-    cta: 'VER AGORA',
-    category: 'Tablets',
-    image: CUTOUT_IMAGES.ipadPro,
-    imageAlt: 'iPad Pro M4 em oferta',
-  };
-
-  const subBanner2 = siteCustomization?.subBanners?.[1] || {
-    id: 'sub-laptops',
-    title: 'OFERTA LAPTOPS',
-    subtitle: 'Workstations MacBook Pro M3 e Dell XPS OLED com garantia oficial e entrega grátis.',
-    cta: 'COMPRAR AGORA',
-    category: 'Laptops',
-    image: CUTOUT_IMAGES.macbookPro,
-    imageAlt: 'MacBook Pro M3',
-  };
-
-  const wideBanner = siteCustomization?.wideBanner || {
-    kicker: 'ECONOMIZE ATÉ 16.500 MT!',
-    title: 'EM SMARTPHONES RECONDICIONADOS A+ E NOTEBOOKS PRO',
-    description: 'Aparelhos revisados em laboratório com garantia oficial Cellbox de 12 meses e envio imediato em todo o país.',
-    cta: 'VER SEMINOVOS A+',
-    image1: CUTOUT_IMAGES.dellXps,
-    image2: CUTOUT_IMAGES.macbookPro,
-  };
-
-  const partnerBrands = (siteCustomization?.partnerBrands && siteCustomization.partnerBrands.length > 0)
-    ? siteCustomization.partnerBrands
-    : PARTNER_BRANDS;
+  const subBanner1 = siteCustomization?.subBanners?.[0] ?? null;
+  const subBanner2 = siteCustomization?.subBanners?.[1] ?? null;
+  const wideBanner = siteCustomization?.wideBanner ?? null;
+  const partnerBrands = siteCustomization?.partnerBrands ?? [];
 
   const activeSellers = useMemo(
     () => sellers.filter(isStorePubliclyActive),
@@ -161,7 +88,7 @@ export function HomeView() {
   const storeShowcaseCards = useMemo(() => {
     return activeSellers.map((store, idx) => {
       const storeProductCount = products.filter((p) => p.sellerId === store.id).length;
-      const coverImg = store.bannerImage || store.logoUrl || ASSET_IMAGES.hero;
+      const coverImg = store.bannerImage || store.logoUrl || '';
 
       return {
         id: store.id,
@@ -197,7 +124,8 @@ export function HomeView() {
   return (
     <main className="bg-white pb-12">
       <div className="max-w-[1170px] mx-auto px-4 pt-3 space-y-8">
-        {/* 1. HERO BANNER — Static Container + Crisp Aligned Split Layout + Clean Transparent Cutout */}
+        {/* 1. HERO BANNER — Condicional ao CMS / Banco */}
+        {heroSlides.length > 0 && activeSlide && (
         <section
           aria-label="Destaques principais Cellbox"
           onMouseEnter={() => setHeroPaused(true)}
@@ -287,12 +215,14 @@ export function HomeView() {
                 {/* Right Product Stage — Single Clean Balanced Transparent Cutout */}
                 <div className="md:col-span-6 flex items-center justify-center z-10 min-w-0">
                   <div className="w-full h-[210px] sm:h-[260px] lg:h-[290px] flex items-center justify-center px-2">
-                    <img
-                      src={(activeSlide as any).imageUrl || (activeSlide as any).image || CUTOUT_IMAGES.heroSmartphones}
-                      alt={(activeSlide as any).imageAlt || activeSlide.title}
-                      referrerPolicy="no-referrer"
-                      className="max-h-full max-w-full w-auto h-auto object-contain drop-shadow-[0_22px_28px_rgba(7,40,80,0.45)] select-none pointer-events-none"
-                    />
+                    {((activeSlide as any).imageUrl || (activeSlide as any).image) && (
+                      <img
+                        src={(activeSlide as any).imageUrl || (activeSlide as any).image}
+                        alt={(activeSlide as any).imageAlt || activeSlide.title}
+                        referrerPolicy="no-referrer"
+                        className="max-h-full max-w-full w-auto h-auto object-contain drop-shadow-[0_22px_28px_rgba(7,40,80,0.45)] select-none pointer-events-none"
+                      />
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -317,74 +247,81 @@ export function HomeView() {
             ))}
           </div>
         </section>
+        )}
 
         {/* 2. DUAL SUB-BANNER ROW — Dynamic Banners */}
-        <section
-          aria-label="Promoções por categoria"
-          className="!mt-3 grid grid-cols-1 md:grid-cols-12 gap-3"
-        >
-          {/* Left 1/3 Banner */}
-          <div className="md:col-span-4 bg-[#F1F2F4] border border-[#E7E9EC] px-5 py-5 flex items-center justify-between gap-2 overflow-hidden min-h-[146px]">
-            <div className="min-w-0 z-10">
-              <h2 className="font-condensed text-xl font-bold uppercase text-[#18A3DE] leading-tight">
-                {subBanner1.title}
-              </h2>
-              <p className="text-xs text-[#666666] mt-0.5">{subBanner1.subtitle}</p>
-              <MotionButton
-                type="button"
-                onClick={() => {
-                  setFilters((prev) => ({ ...prev, category: (subBanner1 as any).category || 'Tablets' }));
-                  setPageIdx(0);
-                  document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="mt-3.5 h-7 px-4 rounded-full bg-[#18A3DE] hover:bg-[#0A3768] text-white text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap"
-              >
-                {(subBanner1 as any).ctaText || (subBanner1 as any).cta || 'VER AGORA'}
-              </MotionButton>
-            </div>
-            {((subBanner1 as any).imageUrl || (subBanner1 as any).image) && (
-              <img
-                src={(subBanner1 as any).imageUrl || (subBanner1 as any).image}
-                alt={(subBanner1 as any).imageAlt || subBanner1.title}
-                className="h-24 sm:h-28 w-auto max-w-[140px] object-contain shrink-0 drop-shadow-[0_10px_16px_rgba(10,55,104,0.22)] select-none pointer-events-none"
-              />
+        {(subBanner1 || subBanner2) && (
+          <section
+            aria-label="Promoções por categoria"
+            className="!mt-3 grid grid-cols-1 md:grid-cols-12 gap-3"
+          >
+            {/* Left 1/3 Banner */}
+            {subBanner1 && (
+              <div className={`${subBanner2 ? 'md:col-span-4' : 'md:col-span-12'} bg-[#F1F2F4] border border-[#E7E9EC] px-5 py-5 flex items-center justify-between gap-2 overflow-hidden min-h-[146px]`}>
+                <div className="min-w-0 z-10">
+                  <h2 className="font-condensed text-xl font-bold uppercase text-[#18A3DE] leading-tight">
+                    {subBanner1.title}
+                  </h2>
+                  <p className="text-xs text-[#666666] mt-0.5">{subBanner1.subtitle}</p>
+                  <MotionButton
+                    type="button"
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, category: (subBanner1 as any).category || 'Tablets' }));
+                      setPageIdx(0);
+                      document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="mt-3.5 h-7 px-4 rounded-full bg-[#18A3DE] hover:bg-[#0A3768] text-white text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap"
+                  >
+                    {(subBanner1 as any).ctaText || (subBanner1 as any).cta || 'VER AGORA'}
+                  </MotionButton>
+                </div>
+                {((subBanner1 as any).imageUrl || (subBanner1 as any).image) && (
+                  <img
+                    src={(subBanner1 as any).imageUrl || (subBanner1 as any).image}
+                    alt={(subBanner1 as any).imageAlt || subBanner1.title}
+                    className="h-24 sm:h-28 w-auto max-w-[140px] object-contain shrink-0 drop-shadow-[0_10px_16px_rgba(10,55,104,0.22)] select-none pointer-events-none"
+                  />
+                )}
+              </div>
             )}
-          </div>
 
-          {/* Right 2/3 Banner */}
-          <div className="md:col-span-8 bg-[#F1F2F4] border border-[#E7E9EC] px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 overflow-hidden min-h-[146px]">
-            <div className="min-w-0 max-w-xs z-10">
-              <h2 className="font-condensed text-2xl font-bold uppercase text-[#0A3768] leading-tight">
-                {subBanner2.title}
-              </h2>
-              <p className="text-xs text-[#666666] mt-1 leading-relaxed">
-                {subBanner2.subtitle}
-              </p>
-              <MotionButton
-                type="button"
-                onClick={() => {
-                  setFilters((prev) => ({ ...prev, category: (subBanner2 as any).category || 'Laptops' }));
-                  setPageIdx(0);
-                  document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="mt-3.5 h-8 px-4 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
-              >
-                <ShoppingCart className="w-3.5 h-3.5" />
-                {(subBanner2 as any).ctaText || (subBanner2 as any).cta || 'COMPRAR AGORA'}
-              </MotionButton>
-            </div>
+            {/* Right 2/3 Banner */}
+            {subBanner2 && (
+              <div className={`${subBanner1 ? 'md:col-span-8' : 'md:col-span-12'} bg-[#F1F2F4] border border-[#E7E9EC] px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 overflow-hidden min-h-[146px]`}>
+                <div className="min-w-0 max-w-xs z-10">
+                  <h2 className="font-condensed text-2xl font-bold uppercase text-[#0A3768] leading-tight">
+                    {subBanner2.title}
+                  </h2>
+                  <p className="text-xs text-[#666666] mt-1 leading-relaxed">
+                    {subBanner2.subtitle}
+                  </p>
+                  <MotionButton
+                    type="button"
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, category: (subBanner2 as any).category || 'Laptops' }));
+                      setPageIdx(0);
+                      document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="mt-3.5 h-8 px-4 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+                  >
+                    <ShoppingCart className="w-3.5 h-3.5" />
+                    {(subBanner2 as any).ctaText || (subBanner2 as any).cta || 'COMPRAR AGORA'}
+                  </MotionButton>
+                </div>
 
-            <div className="flex items-end justify-end gap-1 shrink-0 self-end sm:self-center">
-              {((subBanner2 as any).imageUrl || (subBanner2 as any).image) && (
-                <img
-                  src={(subBanner2 as any).imageUrl || (subBanner2 as any).image}
-                  alt={(subBanner2 as any).imageAlt || subBanner2.title}
-                  className="h-28 md:h-32 w-auto object-contain drop-shadow-[0_12px_20px_rgba(10,55,104,0.28)] select-none pointer-events-none"
-                />
-              )}
-            </div>
-          </div>
-        </section>
+                <div className="flex items-end justify-end gap-1 shrink-0 self-end sm:self-center">
+                  {((subBanner2 as any).imageUrl || (subBanner2 as any).image) && (
+                    <img
+                      src={(subBanner2 as any).imageUrl || (subBanner2 as any).image}
+                      alt={(subBanner2 as any).imageAlt || subBanner2.title}
+                      className="h-28 md:h-32 w-auto object-contain drop-shadow-[0_12px_20px_rgba(10,55,104,0.28)] select-none pointer-events-none"
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* 3. NOVIDADES & CATÁLOGO PRINCIPAL — 5-Column Grid + Animated Pill Category Tabs */}
         <section id="catalogo-principal" aria-labelledby="heading-catalog" className="pt-2">
@@ -644,6 +581,7 @@ export function HomeView() {
         </section>
 
         {/* 4. WIDE MID-PAGE PROMO BANNER — Dynamic Banner */}
+        {Boolean(wideBanner && wideBanner.title) && (
         <section
           aria-label="Oferta especial de economia"
           className="bg-[#F1F2F4] border border-[#E7E9EC] px-6 sm:px-10 py-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 overflow-hidden"
@@ -693,8 +631,10 @@ export function HomeView() {
             )}
           </div>
         </section>
+        )}
 
         {/* 5. LOJAS OFICIAIS VERIFICADAS — Interactive Multi-Slide Carousel */}
+        {storeShowcaseCards.length > 0 && (
         <section id="lojas-oficiais" aria-labelledby="heading-verified-stores" className="pt-2">
           <div className="flex items-center justify-between gap-4 pb-4">
             <div className="flex items-baseline gap-4">
@@ -823,8 +763,10 @@ export function HomeView() {
               ))}
             </motion.div>
         </section>
+        )}
 
         {/* 6. PARTNER BRANDS OFFICIAL LOGO STRIP */}
+        {partnerBrands.length > 0 && (
         <section
           aria-label="Marcas parceiras"
           data-testid="partner-brands-strip"
@@ -862,6 +804,7 @@ export function HomeView() {
             </motion.button>
           ))}
         </section>
+        )}
       </div>
     </main>
   );
