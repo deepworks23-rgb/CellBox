@@ -35,6 +35,7 @@ export function viewToPath(view: AppView): string {
     case 'seller_dashboard': {
       if (view.tab === 'products') return '/vendedor/produtos';
       if (view.tab === 'orders') return '/vendedor/pedidos';
+      if (view.tab === 'finance') return '/vendedor/financeiro';
       if (view.tab === 'settings') return '/vendedor/configuracoes';
       return '/vendedor';
     }
@@ -42,6 +43,7 @@ export function viewToPath(view: AppView): string {
       if (view.tab === 'sellers') return '/admin/vendedores';
       if (view.tab === 'catalog') return '/admin/catalogo';
       if (view.tab === 'finance') return '/admin/financeiro';
+      if (view.tab === 'customization') return '/admin/personalizacao';
       return '/admin';
     }
   }
@@ -95,6 +97,7 @@ export function pathToView(pathname: string, search = ''): AppView {
     const sub = clean.slice('/vendedor'.length).replace(/^\//, '');
     if (sub === 'produtos') return { type: 'seller_dashboard', tab: 'products' };
     if (sub === 'pedidos') return { type: 'seller_dashboard', tab: 'orders' };
+    if (sub === 'financeiro') return { type: 'seller_dashboard', tab: 'finance' };
     if (sub === 'configuracoes') return { type: 'seller_dashboard', tab: 'settings' };
     return { type: 'seller_dashboard', tab: 'overview' };
   }
@@ -105,6 +108,7 @@ export function pathToView(pathname: string, search = ''): AppView {
     if (sub === 'vendedores') return { type: 'admin_dashboard', tab: 'sellers' };
     if (sub === 'catalogo') return { type: 'admin_dashboard', tab: 'catalog' };
     if (sub === 'financeiro') return { type: 'admin_dashboard', tab: 'finance' };
+    if (sub === 'personalizacao') return { type: 'admin_dashboard', tab: 'customization' };
     return { type: 'admin_dashboard', tab: 'overview' };
   }
 

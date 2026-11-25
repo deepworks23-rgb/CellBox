@@ -6,11 +6,14 @@ import type {
   Address,
   Order,
   OrderStatus,
+  PayoutMethod,
+  PayoutStatus,
   Product,
   Review,
   SellerActivationStatus,
   SellerKycInfo,
   SellerPayoutInfo,
+  SellerPayoutRequest,
   SellerSocials,
   SellerStatus,
   SellerStore,
@@ -45,6 +48,17 @@ export interface UploadedAssetRecord {
   originalName: string;
   contentType: string;
   sizeBytes: number;
+}
+
+export interface SeedPayload {
+  users: StoredUser[];
+  sellers: SellerStore[];
+  products: Product[];
+  categories: string[];
+  orders: Order[];
+  addressesByUser: Record<string, Address[]>;
+  wishlistsByUser: Record<string, string[]>;
+  commissionRate: number;
 }
 
 export interface DatabaseEnvDiagnostics {
@@ -286,6 +300,35 @@ function mapUserRow(r: QueryResultRow): StoredUser {
 }
 
 function mapSellerRow(r: QueryResultRow): SellerStore {
+  const rawPayout = (r.payout_info ?? {}) as Record<string, unknown>;
+  const legacyMethod = typeof rawPayout.method === 'string' ? rawPayout.method : undefined;
+  const preferredMethod: PayoutMethod | undefined =
+    rawPayout.preferredMethod === 'mpesa' ||
+    rawPayout.preferredMethod === 'emola' ||
+    rawPayout.preferredMethod === 'bank_transfer'
+      ? rawPayout.preferredMethod
+      : legacyMethod === 'mpesa' || legacyMethod === 'emola'
+        ? legacyMethod
+        : legacyMethod === 'bank' || legacyMethod === 'bank_transfer'
+          ? 'bank_transfer'
+          : undefined;
+  const rawAccNum = typeof rawPayout.accountNumber === 'string' ? rawPayout.accountNumber : '';
+  const rawWallet = typeof rawPayout.pixOrWallet === 'string' ? rawPayout.pixOrWallet : '';
+  const isMobileLegacy = (legacyMethod === 'mpesa' || legacyMethod === 'emola') && !rawWallet && rawAccNum;
+  const payoutInfo: SellerPayoutInfo = {
+    bankName: typeof rawPayout.bankName === 'string' ? rawPayout.bankName : '',
+    accountType: typeof rawPayout.accountType === 'string' ? rawPayout.accountType : '',
+    accountNumber: isMobileLegacy ? '' : rawAccNum,
+    pixOrWallet: isMobileLegacy ? rawAccNum : rawWallet,
+    accountHolder:
+      typeof rawPayout.accountHolder === 'string'
+        ? rawPayout.accountHolder
+        : typeof rawPayout.accountName === 'string'
+          ? rawPayout.accountName
+          : undefined,
+    preferredMethod,
+  };
+
   return {
     id: String(r.id),
     ownerUserId: String(r.owner_user_id),
@@ -312,7 +355,7 @@ function mapSellerRow(r: QueryResultRow): SellerStore {
       kycCompleted: Boolean(r.verified),
       feePaid: r.status === 'active',
     },
-    payoutInfo: r.payout_info as SellerPayoutInfo,
+    payoutInfo,
   };
 }
 
@@ -550,6 +593,27 @@ export async function ensureDatabaseSchema(): Promise<void> {
 
     CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id
       ON password_reset_tokens (user_id);
+
+    CREATE TABLE IF NOT EXISTS seller_payouts (
+      id TEXT PRIMARY KEY,
+      seller_id TEXT NOT NULL,
+      seller_name TEXT NOT NULL,
+      amount DOUBLE PRECISION NOT NULL,
+      method TEXT NOT NULL,
+      destination_summary TEXT NOT NULL,
+      payout_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
+      status TEXT NOT NULL DEFAULT 'pending',
+      seller_notes TEXT,
+      transaction_ref TEXT,
+      proof_url TEXT,
+      admin_notes TEXT,
+      requested_at TEXT NOT NULL,
+      processed_at TEXT,
+      processed_by TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_seller_payouts_seller_id ON seller_payouts(seller_id);
+    CREATE INDEX IF NOT EXISTS idx_seller_payouts_status ON seller_payouts(status);
   `);
 }
 
@@ -1655,6 +1719,137 @@ export async function updateOrderFulfillmentStatus(
     [orderId, JSON.stringify(updatedFulfillments)]
   );
   return updated.rows[0] ? mapOrderRow(updated.rows[0]) : null;
+}
+
+// ── Seller Payouts CRUD (Modo A) ─────────────────────────────────────────────
+
+function mapSellerPayoutRow(r: QueryResultRow): SellerPayoutRequest {
+  return {
+    id: String(r.id),
+    sellerId: String(r.seller_id),
+    sellerName: String(r.seller_name),
+    amount: Number(r.amount),
+    method: r.method as PayoutMethod,
+    destinationSummary: String(r.destination_summary),
+    payoutSnapshot: (r.payout_snapshot ?? {}) as SellerPayoutInfo,
+    status: r.status as PayoutStatus,
+    sellerNotes: r.seller_notes ? String(r.seller_notes) : undefined,
+    transactionRef: r.transaction_ref ? String(r.transaction_ref) : undefined,
+    proofUrl: r.proof_url ? String(r.proof_url) : undefined,
+    adminNotes: r.admin_notes ? String(r.admin_notes) : undefined,
+    requestedAt: String(r.requested_at),
+    processedAt: r.processed_at ? String(r.processed_at) : undefined,
+    processedBy: r.processed_by ? String(r.processed_by) : undefined,
+  };
+}
+
+export async function listAllPayouts(): Promise<SellerPayoutRequest[]> {
+  const res = await query(
+    'SELECT * FROM seller_payouts ORDER BY requested_at DESC, id DESC'
+  );
+  return res.rows.map(mapSellerPayoutRow);
+}
+
+export async function listPayoutsBySeller(sellerId: string): Promise<SellerPayoutRequest[]> {
+  const res = await query(
+    'SELECT * FROM seller_payouts WHERE seller_id = $1 ORDER BY requested_at DESC, id DESC',
+    [sellerId]
+  );
+  return res.rows.map(mapSellerPayoutRow);
+}
+
+export async function listScopedPayouts(user: StoredUser | null): Promise<SellerPayoutRequest[]> {
+  if (!user) return [];
+  if (user.role === 'admin') return listAllPayouts();
+  if (user.role === 'seller') {
+    const sellerRows = await query<{ id: string }>(
+      'SELECT id FROM sellers WHERE id = $1 OR owner_user_id = $2',
+      [user.sellerId ?? '', user.id]
+    );
+    const sellerIds = sellerRows.rows.map((r) => r.id);
+    if (sellerIds.length === 0) return [];
+    const res = await query(
+      'SELECT * FROM seller_payouts WHERE seller_id = ANY($1::text[]) ORDER BY requested_at DESC, id DESC',
+      [sellerIds]
+    );
+    return res.rows.map(mapSellerPayoutRow);
+  }
+  return [];
+}
+
+export async function findSellerPayoutById(id: string): Promise<SellerPayoutRequest | null> {
+  const res = await query('SELECT * FROM seller_payouts WHERE id = $1 LIMIT 1', [id]);
+  return res.rows[0] ? mapSellerPayoutRow(res.rows[0]) : null;
+}
+
+export async function createSellerPayoutRequest(
+  entry: SellerPayoutRequest
+): Promise<SellerPayoutRequest> {
+  const res = await query(
+    `INSERT INTO seller_payouts (
+      id, seller_id, seller_name, amount, method, destination_summary,
+      payout_snapshot, status, seller_notes, requested_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10)
+    RETURNING *`,
+    [
+      entry.id,
+      entry.sellerId,
+      entry.sellerName,
+      entry.amount,
+      entry.method,
+      entry.destinationSummary,
+      JSON.stringify(entry.payoutSnapshot),
+      entry.status,
+      entry.sellerNotes ?? null,
+      entry.requestedAt,
+    ]
+  );
+  return mapSellerPayoutRow(res.rows[0]);
+}
+
+export async function reviewSellerPayoutRequest(
+  id: string,
+  params: {
+    status: 'paid' | 'rejected';
+    transactionRef?: string;
+    proofUrl?: string;
+    adminNotes?: string;
+    processedAt: string;
+    processedBy: string;
+  }
+): Promise<SellerPayoutRequest | null> {
+  const res = await query(
+    `UPDATE seller_payouts
+     SET status = $2,
+         transaction_ref = $3,
+         proof_url = $4,
+         admin_notes = $5,
+         processed_at = $6,
+         processed_by = $7
+     WHERE id = $1
+     RETURNING *`,
+    [
+      id,
+      params.status,
+      params.transactionRef ?? null,
+      params.proofUrl ?? null,
+      params.adminNotes ?? null,
+      params.processedAt,
+      params.processedBy,
+    ]
+  );
+  return res.rows[0] ? mapSellerPayoutRow(res.rows[0]) : null;
+}
+
+export async function updateSellerPayoutInfo(
+  sellerId: string,
+  payoutInfo: SellerPayoutInfo
+): Promise<SellerStore | null> {
+  const res = await query(
+    'UPDATE sellers SET payout_info = $2::jsonb WHERE id = $1 RETURNING *',
+    [sellerId, JSON.stringify(payoutInfo)]
+  );
+  return res.rows[0] ? mapSellerRow(res.rows[0]) : null;
 }
 
 // ── Addresses CRUD ───────────────────────────────────────────────────────────

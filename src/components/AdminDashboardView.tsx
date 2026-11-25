@@ -3,6 +3,7 @@ import {
   Ban,
   BarChart3,
   CheckCircle2,
+  Clock,
   CreditCard,
   ExternalLink,
   Eye,
@@ -27,7 +28,9 @@ import { useMarketplace } from '../context/MarketplaceContext';
 import type {
   HeroSlideConfig,
   PartnerBrandConfig,
+  PayoutStatus,
   PromoSubBannerConfig,
+  SellerPayoutRequest,
   SellerStatus,
   SellerStore,
   SiteCustomization,
@@ -37,6 +40,7 @@ import {
   calculatePlatformAnalytics,
   calculateSellerAnalytics,
   formatCurrency,
+  formatSellerPayoutSummary,
 } from '../utils/marketplace';
 import { MotionButton } from './MotionPrimitives';
 import { ProductImage } from './ProductImage';
@@ -53,10 +57,12 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
     products,
     categories,
     orders,
+    payouts,
     commissionRate,
     setSellerStatus,
     reviewSellerKyc,
     reviewSellerFee,
+    reviewSellerPayout,
     addCategory,
     removeCategory,
     deleteProduct,
@@ -85,9 +91,77 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
   }, [commissionRate]);
 
   const analytics = useMemo(
-    () => calculatePlatformAnalytics(orders, sellers, commissionRate),
-    [orders, sellers, commissionRate]
+    () => calculatePlatformAnalytics(orders, sellers, commissionRate, payouts),
+    [orders, sellers, commissionRate, payouts]
   );
+
+  // Payouts Review State (Modo A)
+  const [payoutFilter, setPayoutFilter] = useState<'all' | PayoutStatus>('pending');
+  const [reviewingPayout, setReviewingPayout] = useState<SellerPayoutRequest | null>(null);
+  const [payoutActionMode, setPayoutActionMode] = useState<'approve' | 'reject'>('approve');
+  const [payoutTxRef, setPayoutTxRef] = useState('');
+  const [payoutProofUrl, setPayoutProofUrl] = useState('');
+  const [payoutAdminNotes, setPayoutAdminNotes] = useState('');
+  const [uploadingPayoutProof, setUploadingPayoutProof] = useState(false);
+  const [processingPayout, setProcessingPayout] = useState(false);
+  const [payoutReviewError, setPayoutReviewError] = useState('');
+
+  const filteredPayouts = useMemo(() => {
+    if (payoutFilter === 'all') return payouts;
+    return payouts.filter((p) => p.status === payoutFilter);
+  }, [payouts, payoutFilter]);
+
+  const openPayoutReviewModal = (
+    payout: SellerPayoutRequest,
+    mode: 'approve' | 'reject'
+  ) => {
+    setReviewingPayout(payout);
+    setPayoutActionMode(mode);
+    setPayoutTxRef('');
+    setPayoutProofUrl('');
+    setPayoutAdminNotes('');
+    setPayoutReviewError('');
+  };
+
+  const handlePayoutProofUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPayoutProof(true);
+    try {
+      const res = await uploadImageAsset(file, 'payouts');
+      if (res.ok && res.url) {
+        setPayoutProofUrl(res.url);
+        showToast('Comprovante carregado com sucesso!', 'success');
+      } else {
+        showToast(res.error || 'Falha no upload do comprovante.', 'warning');
+      }
+    } finally {
+      setUploadingPayoutProof(false);
+    }
+  };
+
+  const handleConfirmPayoutReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reviewingPayout) return;
+    setPayoutReviewError('');
+
+    setProcessingPayout(true);
+    try {
+      const res = await reviewSellerPayout(reviewingPayout.id, {
+        action: payoutActionMode,
+        transactionRef: payoutActionMode === 'approve' ? payoutTxRef.trim() : undefined,
+        proofUrl: payoutActionMode === 'approve' ? payoutProofUrl.trim() || undefined : undefined,
+        adminNotes: payoutAdminNotes.trim() || undefined,
+      });
+      if (res.ok) {
+        setReviewingPayout(null);
+      } else {
+        setPayoutReviewError(res.error ?? 'Erro ao processar repasse.');
+      }
+    } finally {
+      setProcessingPayout(false);
+    }
+  };
 
   const filteredSellers = useMemo(() => {
     if (sellerFilter === 'all') return sellers;
@@ -169,7 +243,15 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
       badge: analytics.pendingSellersCount > 0 ? analytics.pendingSellersCount : undefined,
     },
     { id: 'catalog' as const, label: 'Catálogo e Categorias', icon: Layers },
-    { id: 'finance' as const, label: 'Financeiro e Comissões', icon: Percent },
+    {
+      id: 'finance' as const,
+      label: 'Financeiro e Comissões',
+      icon: Percent,
+      badge:
+        analytics.pendingPayoutRequestsCount > 0
+          ? analytics.pendingPayoutRequestsCount
+          : undefined,
+    },
     { id: 'customization' as const, label: 'Design & Conteúdo (CMS)', icon: Palette },
   ];
 
@@ -255,21 +337,35 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                 {navItems.find((i) => i.id === activeTab)?.label}
               </h1>
             </div>
-            {analytics.pendingSellersCount > 0 && activeTab !== 'sellers' && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSellerFilter('pending');
-                  setActiveTab('sellers');
-                }}
-                className="h-9 px-4 rounded-full bg-[#F5A623] hover:bg-[#E09516] text-[#1F2937] text-xs font-bold uppercase whitespace-nowrap cursor-pointer"
-              >
-                {analytics.pendingSellersCount}{' '}
-                {analytics.pendingSellersCount === 1
-                  ? 'loja aguardando aprovação'
-                  : 'lojas aguardando aprovação'}
-              </button>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {analytics.pendingPayoutRequestsCount > 0 && activeTab !== 'finance' && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('finance')}
+                  className="h-9 px-4 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase whitespace-nowrap cursor-pointer"
+                >
+                  {analytics.pendingPayoutRequestsCount}{' '}
+                  {analytics.pendingPayoutRequestsCount === 1
+                    ? 'saque aguardando repasse'
+                    : 'saques aguardando repasse'}
+                </button>
+              )}
+              {analytics.pendingSellersCount > 0 && activeTab !== 'sellers' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSellerFilter('pending');
+                    setActiveTab('sellers');
+                  }}
+                  className="h-9 px-4 rounded-full bg-[#F5A623] hover:bg-[#E09516] text-[#1F2937] text-xs font-bold uppercase whitespace-nowrap cursor-pointer"
+                >
+                  {analytics.pendingSellersCount}{' '}
+                  {analytics.pendingSellersCount === 1
+                    ? 'loja aguardando aprovação'
+                    : 'lojas aguardando aprovação'}
+                </button>
+              )}
+            </div>
           </div>
 
           {/* TAB 1: DASHBOARD GLOBAL */}
@@ -352,7 +448,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                     </thead>
                     <tbody className="divide-y divide-[#EAEAEA]">
                       {sellers.map((s) => {
-                        const sStats = calculateSellerAnalytics(s.id, orders, commissionRate);
+                        const sStats = calculateSellerAnalytics(s.id, orders, commissionRate, payouts);
                         const prodCount = products.filter((p) => p.sellerId === s.id).length;
                         return (
                           <tr key={s.id} className="hover:bg-[#F9FAFB]">
@@ -657,69 +753,326 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
             </div>
           )}
 
-          {/* TAB 4: CONFIGURAÇÕES FINANCEIRAS */}
+          {/* TAB 4: CENTRAL FINANCEIRA, COMISSÕES & REPASSES (MODO A) */}
           {activeTab === 'finance' && (
-            <form
-              onSubmit={handleSaveCommission}
-              className="bg-white border border-[#EAEAEA] rounded-[3px] p-6 max-w-xl space-y-5"
-            >
-              <div>
-                <h2 className="font-condensed text-[20px] font-bold uppercase text-[#0A3768]">
-                  Taxa de Comissão Padrão da Plataforma
-                </h2>
-                <p className="text-xs text-[#666666] mt-1">
-                  Define a porcentagem retida pela Cellbox sobre o valor bruto de cada venda realizada pelos lojistas parceiros.
-                </p>
-              </div>
+            <div className="space-y-6">
+              {/* 4 KPIs Financeiros Modo A */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-5">
+                  <p className="text-xs font-semibold text-[#777777]">Receita Líquida de Comissões</p>
+                  <p className="text-2xl font-extrabold font-mono tabular-nums text-[#0475EE] mt-2">
+                    {formatCurrency(analytics.commissionRevenue)}
+                  </p>
+                  <p className="text-xs text-[#777777] mt-1 tabular-nums">
+                    Retida na fonte ({commissionRate}% padrão)
+                  </p>
+                </div>
 
-              <div>
-                <label
-                  htmlFor="admin-commission-input"
-                  className="block text-xs font-bold text-[#444444] mb-1.5"
-                >
-                  Comissão Padrão (%)
-                </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    id="admin-commission-input"
-                    type="number"
-                    min={1}
-                    max={35}
-                    step={0.5}
-                    value={draftCommission}
-                    onChange={(e) => setDraftCommission(e.target.value)}
-                    className="w-32 h-11 px-3.5 rounded-[2px] border border-[#DCDCDC] text-lg font-bold font-mono tabular-nums focus:outline-none focus:border-[#0475EE]"
-                  />
-                  <span className="text-xs text-[#666666]">% sobre cada venda</span>
+                <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-5">
+                  <p className="text-xs font-semibold text-[#777777]">Custódia de Pedidos em Trânsito</p>
+                  <p className="text-2xl font-extrabold font-mono tabular-nums text-amber-600 mt-2">
+                    {formatCurrency(analytics.escrowLiabilityTotal)}
+                  </p>
+                  <p className="text-xs text-[#777777] mt-1">
+                    Aguardando entrega ao comprador
+                  </p>
+                </div>
+
+                <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-5">
+                  <p className="text-xs font-semibold text-[#777777]">Saques Aguardando Transferência</p>
+                  <p
+                    data-testid="admin-pending-payouts-amount"
+                    className="text-2xl font-extrabold font-mono tabular-nums text-[#E50914] mt-2"
+                  >
+                    {formatCurrency(analytics.pendingPayoutRequestsAmount)}
+                  </p>
+                  <p className="text-xs text-[#777777] mt-1 tabular-nums">
+                    {analytics.pendingPayoutRequestsCount}{' '}
+                    {analytics.pendingPayoutRequestsCount === 1 ? 'solicitação pendente' : 'solicitações pendentes'}
+                  </p>
+                </div>
+
+                <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-5">
+                  <p className="text-xs font-semibold text-[#777777]">Total Já Repassado aos Lojistas</p>
+                  <p className="text-2xl font-extrabold font-mono tabular-nums text-emerald-600 mt-2">
+                    {formatCurrency(analytics.paidPayoutsTotal)}
+                  </p>
+                  <p className="text-xs text-[#777777] mt-1">
+                    Saldo livre em carteiras: {formatCurrency(analytics.availablePayoutLiabilityTotal)}
+                  </p>
                 </div>
               </div>
 
-              <div className="bg-[#F1F2F4] border border-[#E5E7EB] rounded-[3px] p-4 space-y-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-[#555555]">GMV Base Atual</span>
-                  <span className="font-mono tabular-nums font-bold text-[#333333]">
-                    {formatCurrency(analytics.gmv)}
-                  </span>
+              {/* Solicitações de Saque dos Vendedores */}
+              <div className="bg-white border border-[#EAEAEA] rounded-[3px] overflow-hidden">
+                <div className="px-5 py-4 bg-[#F1F2F4] border-b border-[#E5E7EB] flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="font-condensed text-[18px] font-bold uppercase text-[#0A3768]">
+                      Solicitações de Saque dos Vendedores (Modo A)
+                    </h2>
+                    <p className="text-xs text-[#666666]">
+                      Transfira o valor líquido para a carteira/banco indicado pelo lojista e confirme com a referência da transação.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {(
+                      [
+                        { id: 'pending', label: `Pendentes (${analytics.pendingPayoutRequestsCount})` },
+                        { id: 'paid', label: 'Pagos' },
+                        { id: 'rejected', label: 'Rejeitados' },
+                        { id: 'all', label: `Todos (${payouts.length})` },
+                      ] as const
+                    ).map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => setPayoutFilter(f.id)}
+                        className={`h-8 px-3 rounded-full text-xs font-bold transition-colors cursor-pointer ${
+                          payoutFilter === f.id
+                            ? 'bg-[#0A3768] text-white'
+                            : 'bg-white border border-[#DCDCDC] text-[#555555] hover:border-[#0475EE]'
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[#555555]">
-                    Receita Estimada com {Number(draftCommission) || commissionRate}%
-                  </span>
-                  <span className="font-mono tabular-nums font-extrabold text-[#0475EE]">
-                    {formatCurrency(
-                      analytics.gmv * ((Number(draftCommission) || commissionRate) / 100)
-                    )}
-                  </span>
-                </div>
+
+                {filteredPayouts.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-[#777777]">
+                    Nenhuma solicitação de saque encontrada neste filtro.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-[#EAEAEA]">
+                    {filteredPayouts.map((p) => (
+                      <div
+                        key={p.id}
+                        data-testid={`admin-payout-row-${p.id}`}
+                        className="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 hover:bg-[#FAFAFA]"
+                      >
+                        <div className="space-y-1.5 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-bold text-sm text-[#0A3768]">{p.sellerName}</span>
+                            <span className="px-2 py-0.5 rounded-[2px] text-[10px] font-extrabold uppercase bg-[#EAF6FC] text-[#0475EE] border border-[#BFE3F7]">
+                              {p.method === 'mpesa'
+                                ? 'M-Pesa'
+                                : p.method === 'emola'
+                                  ? 'e-Mola'
+                                  : 'Banco / NIB'}
+                            </span>
+                            {p.status === 'paid' ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <CheckCircle2 className="w-3 h-3" /> Pago
+                              </span>
+                            ) : p.status === 'rejected' ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                <Ban className="w-3 h-3" /> Rejeitado
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                <Clock className="w-3 h-3" /> Aguardando Transferência
+                              </span>
+                            )}
+                            <span className="text-[11px] font-mono text-[#777777]">
+                              {p.requestedAt.replace('T', ' ').slice(0, 16)}
+                            </span>
+                          </div>
+
+                          <p className="text-xs font-medium text-[#333333]">
+                            <strong>Destino:</strong> {p.destinationSummary}
+                          </p>
+                          {p.sellerNotes && (
+                            <p className="text-xs text-[#666666]">
+                              <strong>Obs. Lojista:</strong> {p.sellerNotes}
+                            </p>
+                          )}
+                          {p.status !== 'pending' && (
+                            <div className="text-xs text-[#555555] space-y-0.5 pt-1">
+                              {p.transactionRef && (
+                                <p className="font-mono font-bold text-[#0A3768]">
+                                  Ref. Transferência: {p.transactionRef}
+                                </p>
+                              )}
+                              {p.proofUrl && (
+                                <a
+                                  href={p.proofUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 text-[#0475EE] hover:underline font-semibold"
+                                >
+                                  Abrir Comprovante <ExternalLink className="w-3 h-3" />
+                                </a>
+                              )}
+                              {p.adminNotes && (
+                                <p>
+                                  <strong>Nota Admin:</strong> {p.adminNotes}
+                                </p>
+                              )}
+                              {p.processedBy && (
+                                <p className="text-[11px] text-[#777777]">
+                                  Processado por {p.processedBy} em {p.processedAt?.slice(0, 10)}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-3 shrink-0">
+                          <div className="text-right mr-2">
+                            <p className="text-[11px] uppercase font-bold text-[#777777]">Valor Líquido</p>
+                            <p className="text-xl font-extrabold font-mono tabular-nums text-[#0A3768]">
+                              {formatCurrency(p.amount)}
+                            </p>
+                          </div>
+
+                          {p.status === 'pending' && (
+                            <>
+                              <MotionButton
+                                type="button"
+                                onClick={() => openPayoutReviewModal(p, 'approve')}
+                                className="h-9 px-4 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider inline-flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                Confirmar Repasse
+                              </MotionButton>
+                              <button
+                                type="button"
+                                onClick={() => openPayoutReviewModal(p, 'reject')}
+                                className="h-9 px-4 rounded-full border border-rose-300 text-rose-700 hover:bg-rose-50 text-xs font-bold uppercase tracking-wider cursor-pointer"
+                              >
+                                Rejeitar
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              <MotionButton
-                type="submit"
-                className="h-10 px-6 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
+              {/* Saldos & Repasses por Loja Parceira */}
+              <div className="bg-white border border-[#EAEAEA] rounded-[3px] overflow-hidden">
+                <div className="px-5 py-3.5 bg-[#F1F2F4] border-b border-[#E5E7EB]">
+                  <h2 className="font-condensed text-[17px] font-bold uppercase text-[#333333]">
+                    Saldos &amp; Repasses por Loja Parceira
+                  </h2>
+                </div>
+                {sellers.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-[#777777]">
+                    Nenhuma loja cadastrada na plataforma.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-[#FAFAFA] border-b border-[#EAEAEA] text-xs text-[#777777] uppercase">
+                        <tr>
+                          <th className="py-3 px-4 font-bold">Loja</th>
+                          <th className="py-3 px-4 font-bold">Destino de Repasse</th>
+                          <th className="py-3 px-4 font-bold text-right">Bruto</th>
+                          <th className="py-3 px-4 font-bold text-right">Comissão</th>
+                          <th className="py-3 px-4 font-bold text-right">Custódia</th>
+                          <th className="py-3 px-4 font-bold text-right">Disponível</th>
+                          <th className="py-3 px-4 font-bold text-right">Já Repassado</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#EAEAEA]">
+                        {sellers.map((s) => {
+                          const sStats = calculateSellerAnalytics(s.id, orders, commissionRate, payouts);
+                          return (
+                            <tr key={s.id} className="hover:bg-[#F9FAFB]">
+                              <td className="py-3 px-4 font-semibold text-[#333333]">{s.name}</td>
+                              <td className="py-3 px-4 text-xs text-[#555555]">
+                                {formatSellerPayoutSummary(s.payoutInfo)}
+                              </td>
+                              <td className="py-3 px-4 text-right font-mono tabular-nums text-[#444444]">
+                                {formatCurrency(sStats.monthlySales)}
+                              </td>
+                              <td className="py-3 px-4 text-right font-mono tabular-nums text-[#0475EE]">
+                                {formatCurrency(sStats.commissionDeducted)}
+                              </td>
+                              <td className="py-3 px-4 text-right font-mono tabular-nums text-amber-700">
+                                {formatCurrency(sStats.escrowNet)}
+                              </td>
+                              <td className="py-3 px-4 text-right font-mono tabular-nums font-bold text-[#0A3768]">
+                                {formatCurrency(sStats.availableBalance)}
+                              </td>
+                              <td className="py-3 px-4 text-right font-mono tabular-nums font-bold text-emerald-700">
+                                {formatCurrency(sStats.paidPayoutsTotal)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Taxa de Comissão Padrão */}
+              <form
+                onSubmit={handleSaveCommission}
+                className="bg-white border border-[#EAEAEA] rounded-[3px] p-6 max-w-xl space-y-5"
               >
-                Aplicar Nova Taxa de Comissão
-              </MotionButton>
-            </form>
+                <div>
+                  <h2 className="font-condensed text-[20px] font-bold uppercase text-[#0A3768]">
+                    Taxa de Comissão Padrão da Plataforma
+                  </h2>
+                  <p className="text-xs text-[#666666] mt-1">
+                    Define a porcentagem retida pela Cellbox sobre o valor bruto de cada venda realizada pelos lojistas parceiros.
+                  </p>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="admin-commission-input"
+                    className="block text-xs font-bold text-[#444444] mb-1.5"
+                  >
+                    Comissão Padrão (%)
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      id="admin-commission-input"
+                      type="number"
+                      min={1}
+                      max={35}
+                      step={0.5}
+                      value={draftCommission}
+                      onChange={(e) => setDraftCommission(e.target.value)}
+                      className="w-32 h-11 px-3.5 rounded-[2px] border border-[#DCDCDC] text-lg font-bold font-mono tabular-nums focus:outline-none focus:border-[#0475EE]"
+                    />
+                    <span className="text-xs text-[#666666]">% sobre cada venda</span>
+                  </div>
+                </div>
+
+                <div className="bg-[#F1F2F4] border border-[#E5E7EB] rounded-[3px] p-4 space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#555555]">GMV Base Atual</span>
+                    <span className="font-mono tabular-nums font-bold text-[#333333]">
+                      {formatCurrency(analytics.gmv)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#555555]">
+                      Receita Estimada com {Number(draftCommission) || commissionRate}%
+                    </span>
+                    <span className="font-mono tabular-nums font-extrabold text-[#0475EE]">
+                      {formatCurrency(
+                        analytics.gmv * ((Number(draftCommission) || commissionRate) / 100)
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                <MotionButton
+                  type="submit"
+                  className="h-10 px-6 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wider cursor-pointer"
+                >
+                  Aplicar Nova Taxa de Comissão
+                </MotionButton>
+              </form>
+            </div>
           )}
 
           {/* 5. Customization / Platform CMS Tab */}
@@ -1960,21 +2313,33 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
             </div>
 
             {(() => {
-              const sStats = calculateSellerAnalytics(inspectedSeller.id, orders, commissionRate);
+              const sStats = calculateSellerAnalytics(inspectedSeller.id, orders, commissionRate, payouts);
               const sProds = products.filter((p) => p.sellerId === inspectedSeller.id);
               return (
                 <>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="bg-[#F7F8FA] border border-[#EAEAEA] rounded-[3px] p-3.5">
                       <p className="text-xs text-[#777777]">Faturamento Bruto</p>
-                      <p className="text-lg font-extrabold font-mono tabular-nums text-[#333333] mt-1">
+                      <p className="text-base font-extrabold font-mono tabular-nums text-[#333333] mt-1">
                         {formatCurrency(sStats.monthlySales)}
                       </p>
                     </div>
                     <div className="bg-[#F7F8FA] border border-[#EAEAEA] rounded-[3px] p-3.5">
                       <p className="text-xs text-[#777777]">Comissão Cellbox ({commissionRate}%)</p>
-                      <p className="text-lg font-extrabold font-mono tabular-nums text-[#0475EE] mt-1">
+                      <p className="text-base font-extrabold font-mono tabular-nums text-[#0475EE] mt-1">
                         {formatCurrency(sStats.commissionDeducted)}
+                      </p>
+                    </div>
+                    <div className="bg-[#F7F8FA] border border-[#EAEAEA] rounded-[3px] p-3.5">
+                      <p className="text-xs text-[#777777]">Saldo Disponível</p>
+                      <p className="text-base font-extrabold font-mono tabular-nums text-[#0A3768] mt-1">
+                        {formatCurrency(sStats.availableBalance)}
+                      </p>
+                    </div>
+                    <div className="bg-[#F7F8FA] border border-[#EAEAEA] rounded-[3px] p-3.5">
+                      <p className="text-xs text-[#777777]">Já Repassado</p>
+                      <p className="text-base font-extrabold font-mono tabular-nums text-emerald-700 mt-1">
+                        {formatCurrency(sStats.paidPayoutsTotal)}
                       </p>
                     </div>
                   </div>
@@ -2004,8 +2369,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                       <strong>Produtos cadastrados:</strong> {sProds.length}
                     </p>
                     <p>
-                      <strong>Dados de repasse:</strong> {inspectedSeller.payoutInfo.bankName} ·{' '}
-                      {inspectedSeller.payoutInfo.pixOrWallet}
+                      <strong>Dados de repasse:</strong> {formatSellerPayoutSummary(inspectedSeller.payoutInfo)}
                     </p>
 
                     {/* Dados e Controles de Verificação KYC e Taxa de Inscrição */}
@@ -2283,6 +2647,164 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                 </>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFERÊNCIA E CONFIRMAÇÃO DE REPASSE (MODO A) */}
+      {reviewingPayout && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-admin-payout-title"
+          className="fixed inset-0 z-50 bg-black/55 backdrop-blur-[2px] flex items-center justify-center p-4"
+        >
+          <div className="bg-white rounded-[4px] border border-[#EAEAEA] w-full max-w-lg shadow-2xl overflow-hidden">
+            <div
+              className={`px-6 py-4 text-white flex items-center justify-between ${
+                payoutActionMode === 'approve' ? 'bg-emerald-700' : 'bg-rose-700'
+              }`}
+            >
+              <div>
+                <h3 id="modal-admin-payout-title" className="font-condensed text-xl font-bold uppercase">
+                  {payoutActionMode === 'approve'
+                    ? 'Confirmar Transferência de Repasse'
+                    : 'Rejeitar Solicitação de Saque'}
+                </h3>
+                <p className="text-xs text-white/85">
+                  {reviewingPayout.sellerName} · {formatCurrency(reviewingPayout.amount)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReviewingPayout(null)}
+                className="p-1 rounded-full hover:bg-white/15 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmPayoutReview} className="p-6 space-y-4">
+              {payoutReviewError && (
+                <div className="p-3 rounded-[3px] bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700">
+                  {payoutReviewError}
+                </div>
+              )}
+
+              <div className="bg-[#F7F8FA] border border-[#E5E7EB] rounded-[3px] p-3.5 text-xs space-y-1">
+                <p>
+                  <strong>Destino do Pagamento:</strong> {reviewingPayout.destinationSummary}
+                </p>
+                <p>
+                  <strong>Valor a Transferir:</strong>{' '}
+                  <span className="font-mono font-bold text-[#0A3768]">
+                    {formatCurrency(reviewingPayout.amount)}
+                  </span>
+                </p>
+              </div>
+
+              {payoutActionMode === 'approve' ? (
+                <>
+                  <div>
+                    <label htmlFor="admin-payout-ref" className="block text-xs font-bold text-[#333333] mb-1">
+                      Código / Referência da Transação *
+                    </label>
+                    <input
+                      id="admin-payout-ref"
+                      type="text"
+                      required
+                      value={payoutTxRef}
+                      onChange={(e) => setPayoutTxRef(e.target.value)}
+                      placeholder="Ex: MPESA-987654321 ou NIB-REF-001"
+                      className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#333333] mb-1">
+                      Comprovante de Transferência (opcional)
+                    </label>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <label className="h-9 px-4 rounded-[2px] border border-[#0475EE] text-[#0475EE] hover:bg-[#EAF6FC] text-xs font-bold inline-flex items-center gap-2 cursor-pointer">
+                        <Upload className="w-3.5 h-3.5" />
+                        {uploadingPayoutProof ? 'Enviando...' : 'Anexar Imagem'}
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/avif"
+                          disabled={uploadingPayoutProof}
+                          onChange={(e) => void handlePayoutProofUpload(e)}
+                          className="sr-only"
+                        />
+                      </label>
+                      {payoutProofUrl && (
+                        <a
+                          href={payoutProofUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs font-semibold text-emerald-700 hover:underline inline-flex items-center gap-1"
+                        >
+                          Comprovante anexado <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="admin-payout-notes" className="block text-xs font-bold text-[#333333] mb-1">
+                      Observações (opcional)
+                    </label>
+                    <input
+                      id="admin-payout-notes"
+                      type="text"
+                      value={payoutAdminNotes}
+                      onChange={(e) => setPayoutAdminNotes(e.target.value)}
+                      placeholder="Ex: Transferência realizada via M-Pesa B2C"
+                      className="w-full h-10 px-3 rounded-[2px] border border-[#DCDCDC] text-sm"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div>
+                  <label htmlFor="admin-payout-reject-reason" className="block text-xs font-bold text-[#333333] mb-1">
+                    Motivo da Rejeição (estornará o saldo ao vendedor) *
+                  </label>
+                  <textarea
+                    id="admin-payout-reject-reason"
+                    rows={3}
+                    required
+                    value={payoutAdminNotes}
+                    onChange={(e) => setPayoutAdminNotes(e.target.value)}
+                    placeholder="Ex: Número M-Pesa não corresponde ao titular cadastrado."
+                    className="w-full p-3 rounded-[2px] border border-[#DCDCDC] text-sm"
+                  />
+                </div>
+              )}
+
+              <div className="pt-3 border-t border-[#EAEAEA] flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setReviewingPayout(null)}
+                  className="h-9 px-4 rounded-full border border-[#DCDCDC] text-xs font-bold uppercase text-[#555555] cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={processingPayout}
+                  className={`h-9 px-6 rounded-full text-white text-xs font-bold uppercase tracking-wider disabled:opacity-50 cursor-pointer ${
+                    payoutActionMode === 'approve'
+                      ? 'bg-emerald-600 hover:bg-emerald-700'
+                      : 'bg-rose-600 hover:bg-rose-700'
+                  }`}
+                >
+                  {processingPayout
+                    ? 'Processando...'
+                    : payoutActionMode === 'approve'
+                      ? 'Registrar Repasse Pago'
+                      : 'Confirmar Rejeição'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

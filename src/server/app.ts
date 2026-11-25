@@ -14,6 +14,7 @@ import type {
   Order,
   OrderStatus,
   PaymentMethod,
+  PayoutMethod,
   Product,
   ProductCondition,
   ProductSpecs,
@@ -21,6 +22,7 @@ import type {
   SellerActivationStatus,
   SellerKycInfo,
   SellerPayoutInfo,
+  SellerPayoutRequest,
   SellerSocials,
   SellerStatus,
   SellerStore,
@@ -30,6 +32,7 @@ import type {
 import {
   calculateCartTotals,
   calculateCouponDiscount,
+  calculateSellerAnalytics,
   groupCartBySeller,
   ORDER_STATUS_FLOW,
   validateProductForm,
@@ -172,6 +175,7 @@ async function buildBootstrapPayload(user: StoredUser | null) {
     wishlist,
     allUsers,
     siteCustomization,
+    payouts,
   ] = await Promise.all([
     db.listSellers().catch(() => []),
     db.listProducts().catch(() => []),
@@ -182,6 +186,7 @@ async function buildBootstrapPayload(user: StoredUser | null) {
     user ? db.listWishlistByUser(user.id).catch(() => []) : Promise.resolve([]),
     user?.role === 'admin' ? db.listUsers().catch(() => []) : Promise.resolve([]),
     db.getSiteCustomization().catch(() => DEFAULT_SITE_CUSTOMIZATION),
+    db.listScopedPayouts(user).catch(() => []),
   ]);
 
   return {
@@ -200,6 +205,7 @@ async function buildBootstrapPayload(user: StoredUser | null) {
     wishlist,
     commissionRate,
     siteCustomization,
+    payouts,
   };
 }
 
@@ -1424,6 +1430,206 @@ export function createApiApp(): Express {
       }
       const commissionRate = await db.setCommissionRate(rate);
       res.json({ commissionRate });
+    })
+  );
+
+  // ── Seller Payouts (Modo A: Solicitação de Saque & Revisão Admin) ────────
+  app.post(
+    '/api/seller/payouts',
+    asyncHandler(async (req, res) => {
+      const user = await getAuthenticatedUser(req);
+      if (!user || user.role !== 'seller') {
+        res.status(403).json({ error: 'Apenas vendedores autenticados podem solicitar saques.' });
+        return;
+      }
+      const seller = await db.findSellerOwnedBy(user.id, user.sellerId);
+      if (!seller) {
+        res.status(404).json({ error: 'Loja não encontrada.' });
+        return;
+      }
+
+      const body = req.body as {
+        amount?: number;
+        method?: PayoutMethod;
+        accountHolder?: string;
+        walletPhone?: string;
+        bankName?: string;
+        accountType?: string;
+        accountNumber?: string;
+        sellerNotes?: string;
+        savePayoutInfo?: boolean;
+      };
+
+      const method = body.method;
+      if (!method || !['mpesa', 'emola', 'bank_transfer'].includes(method)) {
+        res.status(400).json({ error: 'Selecione um método de repasse válido (M-Pesa, e-Mola ou Transferência Bancária).' });
+        return;
+      }
+
+      const accountHolder = (body.accountHolder ?? '').trim();
+      if (accountHolder.length < 2) {
+        res.status(400).json({ error: 'Informe o nome completo do titular da conta ou carteira.' });
+        return;
+      }
+
+      const walletPhone = (body.walletPhone ?? '').trim();
+      const bankName = (body.bankName ?? '').trim();
+      const accountType = (body.accountType ?? '').trim();
+      const accountNumber = (body.accountNumber ?? '').trim();
+
+      let destinationSummary = '';
+      if (method === 'mpesa' || method === 'emola') {
+        const digits = walletPhone.replace(/\D/g, '');
+        if (digits.length < 8) {
+          res.status(400).json({
+            error: `Informe um número de telefone ${method === 'mpesa' ? 'M-Pesa' : 'e-Mola'} válido (mínimo 8 dígitos).`,
+          });
+          return;
+        }
+        const label = method === 'mpesa' ? 'M-Pesa' : 'e-Mola';
+        destinationSummary = `${label} · ${walletPhone} (${accountHolder})`;
+      } else {
+        if (bankName.length < 2 || accountNumber.length < 6) {
+          res.status(400).json({
+            error: 'Informe o nome do banco e o NIB ou número da conta bancária válido.',
+          });
+          return;
+        }
+        destinationSummary = `${bankName} · Conta/NIB ${accountNumber} (${accountHolder})`;
+      }
+
+      const [orders, commissionRate, existingPayouts] = await Promise.all([
+        db.listOrders(),
+        db.getCommissionRate(),
+        db.listPayoutsBySeller(seller.id),
+      ]);
+
+      const stats = calculateSellerAnalytics(seller.id, orders, commissionRate, existingPayouts);
+      const numAmount = Number(Number(body.amount).toFixed(2));
+      if (!Number.isFinite(numAmount) || numAmount <= 0) {
+        res.status(400).json({ error: 'Informe um valor de saque válido maior que zero.' });
+        return;
+      }
+      if (stats.availableBalance <= 0) {
+        res.status(400).json({
+          error:
+            'Você não possui saldo liberado disponível para saque no momento. Os valores são liberados assim que os pedidos são marcados como Entregue.',
+        });
+        return;
+      }
+      if (numAmount > stats.availableBalance + 0.01) {
+        res.status(400).json({ error: 'O valor solicitado excede o saldo líquido disponível para saque.' });
+        return;
+      }
+
+      const finalAmount = Math.min(numAmount, stats.availableBalance);
+      const updatedPayoutInfo: SellerPayoutInfo = {
+        bankName: method === 'bank_transfer' ? bankName : seller.payoutInfo.bankName || '',
+        accountType: method === 'bank_transfer' ? accountType : seller.payoutInfo.accountType || '',
+        accountNumber: method === 'bank_transfer' ? accountNumber : seller.payoutInfo.accountNumber || '',
+        pixOrWallet: method === 'mpesa' || method === 'emola' ? walletPhone : seller.payoutInfo.pixOrWallet || '',
+        accountHolder,
+        preferredMethod: method,
+      };
+
+      if (body.savePayoutInfo !== false) {
+        await db.updateSellerPayoutInfo(seller.id, updatedPayoutInfo);
+      }
+
+      const payoutRequest: SellerPayoutRequest = {
+        id: `payout-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        sellerId: seller.id,
+        sellerName: seller.name,
+        amount: Number(finalAmount.toFixed(2)),
+        method,
+        destinationSummary,
+        payoutSnapshot: updatedPayoutInfo,
+        status: 'pending',
+        sellerNotes: body.sellerNotes?.trim() || undefined,
+        requestedAt: new Date().toISOString(),
+      };
+
+      const payout = await db.createSellerPayoutRequest(payoutRequest);
+      res.status(201).json({
+        ok: true,
+        payout,
+        ...(await buildBootstrapPayload(user)),
+      });
+    })
+  );
+
+  app.post(
+    '/api/admin/payouts/:id/review',
+    asyncHandler(async (req, res) => {
+      const user = await getAuthenticatedUser(req);
+      if (!user || user.role !== 'admin') {
+        res.status(403).json({ error: 'Apenas Super Admin pode processar repasses financeiros.' });
+        return;
+      }
+
+      const existing = await db.findSellerPayoutById(req.params.id);
+      if (!existing) {
+        res.status(404).json({ error: 'Solicitação de saque não encontrada.' });
+        return;
+      }
+      if (existing.status !== 'pending') {
+        res.status(400).json({ error: 'Esta solicitação de saque já foi processada anteriormente.' });
+        return;
+      }
+
+      const { action, transactionRef, proofUrl, adminNotes } = req.body as {
+        action?: 'approve' | 'reject';
+        transactionRef?: string;
+        proofUrl?: string;
+        adminNotes?: string;
+      };
+
+      if (!action || !['approve', 'reject'].includes(action)) {
+        res.status(400).json({ error: 'Ação inválida. Use approve ou reject.' });
+        return;
+      }
+
+      if (action === 'approve') {
+        const ref = (transactionRef ?? '').trim();
+        if (ref.length < 3) {
+          res.status(400).json({
+            error:
+              'Informe o código/referência da transferência (M-Pesa, e-Mola ou NIB) para registrar o repasse.',
+          });
+          return;
+        }
+        const updated = await db.reviewSellerPayoutRequest(existing.id, {
+          status: 'paid',
+          transactionRef: ref,
+          proofUrl: proofUrl?.trim() || undefined,
+          adminNotes: adminNotes?.trim() || undefined,
+          processedAt: new Date().toISOString(),
+          processedBy: user.name,
+        });
+        res.json({
+          ok: true,
+          payout: updated,
+          ...(await buildBootstrapPayload(user)),
+        });
+        return;
+      }
+
+      const reason = (adminNotes ?? '').trim();
+      if (reason.length < 3) {
+        res.status(400).json({ error: 'Informe o motivo da rejeição para orientar o vendedor.' });
+        return;
+      }
+      const updated = await db.reviewSellerPayoutRequest(existing.id, {
+        status: 'rejected',
+        adminNotes: reason,
+        processedAt: new Date().toISOString(),
+        processedBy: user.name,
+      });
+      res.json({
+        ok: true,
+        payout: updated,
+        ...(await buildBootstrapPayload(user)),
+      });
     })
   );
 

@@ -6,6 +6,8 @@ import type {
   OrderStatus,
   Product,
   ProductCondition,
+  SellerPayoutInfo,
+  SellerPayoutRequest,
   SellerStore,
 } from '../types';
 
@@ -277,9 +279,41 @@ export function filterVisibleProducts(
   return sorted;
 }
 
+export function formatSellerPayoutSummary(
+  payoutInfo?: Partial<SellerPayoutInfo> | null
+): string {
+  if (!payoutInfo) return 'Não configurado';
+  const parts: string[] = [];
+  if (payoutInfo.pixOrWallet?.trim()) {
+    const label =
+      payoutInfo.preferredMethod === 'emola'
+        ? 'e-Mola'
+        : payoutInfo.preferredMethod === 'mpesa'
+          ? 'M-Pesa'
+          : 'Carteira';
+    parts.push(`${label}: ${payoutInfo.pixOrWallet.trim()}`);
+  }
+  if (payoutInfo.bankName?.trim() || payoutInfo.accountNumber?.trim()) {
+    const bank = payoutInfo.bankName?.trim() || 'Banco';
+    const acc = payoutInfo.accountNumber?.trim();
+    parts.push(acc ? `${bank} (${acc})` : bank);
+  }
+  if (parts.length === 0) return 'Não configurado';
+  const holder = payoutInfo.accountHolder?.trim();
+  return holder ? `${parts.join(' · ')} — ${holder}` : parts.join(' · ');
+}
+
 export interface SellerAnalytics {
   monthlySales: number;
   commissionDeducted: number;
+  deliveredGross: number;
+  deliveredCommission: number;
+  deliveredNet: number;
+  deliveredOrdersCount: number;
+  escrowGross: number;
+  escrowNet: number;
+  paidPayoutsTotal: number;
+  pendingPayoutsTotal: number;
   availableBalance: number;
   pendingOrdersCount: number;
   totalOrdersCount: number;
@@ -289,33 +323,81 @@ export interface SellerAnalytics {
 export function calculateSellerAnalytics(
   sellerId: string,
   orders: Order[],
-  currentCommissionRate: number
+  currentCommissionRate: number,
+  payouts: SellerPayoutRequest[] = []
 ): SellerAnalytics {
   let monthlySales = 0;
+  let commissionDeducted = 0;
+  let deliveredGross = 0;
+  let deliveredCommission = 0;
+  let deliveredNet = 0;
+  let deliveredOrdersCount = 0;
+  let escrowGross = 0;
+  let escrowNet = 0;
   let pendingOrdersCount = 0;
   let totalOrdersCount = 0;
   let itemsSold = 0;
 
   for (const order of orders) {
+    const rate =
+      typeof order.commissionRateSnapshot === 'number' &&
+      Number.isFinite(order.commissionRateSnapshot)
+        ? order.commissionRateSnapshot
+        : currentCommissionRate;
+
     for (const fulfillment of order.fulfillments) {
       if (fulfillment.sellerId !== sellerId) continue;
       totalOrdersCount += 1;
       monthlySales += fulfillment.subtotal;
-      if (fulfillment.status !== 'Entregue') {
+
+      const commission = Number((fulfillment.subtotal * (rate / 100)).toFixed(2));
+      const net = Math.max(0, Number((fulfillment.subtotal - commission).toFixed(2)));
+      commissionDeducted += commission;
+
+      if (fulfillment.status === 'Entregue') {
+        deliveredOrdersCount += 1;
+        deliveredGross += fulfillment.subtotal;
+        deliveredCommission += commission;
+        deliveredNet += net;
+      } else {
         pendingOrdersCount += 1;
+        escrowGross += fulfillment.subtotal;
+        escrowNet += net;
       }
+
       for (const item of fulfillment.items) {
         itemsSold += item.quantity;
       }
     }
   }
 
-  const commissionDeducted = monthlySales * (currentCommissionRate / 100);
-  const availableBalance = Math.max(0, monthlySales - commissionDeducted);
+  let paidPayoutsTotal = 0;
+  let pendingPayoutsTotal = 0;
+  for (const p of payouts) {
+    if (p.sellerId !== sellerId) continue;
+    if (p.status === 'paid') {
+      paidPayoutsTotal += p.amount;
+    } else if (p.status === 'pending') {
+      pendingPayoutsTotal += p.amount;
+    }
+  }
+
+  const availableBalance = Math.max(
+    0,
+    Number((deliveredNet - paidPayoutsTotal - pendingPayoutsTotal).toFixed(2))
+  );
 
   return {
-    monthlySales,
-    commissionDeducted,
+    monthlySales: Number(monthlySales.toFixed(2)),
+    commissionDeducted: Number(commissionDeducted.toFixed(2)),
+    deliveredGross: Number(deliveredGross.toFixed(2)),
+    deliveredCommission: Number(deliveredCommission.toFixed(2)),
+    deliveredNet: Number(deliveredNet.toFixed(2)),
+    deliveredOrdersCount,
+    escrowGross: Number(escrowGross.toFixed(2)),
+    escrowNet: Number(escrowNet.toFixed(2)),
+    paidPayoutsTotal: Number(paidPayoutsTotal.toFixed(2)),
+    pendingPayoutsTotal: Number(pendingPayoutsTotal.toFixed(2)),
     availableBalance,
     pendingOrdersCount,
     totalOrdersCount,
@@ -326,6 +408,11 @@ export function calculateSellerAnalytics(
 export interface PlatformAnalytics {
   gmv: number;
   commissionRevenue: number;
+  escrowLiabilityTotal: number;
+  availablePayoutLiabilityTotal: number;
+  pendingPayoutRequestsCount: number;
+  pendingPayoutRequestsAmount: number;
+  paidPayoutsTotal: number;
   activeSellersCount: number;
   pendingSellersCount: number;
   suspendedSellersCount: number;
@@ -335,10 +422,41 @@ export interface PlatformAnalytics {
 export function calculatePlatformAnalytics(
   orders: Order[],
   sellers: SellerStore[],
-  commissionRate: number
+  commissionRate: number,
+  payouts: SellerPayoutRequest[] = []
 ): PlatformAnalytics {
-  const gmv = orders.reduce((acc, order) => acc + order.subtotal, 0);
-  const commissionRevenue = gmv * (commissionRate / 100);
+  let gmv = 0;
+  let commissionRevenue = 0;
+
+  for (const order of orders) {
+    const rate =
+      typeof order.commissionRateSnapshot === 'number' &&
+      Number.isFinite(order.commissionRateSnapshot)
+        ? order.commissionRateSnapshot
+        : commissionRate;
+    gmv += order.subtotal;
+    commissionRevenue += Number((order.subtotal * (rate / 100)).toFixed(2));
+  }
+
+  let escrowLiabilityTotal = 0;
+  let availablePayoutLiabilityTotal = 0;
+  for (const seller of sellers) {
+    const sStats = calculateSellerAnalytics(seller.id, orders, commissionRate, payouts);
+    escrowLiabilityTotal += sStats.escrowNet;
+    availablePayoutLiabilityTotal += sStats.availableBalance;
+  }
+
+  let pendingPayoutRequestsCount = 0;
+  let pendingPayoutRequestsAmount = 0;
+  let paidPayoutsTotal = 0;
+  for (const p of payouts) {
+    if (p.status === 'pending') {
+      pendingPayoutRequestsCount += 1;
+      pendingPayoutRequestsAmount += p.amount;
+    } else if (p.status === 'paid') {
+      paidPayoutsTotal += p.amount;
+    }
+  }
 
   let activeSellersCount = 0;
   let pendingSellersCount = 0;
@@ -351,8 +469,13 @@ export function calculatePlatformAnalytics(
   }
 
   return {
-    gmv,
-    commissionRevenue,
+    gmv: Number(gmv.toFixed(2)),
+    commissionRevenue: Number(commissionRevenue.toFixed(2)),
+    escrowLiabilityTotal: Number(escrowLiabilityTotal.toFixed(2)),
+    availablePayoutLiabilityTotal: Number(availablePayoutLiabilityTotal.toFixed(2)),
+    pendingPayoutRequestsCount,
+    pendingPayoutRequestsAmount: Number(pendingPayoutRequestsAmount.toFixed(2)),
+    paidPayoutsTotal: Number(paidPayoutsTotal.toFixed(2)),
     activeSellersCount,
     pendingSellersCount,
     suspendedSellersCount,

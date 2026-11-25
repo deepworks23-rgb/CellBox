@@ -8,6 +8,7 @@ import type {
   Order,
   OrderStatus,
   PaymentMethod,
+  PayoutMethod,
   Product,
   ProductCondition,
   ProductSpecs,
@@ -15,6 +16,7 @@ import type {
   SellerActivationStatus,
   SellerKycInfo,
   SellerPayoutInfo,
+  SellerPayoutRequest,
   SellerSocials,
   SellerStatus,
   SellerStore,
@@ -51,6 +53,7 @@ interface MarketplaceState {
   addresses: Address[];
   commissionRate: number;
   siteCustomization: SiteCustomization;
+  payouts: SellerPayoutRequest[];
 }
 
 interface BootstrapResponse {
@@ -64,6 +67,7 @@ interface BootstrapResponse {
   wishlist: string[];
   commissionRate: number;
   siteCustomization?: SiteCustomization;
+  payouts?: SellerPayoutRequest[];
   token?: string;
   seller?: SellerStore;
 }
@@ -137,6 +141,7 @@ interface MarketplaceContextValue {
   setCompareOpen: (open: boolean) => void;
   addresses: Address[];
   commissionRate: number;
+  payouts: SellerPayoutRequest[];
   siteCustomization: SiteCustomization;
   updateSiteCustomization: (customization: SiteCustomization) => Promise<boolean>;
   filters: CatalogFilters;
@@ -249,6 +254,26 @@ interface MarketplaceContextValue {
     subject: string;
     message: string;
   }) => Promise<{ ok: boolean; error?: string }>;
+  requestSellerPayout: (payload: {
+    amount: number;
+    method: PayoutMethod;
+    accountHolder: string;
+    walletPhone?: string;
+    bankName?: string;
+    accountType?: string;
+    accountNumber?: string;
+    sellerNotes?: string;
+    savePayoutInfo?: boolean;
+  }) => Promise<{ ok: boolean; error?: string }>;
+  reviewSellerPayout: (
+    payoutId: string,
+    payload: {
+      action: 'approve' | 'reject';
+      transactionRef?: string;
+      proofUrl?: string;
+      adminNotes?: string;
+    }
+  ) => Promise<{ ok: boolean; error?: string }>;
 }
 
 const ACTIVE_COUPONS: Coupon[] = [];
@@ -309,6 +334,7 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
     addresses: [],
     commissionRate: 10,
     siteCustomization: DEFAULT_SITE_CUSTOMIZATION,
+    payouts: [],
   }));
 
   const [authReady, setAuthReady] = useState(false);
@@ -362,6 +388,11 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
       wishlist: payload.currentUser?.role === 'buyer' ? payload.wishlist : readGuestWishlist(),
       commissionRate: typeof payload.commissionRate === 'number' ? payload.commissionRate : prev.commissionRate,
       siteCustomization: payload.siteCustomization ?? prev.siteCustomization ?? DEFAULT_SITE_CUSTOMIZATION,
+      payouts: !payload.currentUser
+        ? []
+        : Array.isArray(payload.payouts)
+          ? payload.payouts
+          : prev.payouts,
     }));
   }, []);
 
@@ -1171,6 +1202,58 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
     return { ok: true };
   };
 
+  const requestSellerPayout = async (payload: {
+    amount: number;
+    method: PayoutMethod;
+    accountHolder: string;
+    walletPhone?: string;
+    bankName?: string;
+    accountType?: string;
+    accountNumber?: string;
+    sellerNotes?: string;
+    savePayoutInfo?: boolean;
+  }): Promise<{ ok: boolean; error?: string }> => {
+    const res = await apiRequest<BootstrapResponse>('/api/seller/payouts', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      return { ok: false, error: res.data.error ?? 'Não foi possível enviar a solicitação de saque.' };
+    }
+    applyBootstrap(res.data);
+    showToast('Solicitação de saque enviada para o financeiro da Cellbox!');
+    return { ok: true };
+  };
+
+  const reviewSellerPayout = async (
+    payoutId: string,
+    payload: {
+      action: 'approve' | 'reject';
+      transactionRef?: string;
+      proofUrl?: string;
+      adminNotes?: string;
+    }
+  ): Promise<{ ok: boolean; error?: string }> => {
+    const res = await apiRequest<BootstrapResponse>(
+      `/api/admin/payouts/${encodeURIComponent(payoutId)}/review`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    );
+    if (!res.ok) {
+      return { ok: false, error: res.data.error ?? 'Não foi possível processar o repasse.' };
+    }
+    applyBootstrap(res.data);
+    showToast(
+      payload.action === 'approve'
+        ? 'Repasse confirmado e registrado com sucesso!'
+        : 'Solicitação de saque rejeitada; o valor retornou ao saldo do vendedor.',
+      payload.action === 'approve' ? 'success' : 'info'
+    );
+    return { ok: true };
+  };
+
   return (
     <MarketplaceContext.Provider
       value={{
@@ -1195,6 +1278,7 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
         setCompareOpen,
         addresses: state.addresses,
         commissionRate: state.commissionRate,
+        payouts: state.payouts,
         siteCustomization: state.siteCustomization,
         updateSiteCustomization,
         filters,
@@ -1240,6 +1324,8 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
         setCommissionRate,
         subscribeNewsletter,
         sendContactMessage,
+        requestSellerPayout,
+        reviewSellerPayout,
       }}
     >
       {children}

@@ -8,6 +8,9 @@ export type OrderStatus = 'Pago' | 'Em Separação' | 'Enviado' | 'Entregue';
 
 export type PaymentMethod = 'credit_card' | 'pix_mobile' | 'bank_transfer';
 
+export type PayoutMethod = 'mpesa' | 'emola' | 'bank_transfer';
+export type PayoutStatus = 'pending' | 'paid' | 'rejected';
+
 export type AppView =
   | { type: 'home' }
   | { type: 'about' }
@@ -21,8 +24,8 @@ export type AppView =
   | { type: 'auth'; mode?: 'login' | 'register' }
   | { type: 'forgot_password' }
   | { type: 'reset_password'; token?: string }
-  | { type: 'seller_dashboard'; tab?: 'overview' | 'products' | 'orders' | 'settings' }
-  | { type: 'admin_dashboard'; tab?: 'overview' | 'sellers' | 'catalog' | 'finance' };
+  | { type: 'seller_dashboard'; tab?: 'overview' | 'products' | 'orders' | 'finance' | 'settings' }
+  | { type: 'admin_dashboard'; tab?: 'overview' | 'sellers' | 'catalog' | 'finance' | 'customization' };
 
 export interface Coupon {
   code: string;
@@ -84,6 +87,26 @@ export interface SellerPayoutInfo {
   accountType: string;
   accountNumber: string;
   pixOrWallet: string;
+  accountHolder?: string;
+  preferredMethod?: PayoutMethod;
+}
+
+export interface SellerPayoutRequest {
+  id: string;
+  sellerId: string;
+  sellerName: string;
+  amount: number;
+  method: PayoutMethod;
+  destinationSummary: string;
+  payoutSnapshot: SellerPayoutInfo;
+  status: PayoutStatus;
+  sellerNotes?: string;
+  transactionRef?: string;
+  proofUrl?: string;
+  adminNotes?: string;
+  requestedAt: string;
+  processedAt?: string;
+  processedBy?: string;
 }
 
 export interface SellerSocials {
