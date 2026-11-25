@@ -1240,8 +1240,8 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                           ctaText: 'CONFERIR',
                           cta: 'CONFERIR',
                           productId: '',
-                          imageUrl: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop',
-                          image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop',
+                          imageUrl: '',
+                          image: '',
                           imageAlt: 'Produto em destaque',
                         };
                         setDraftCustomization((prev) => ({

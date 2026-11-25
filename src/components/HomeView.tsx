@@ -126,127 +126,126 @@ export function HomeView() {
       <div className="max-w-[1170px] mx-auto px-4 pt-3 space-y-8">
         {/* 1. HERO BANNER — Condicional ao CMS / Banco */}
         {heroSlides.length > 0 && activeSlide && (
-        <section
-          aria-label="Destaques principais Cellbox"
-          onMouseEnter={() => setHeroPaused(true)}
-          onMouseLeave={() => setHeroPaused(false)}
-          onFocusCapture={() => setHeroPaused(true)}
-          onBlurCapture={() => setHeroPaused(false)}
-          className="relative cellbox-hero-gradient overflow-hidden rounded-[3px] min-h-[340px] sm:min-h-[380px] flex flex-col justify-between"
-        >
-          {/* Subtle architectural light geometry for depth */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 opacity-20"
-            style={{
-              backgroundImage:
-                'radial-gradient(circle at 82% 18%, rgba(255,255,255,0.45) 0%, transparent 38%), radial-gradient(circle at 12% 90%, rgba(26,214,222,0.35) 0%, transparent 42%)',
-            }}
-          />
-
-          {/* Left / Right Slide Arrow Controls positioned cleanly in outer gutters */}
-          <button
-            type="button"
-            aria-label="Slide anterior"
-            onClick={() => goHeroSlide(heroIdx - 1, -1)}
-            className="absolute left-2.5 sm:left-4 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-[#072850]/55 hover:bg-[#072850]/85 border border-white/15 text-white inline-flex items-center justify-center transition-colors cursor-pointer"
+          <section
+            aria-label="Destaques principais Cellbox"
+            onMouseEnter={() => setHeroPaused(true)}
+            onMouseLeave={() => setHeroPaused(false)}
+            onFocusCapture={() => setHeroPaused(true)}
+            onBlurCapture={() => setHeroPaused(false)}
+            className="relative cellbox-hero-gradient overflow-hidden rounded-[3px] min-h-[340px] sm:min-h-[380px] flex flex-col justify-between"
           >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <button
-            type="button"
-            aria-label="Próximo slide"
-            onClick={() => goHeroSlide(heroIdx + 1, 1)}
-            className="absolute right-2.5 sm:right-4 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-[#072850]/55 hover:bg-[#072850]/85 border border-white/15 text-white inline-flex items-center justify-center transition-colors cursor-pointer"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
+            {/* Subtle architectural light geometry for depth */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 opacity-20"
+              style={{
+                backgroundImage:
+                  'radial-gradient(circle at 82% 18%, rgba(255,255,255,0.45) 0%, transparent 38%), radial-gradient(circle at 12% 90%, rgba(26,214,222,0.35) 0%, transparent 42%)',
+              }}
+            />
 
-          <div className="relative flex-1 flex items-center">
-            <AnimatePresence mode="popLayout" initial={false}>
-              <motion.div
-                key={activeSlide.title}
-                initial={{ opacity: 0, x: heroDirection * 24 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: heroDirection * -24 }}
-                transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-                className="w-full grid grid-cols-1 md:grid-cols-12 items-center gap-6 md:gap-8 px-14 sm:px-16 lg:px-20 pt-8 pb-6 sm:py-9"
-              >
-                {/* Left Copy Column — Tightly Aligned Vertical Axis */}
-                <div className="md:col-span-6 flex flex-col items-start text-left text-white z-10 min-w-0">
-                  <p className="text-[11px] sm:text-xs font-bold tracking-[0.16em] uppercase text-[#B7F2FA]">
-                    {activeSlide.kicker}
-                  </p>
-                  <h1 className="font-condensed text-[34px] sm:text-[46px] lg:text-[52px] font-bold uppercase tracking-tight leading-[1.02] text-white mt-2 max-w-[440px] [text-wrap:balance]">
-                    {activeSlide.title}
-                  </h1>
-                  <p className="mt-3 text-[13px] sm:text-[15px] text-white/90 max-w-[420px] leading-relaxed">
-                    {activeSlide.subtitle}
-                  </p>
-                  <p className="mt-2.5 text-xs font-medium text-[#C8F5FC] tabular-nums">
-                    {activeSlide.highlight}
-                  </p>
-                  <div className="mt-6 flex flex-wrap items-center gap-3">
-                    <MotionButton
-                      type="button"
-                      onClick={() => {
-                        if (activeSlide.productId) {
-                          navigate({ type: 'product', productId: activeSlide.productId });
-                        } else {
+            {/* Left / Right Slide Arrow Controls positioned cleanly in outer gutters */}
+            <button
+              type="button"
+              aria-label="Slide anterior"
+              onClick={() => goHeroSlide(heroIdx - 1, -1)}
+              className="absolute left-2.5 sm:left-4 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-[#072850]/55 hover:bg-[#072850]/85 border border-white/15 text-white inline-flex items-center justify-center transition-colors cursor-pointer"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button
+              type="button"
+              aria-label="Próximo slide"
+              onClick={() => goHeroSlide(heroIdx + 1, 1)}
+              className="absolute right-2.5 sm:right-4 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-[#072850]/55 hover:bg-[#072850]/85 border border-white/15 text-white inline-flex items-center justify-center transition-colors cursor-pointer"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+
+            <div className="relative flex-1 flex items-center">
+              <AnimatePresence mode="popLayout" initial={false}>
+                <motion.div
+                  key={activeSlide.title}
+                  initial={{ opacity: 0, x: heroDirection * 24 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: heroDirection * -24 }}
+                  transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                  className="w-full grid grid-cols-1 md:grid-cols-12 items-center gap-6 md:gap-8 px-14 sm:px-16 lg:px-20 pt-8 pb-6 sm:py-9"
+                >
+                  {/* Left Copy Column — Tightly Aligned Vertical Axis */}
+                  <div className="md:col-span-6 flex flex-col items-start text-left text-white z-10 min-w-0">
+                    <p className="text-[11px] sm:text-xs font-bold tracking-[0.16em] uppercase text-[#B7F2FA]">
+                      {activeSlide.kicker}
+                    </p>
+                    <h1 className="font-condensed text-[34px] sm:text-[46px] lg:text-[52px] font-bold uppercase tracking-tight leading-[1.02] text-white mt-2 max-w-[440px] [text-wrap:balance]">
+                      {activeSlide.title}
+                    </h1>
+                    <p className="mt-3 text-[13px] sm:text-[15px] text-white/90 max-w-[420px] leading-relaxed">
+                      {activeSlide.subtitle}
+                    </p>
+                    <p className="mt-2.5 text-xs font-medium text-[#C8F5FC] tabular-nums">
+                      {activeSlide.highlight}
+                    </p>
+                    <div className="mt-6 flex flex-wrap items-center gap-3">
+                      <MotionButton
+                        type="button"
+                        onClick={() => {
+                          if (activeSlide.productId) {
+                            navigate({ type: 'product', productId: activeSlide.productId });
+                          } else {
+                            document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
+                          }
+                        }}
+                        className="h-10 px-6 rounded-full bg-white text-[#0A3768] hover:bg-[#EAF6FC] text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer shadow-sm whitespace-nowrap shrink-0"
+                      >
+                        {(activeSlide as any).ctaText || (activeSlide as any).cta || 'VER OFERTAS'}
+                      </MotionButton>
+                      <MotionButton
+                        type="button"
+                        onClick={() => {
                           document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
-                        }
-                      }}
-                      className="h-10 px-6 rounded-full bg-white text-[#0A3768] hover:bg-[#EAF6FC] text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer shadow-sm whitespace-nowrap shrink-0"
-                    >
-                      {(activeSlide as any).ctaText || (activeSlide as any).cta || 'VER OFERTAS'}
-                    </MotionButton>
-                    <MotionButton
-                      type="button"
-                      onClick={() => {
-                        document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
-                      }}
-                      className="h-10 px-5 rounded-full border border-white/75 text-white hover:bg-white/15 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap shrink-0"
-                    >
-                      Ver Catálogo
-                    </MotionButton>
+                        }}
+                        className="h-10 px-5 rounded-full border border-white/75 text-white hover:bg-white/15 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                      >
+                        Ver Catálogo
+                      </MotionButton>
+                    </div>
                   </div>
-                </div>
 
-                {/* Right Product Stage — Single Clean Balanced Transparent Cutout */}
-                <div className="md:col-span-6 flex items-center justify-center z-10 min-w-0">
-                  <div className="w-full h-[210px] sm:h-[260px] lg:h-[290px] flex items-center justify-center px-2">
-                    {((activeSlide as any).imageUrl || (activeSlide as any).image) && (
-                      <img
-                        src={(activeSlide as any).imageUrl || (activeSlide as any).image}
-                        alt={(activeSlide as any).imageAlt || activeSlide.title}
-                        referrerPolicy="no-referrer"
-                        className="max-h-full max-w-full w-auto h-auto object-contain drop-shadow-[0_22px_28px_rgba(7,40,80,0.45)] select-none pointer-events-none"
-                      />
-                    )}
+                  {/* Right Product Stage — Single Clean Balanced Transparent Cutout */}
+                  <div className="md:col-span-6 flex items-center justify-center z-10 min-w-0">
+                    <div className="w-full h-[210px] sm:h-[260px] lg:h-[290px] flex items-center justify-center px-2">
+                      {((activeSlide as any).imageUrl || (activeSlide as any).image) && (
+                        <img
+                          src={(activeSlide as any).imageUrl || (activeSlide as any).image}
+                          alt={(activeSlide as any).imageAlt || activeSlide.title}
+                          referrerPolicy="no-referrer"
+                          className="max-h-full max-w-full w-auto h-auto object-contain drop-shadow-[0_22px_28px_rgba(7,40,80,0.45)] select-none pointer-events-none"
+                        />
+                      )}
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            </AnimatePresence>
-          </div>
+                </motion.div>
+              </AnimatePresence>
+            </div>
 
-          {/* Centered Slider Indicator Dots */}
-          <div className="pb-4 flex items-center justify-center gap-2 z-10">
-            {heroSlides.map((s, idx) => (
-              <button
-                key={`${s.title}-${idx}`}
-                type="button"
-                aria-label={`Slide ${idx + 1}: ${s.kicker}`}
-                aria-pressed={safeHeroIdx === idx}
-                onClick={() => goHeroSlide(idx)}
-                className={`h-2 rounded-full transition-all cursor-pointer ${
-                  safeHeroIdx === idx
+            {/* Centered Slider Indicator Dots */}
+            <div className="pb-4 flex items-center justify-center gap-2 z-10">
+              {heroSlides.map((s, idx) => (
+                <button
+                  key={`${s.title}-${idx}`}
+                  type="button"
+                  aria-label={`Slide ${idx + 1}: ${s.kicker}`}
+                  aria-pressed={safeHeroIdx === idx}
+                  onClick={() => goHeroSlide(idx)}
+                  className={`h-2 rounded-full transition-all cursor-pointer ${safeHeroIdx === idx
                     ? 'w-7 bg-white shadow-xs'
                     : 'w-2 bg-white/45 hover:bg-white/80'
-                }`}
-              />
-            ))}
-          </div>
-        </section>
+                    }`}
+                />
+              ))}
+            </div>
+          </section>
         )}
 
         {/* 2. DUAL SUB-BANNER ROW — Dynamic Banners */}
@@ -354,11 +353,10 @@ export function HomeView() {
                       setFilters((prev) => ({ ...prev, category: cat }));
                       setPageIdx(0);
                     }}
-                    className={`h-7 px-3.5 rounded-full text-[11px] font-bold uppercase tracking-wide transition-colors whitespace-nowrap cursor-pointer ${
-                      active
-                        ? 'bg-[#0475EE] text-white shadow-xs'
-                        : 'bg-[#F2F3F5] text-[#666666] hover:bg-[#EAF6FC] hover:text-[#0A3768]'
-                    }`}
+                    className={`h-7 px-3.5 rounded-full text-[11px] font-bold uppercase tracking-wide transition-colors whitespace-nowrap cursor-pointer ${active
+                      ? 'bg-[#0475EE] text-white shadow-xs'
+                      : 'bg-[#F2F3F5] text-[#666666] hover:bg-[#EAF6FC] hover:text-[#0A3768]'
+                      }`}
                   >
                     {cat === 'Todas' ? 'Todos' : cat}
                   </MotionButton>
@@ -371,11 +369,10 @@ export function HomeView() {
                 hoverY={-1}
                 onClick={() => setFiltersPanelOpen((v) => !v)}
                 aria-expanded={filtersPanelOpen}
-                className={`h-7 px-3 rounded-full text-[11px] font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer ${
-                  filtersPanelOpen || hasExtraFilters
-                    ? 'bg-[#0A3768] text-white'
-                    : 'bg-[#F2F3F5] text-[#555555] hover:bg-[#EAF6FC] hover:text-[#0A3768]'
-                }`}
+                className={`h-7 px-3 rounded-full text-[11px] font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer ${filtersPanelOpen || hasExtraFilters
+                  ? 'bg-[#0A3768] text-white'
+                  : 'bg-[#F2F3F5] text-[#555555] hover:bg-[#EAF6FC] hover:text-[#0A3768]'
+                  }`}
               >
                 <SlidersHorizontal className="w-3 h-3" />
                 <span>Filtros</span>
@@ -586,7 +583,6 @@ export function HomeView() {
         </section>
 
         {/* 4. WIDE MID-PAGE PROMO BANNER — Dynamic Banner */}
-        {Boolean(wideBanner && wideBanner.title) && (
         <section
           aria-label="Oferta especial de economia"
           className="bg-[#F1F2F4] border border-[#E7E9EC] px-6 sm:px-10 py-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 overflow-hidden"
@@ -636,7 +632,6 @@ export function HomeView() {
             )}
           </div>
         </section>
-        )}
 
         {/* 5. LOJAS OFICIAIS VERIFICADAS — Interactive Multi-Slide Carousel */}
         {storeShowcaseCards.length > 0 && (
@@ -668,11 +663,10 @@ export function HomeView() {
                     whileHover={{ scale: 1.25 }}
                     whileTap={{ scale: 0.85 }}
                     onClick={() => setStoresSlideIdx(idx)}
-                    className={`h-2 rounded-full transition-all cursor-pointer ${
-                      safeStoresSlideIdx === idx
-                        ? 'w-5 bg-[#0475EE]'
-                        : 'w-2 bg-[#CBD5E1] hover:bg-[#18A3DE]'
-                    }`}
+                    className={`h-2 rounded-full transition-all cursor-pointer ${safeStoresSlideIdx === idx
+                      ? 'w-5 bg-[#0475EE]'
+                      : 'w-2 bg-[#CBD5E1] hover:bg-[#18A3DE]'
+                      }`}
                   />
                 ))}
               </div>
@@ -724,12 +718,14 @@ export function HomeView() {
                     onClick={card.onAction}
                     className="w-full aspect-[16/9] overflow-hidden bg-[#0A3768] mb-3.5 block cursor-pointer group rounded-[2px]"
                   >
-                    <img
-                      src={card.image}
-                      alt={card.title}
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-106"
-                    />
+                    {card.image && (
+                      <img
+                        src={card.image}
+                        alt={card.title}
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-106"
+                      />
+                    )}
                   </button>
 
                   <h3 className="text-[14px] font-bold text-[#0A3768] leading-snug">

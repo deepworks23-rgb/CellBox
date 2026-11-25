@@ -512,9 +512,9 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
   const handleDownloadCsvTemplate = () => {
     const csvContent =
       'titulo,categoria,subcategoria,marca,preco,preco_promocional,estoque,descricao,imagem_url,especificacoes\n' +
-      '"Samsung Galaxy S24 Ultra","Smartphones","Android","Samsung",75000,82000,10,"Aparelho novo com garantia oficial e caneta S-Pen.","https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?auto=format&fit=crop&w=800&q=80","Armazenamento: 256GB; RAM: 12GB; Cor: Titânio"\n' +
-      '"Creme Facial Hidratante 200ml","Beleza & Cosméticos","Skincare","CeraVe",1450,1650,25,"Hidratação profunda para pele seca com ceramidas e ácido hialurônico.","https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=800&q=80","Volume: 200ml; Tipo de Pele: Seca; Validade: 12/2026"\n' +
-      '"Tênis Esportivo Casual","Moda & Calçados","Calçados","Nike",4900,5500,15,"Tênis confortável para caminhada e uso diário.","https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=800&q=80","Tamanho: 42; Cor: Preto; Gênero: Unissex"\n';
+      '"Samsung Galaxy S24 Ultra","Smartphones","Android","Samsung",75000,82000,10,"Aparelho novo com garantia oficial e caneta S-Pen.","","Armazenamento: 256GB; RAM: 12GB; Cor: Titânio"\n' +
+      '"Creme Facial Hidratante 200ml","Beleza & Cosméticos","Skincare","CeraVe",1450,1650,25,"Hidratação profunda para pele seca com ceramidas e ácido hialurônico.","","Volume: 200ml; Tipo de Pele: Seca; Validade: 12/2026"\n' +
+      '"Tênis Esportivo Casual","Moda & Calçados","Calçados","Nike",4900,5500,15,"Tênis confortável para caminhada e uso diário.","","Tamanho: 42; Cor: Preto; Gênero: Unissex"\n';
 
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);

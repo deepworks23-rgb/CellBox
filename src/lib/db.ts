@@ -1507,7 +1507,7 @@ export async function createBulkProducts(
       soldCount: 0,
       isFlashDeal: false,
       isBestSeller: false,
-      images: Array.isArray(it.images) && it.images.length > 0 ? it.images : ['https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop'],
+      images: Array.isArray(it.images) && it.images.length > 0 ? it.images : [],
       description: it.description || '',
       specs: it.specs ?? {},
       createdAt: new Date().toISOString(),
@@ -2031,16 +2031,16 @@ export async function getSiteCustomization(): Promise<SiteCustomization> {
       ...raw,
       header: { ...DEFAULT_SITE_CUSTOMIZATION.header, ...(raw.header ?? {}) },
       heroSlides:
-        Array.isArray(raw.heroSlides) && raw.heroSlides.length > 0
+        Array.isArray(raw.heroSlides)
           ? raw.heroSlides
           : DEFAULT_SITE_CUSTOMIZATION.heroSlides,
       subBanners:
-        Array.isArray(raw.subBanners) && raw.subBanners.length > 0
+        Array.isArray(raw.subBanners)
           ? raw.subBanners
           : DEFAULT_SITE_CUSTOMIZATION.subBanners,
       wideBanner: { ...DEFAULT_SITE_CUSTOMIZATION.wideBanner, ...(raw.wideBanner ?? {}) },
       partnerBrands:
-        Array.isArray(raw.partnerBrands) && raw.partnerBrands.length > 0
+        Array.isArray(raw.partnerBrands)
           ? raw.partnerBrands
           : DEFAULT_SITE_CUSTOMIZATION.partnerBrands,
       contact: {
