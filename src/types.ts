@@ -279,6 +279,9 @@ export interface HeroSlideConfig {
   productId?: string;
 }
 
+export type BannerRowLayout = '1-col' | '2-cols' | '3-cols' | 'asymmetric';
+export type BannerAspectRatio = 'auto' | '16:9' | '1:1' | '4:3' | '21:9';
+
 export interface PromoSubBannerConfig {
   id: string;
   title: string;
@@ -289,6 +292,7 @@ export interface PromoSubBannerConfig {
   imageUrl: string;
   image?: string;
   imageAlt?: string;
+  aspectRatio?: BannerAspectRatio;
 }
 
 export interface WidePromoBannerConfig {
@@ -396,6 +400,7 @@ export interface SiteCustomization {
   header: SiteHeaderConfig;
   heroSlides: HeroSlideConfig[];
   subBanners: PromoSubBannerConfig[];
+  subBannersLayout?: BannerRowLayout;
   wideBanner: WidePromoBannerConfig;
   partnerBrands: PartnerBrandConfig[];
   contact: SiteContactConfig;

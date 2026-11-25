@@ -55,8 +55,8 @@ export function HomeView() {
   const safeHeroIdx = heroSlides.length > 0 ? heroIdx % heroSlides.length : 0;
   const activeSlide = heroSlides[safeHeroIdx];
 
-  const subBanner1 = siteCustomization?.subBanners?.[0] ?? null;
-  const subBanner2 = siteCustomization?.subBanners?.[1] ?? null;
+  const subBanners = siteCustomization?.subBanners ?? [];
+  const subBannersLayout = siteCustomization?.subBannersLayout ?? '2-cols';
   const wideBanner = siteCustomization?.wideBanner ?? null;
   const partnerBrands = siteCustomization?.partnerBrands ?? [];
 
@@ -248,77 +248,117 @@ export function HomeView() {
           </section>
         )}
 
-        {/* 2. DUAL SUB-BANNER ROW — Dynamic Banners */}
-        {(subBanner1 || subBanner2) && (
+        {/* 2. DYNAMIC PROMO BANNERS ROW — Flexbox Layout & Aspect Ratios */}
+        {subBanners.length > 0 && (
           <section
             aria-label="Promoções por categoria"
-            className="!mt-3 flex flex-col md:flex-row items-stretch gap-3"
+            className="!mt-3 flex flex-wrap items-stretch gap-3"
           >
-            {/* Left 1/3 Banner */}
-            {subBanner1 && (
-              <div className={`${subBanner2 ? 'md:flex-1' : 'w-full'} bg-[#F1F2F4] border border-[#E7E9EC] px-5 py-5 flex items-center justify-between gap-2 overflow-hidden min-h-[146px]`}>
-                <div className="min-w-0 z-10">
-                  <h2 className="font-condensed text-xl font-bold uppercase text-[#18A3DE] leading-tight">
-                    {subBanner1.title}
-                  </h2>
-                  <p className="text-xs text-[#666666] mt-0.5">{subBanner1.subtitle}</p>
-                  <MotionButton
-                    type="button"
-                    onClick={() => {
-                      setFilters((prev) => ({ ...prev, category: (subBanner1 as any).category || 'Tablets' }));
-                      setPageIdx(0);
-                      document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
-                    }}
-                    className="mt-3.5 h-7 px-4 rounded-full bg-[#18A3DE] hover:bg-[#0A3768] text-white text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap"
-                  >
-                    {(subBanner1 as any).ctaText || (subBanner1 as any).cta || 'VER AGORA'}
-                  </MotionButton>
-                </div>
-                {((subBanner1 as any).imageUrl || (subBanner1 as any).image) && (
-                  <img
-                    src={(subBanner1 as any).imageUrl || (subBanner1 as any).image}
-                    alt={(subBanner1 as any).imageAlt || subBanner1.title}
-                    className="h-24 sm:h-28 w-auto max-w-[140px] object-contain shrink-0 drop-shadow-[0_10px_16px_rgba(10,55,104,0.22)] select-none pointer-events-none"
-                  />
-                )}
-              </div>
-            )}
+            {subBanners.map((banner, idx) => {
+              const imgSrc = banner.imageUrl || banner.image || '';
+              const ratio = banner.aspectRatio || 'auto';
+              const ctaLabel = banner.ctaText || banner.cta || '';
+              const hasText = Boolean(banner.title?.trim() || banner.subtitle?.trim() || ctaLabel.trim());
 
-            {/* Right 2/3 Banner */}
-            {subBanner2 && (
-              <div className={`${subBanner1 ? 'md:flex-[2]' : 'w-full'} bg-[#F1F2F4] border border-[#E7E9EC] px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 overflow-hidden min-h-[146px]`}>
-                <div className="min-w-0 max-w-xs z-10">
-                  <h2 className="font-condensed text-2xl font-bold uppercase text-[#0A3768] leading-tight">
-                    {subBanner2.title}
-                  </h2>
-                  <p className="text-xs text-[#666666] mt-1 leading-relaxed">
-                    {subBanner2.subtitle}
-                  </p>
-                  <MotionButton
-                    type="button"
-                    onClick={() => {
-                      setFilters((prev) => ({ ...prev, category: (subBanner2 as any).category || 'Laptops' }));
-                      setPageIdx(0);
-                      document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
-                    }}
-                    className="mt-3.5 h-8 px-4 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
-                  >
-                    <ShoppingCart className="w-3.5 h-3.5" />
-                    {(subBanner2 as any).ctaText || (subBanner2 as any).cta || 'COMPRAR AGORA'}
-                  </MotionButton>
-                </div>
+              const widthClass =
+                subBannersLayout === '1-col' || subBanners.length === 1
+                  ? 'w-full'
+                  : subBannersLayout === '3-cols'
+                    ? 'w-full md:w-[calc(33.333%-8px)]'
+                    : subBannersLayout === 'asymmetric'
+                      ? idx % 2 === 0
+                        ? 'w-full md:flex-1'
+                        : 'w-full md:flex-[2]'
+                      : 'w-full md:w-[calc(50%-6px)]';
 
-                <div className="flex items-end justify-end gap-1 shrink-0 self-end sm:self-center">
-                  {((subBanner2 as any).imageUrl || (subBanner2 as any).image) && (
+              const ratioClass =
+                ratio === '16:9'
+                  ? 'aspect-[16/9]'
+                  : ratio === '1:1'
+                    ? 'aspect-square'
+                    : ratio === '4:3'
+                      ? 'aspect-[4/3]'
+                      : ratio === '21:9'
+                        ? 'aspect-[21/9]'
+                        : 'min-h-[146px]';
+
+              const handleBannerClick = () => {
+                if (banner.category?.trim()) {
+                  setFilters((prev) => ({ ...prev, category: banner.category!.trim() }));
+                }
+                setPageIdx(0);
+                document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
+              };
+
+              if (ratio !== 'auto' && imgSrc) {
+                return (
+                  <div
+                    key={banner.id || idx}
+                    onClick={handleBannerClick}
+                    className={`${widthClass} ${ratioClass} relative overflow-hidden bg-[#F1F2F4] border border-[#E7E9EC] group cursor-pointer`}
+                  >
                     <img
-                      src={(subBanner2 as any).imageUrl || (subBanner2 as any).image}
-                      alt={(subBanner2 as any).imageAlt || subBanner2.title}
-                      className="h-28 md:h-32 w-auto object-contain drop-shadow-[0_12px_20px_rgba(10,55,104,0.28)] select-none pointer-events-none"
+                      src={imgSrc}
+                      alt={banner.imageAlt || banner.title || `Banner ${idx + 1}`}
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 select-none"
+                    />
+                    {hasText && (
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#0A3768]/85 via-[#0A3768]/25 to-transparent p-5 flex flex-col justify-end">
+                        {banner.title && (
+                          <h2 className="font-condensed text-xl sm:text-2xl font-bold uppercase text-white leading-tight">
+                            {banner.title}
+                          </h2>
+                        )}
+                        {banner.subtitle && (
+                          <p className="text-xs text-white/90 mt-0.5 line-clamp-2">{banner.subtitle}</p>
+                        )}
+                        {ctaLabel && (
+                          <div className="mt-3">
+                            <span className="h-7 px-4 rounded-full bg-[#18A3DE] group-hover:bg-[#0475EE] text-white text-[10px] font-bold uppercase tracking-wider inline-flex items-center transition-colors">
+                              {ctaLabel}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              return (
+                <div
+                  key={banner.id || idx}
+                  className={`${widthClass} ${ratioClass} bg-[#F1F2F4] border border-[#E7E9EC] px-5 py-5 flex items-center justify-between gap-3 overflow-hidden`}
+                >
+                  <div className="min-w-0 z-10 flex flex-col items-start">
+                    {banner.title && (
+                      <h2 className="font-condensed text-xl font-bold uppercase text-[#0A3768] leading-tight">
+                        {banner.title}
+                      </h2>
+                    )}
+                    {banner.subtitle && (
+                      <p className="text-xs text-[#666666] mt-0.5">{banner.subtitle}</p>
+                    )}
+                    {ctaLabel && (
+                      <MotionButton
+                        type="button"
+                        onClick={handleBannerClick}
+                        className="mt-3.5 h-7 px-4 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap"
+                      >
+                        {ctaLabel}
+                      </MotionButton>
+                    )}
+                  </div>
+                  {imgSrc && (
+                    <img
+                      src={imgSrc}
+                      alt={banner.imageAlt || banner.title || `Banner ${idx + 1}`}
+                      className="h-24 sm:h-28 w-auto max-w-[160px] object-contain shrink-0 drop-shadow-[0_10px_16px_rgba(10,55,104,0.22)] select-none pointer-events-none"
                     />
                   )}
                 </div>
-              </div>
-            )}
+              );
+            })}
           </section>
         )}
 

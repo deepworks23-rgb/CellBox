@@ -28,6 +28,8 @@ import {
 import { useMarketplace } from '../context/MarketplaceContext';
 import type {
   ActiveCartGateway,
+  BannerAspectRatio,
+  BannerRowLayout,
   GatewayEnvironment,
   HeroSlideConfig,
   PartnerBrandConfig,
@@ -1453,127 +1455,317 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                 <div className="space-y-6">
                   {/* Sub-Banners */}
                   <div className="space-y-4">
-                    <h3 className="font-condensed text-[18px] font-bold uppercase text-[#0A3768]">
-                      Sub-Banners (Abaixo do Carrossel Principal)
-                    </h3>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      {draftCustomization.subBanners.map((sb, sbIdx) => (
-                        <div
-                          key={sb.id || sbIdx}
-                          className="p-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-[3px] space-y-3 text-xs"
-                        >
-                          <p className="font-bold text-[#0A3768] uppercase border-b border-[#E2E8F0] pb-1">
-                            Sub-Banner {sbIdx + 1} ({sbIdx === 0 ? 'Esquerdo - 1/3' : 'Direito - 2/3'})
-                          </p>
-                          <div>
-                            <label className="block font-bold text-[#444444] mb-1">Título</label>
-                            <input
-                              type="text"
-                              value={sb.title}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setDraftCustomization((prev) => {
-                                  const updated = [...prev.subBanners];
-                                  updated[sbIdx] = { ...updated[sbIdx], title: val };
-                                  return { ...prev, subBanners: updated };
-                                });
-                              }}
-                              className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
-                            />
-                          </div>
-                          <div>
-                            <label className="block font-bold text-[#444444] mb-1">Subtítulo</label>
-                            <input
-                              type="text"
-                              value={sb.subtitle}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setDraftCustomization((prev) => {
-                                  const updated = [...prev.subBanners];
-                                  updated[sbIdx] = { ...updated[sbIdx], subtitle: val };
-                                  return { ...prev, subBanners: updated };
-                                });
-                              }}
-                              className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="block font-bold text-[#444444] mb-1">Categoria Vinculada</label>
-                              <input
-                                type="text"
-                                value={sb.category || ''}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  setDraftCustomization((prev) => {
-                                    const updated = [...prev.subBanners];
-                                    updated[sbIdx] = { ...updated[sbIdx], category: val };
-                                    return { ...prev, subBanners: updated };
-                                  });
-                                }}
-                                className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
-                              />
-                            </div>
-                            <div>
-                              <label className="block font-bold text-[#444444] mb-1">Texto do Botão</label>
-                              <input
-                                type="text"
-                                value={sb.ctaText || sb.cta || ''}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  setDraftCustomization((prev) => {
-                                    const updated = [...prev.subBanners];
-                                    updated[sbIdx] = { ...updated[sbIdx], ctaText: val, cta: val };
-                                    return { ...prev, subBanners: updated };
-                                  });
-                                }}
-                                className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block font-bold text-[#444444] mb-1">Imagem do Banner</label>
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="text"
-                                value={sb.imageUrl || sb.image || ''}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  setDraftCustomization((prev) => {
-                                    const updated = [...prev.subBanners];
-                                    updated[sbIdx] = { ...updated[sbIdx], imageUrl: val, image: val };
-                                    return { ...prev, subBanners: updated };
-                                  });
-                                }}
-                                className="flex-1 h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
-                              />
-                              <label className="h-9 px-3 rounded-[2px] bg-white border border-[#0475EE] text-[#0475EE] hover:bg-[#EAF6FC] font-bold inline-flex items-center gap-1 cursor-pointer shrink-0">
-                                <Upload className="w-3 h-3" />
-                                {uploadingField === `sb-${sbIdx}` ? '...' : 'Upload'}
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  disabled={uploadingField !== null}
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      handleUploadImage(`sb-${sbIdx}`, file, (url) => {
-                                        setDraftCustomization((prev) => {
-                                          const updated = [...prev.subBanners];
-                                          updated[sbIdx] = { ...updated[sbIdx], imageUrl: url, image: url };
-                                          return { ...prev, subBanners: updated };
-                                        });
-                                      });
-                                    }
-                                  }}
-                                />
-                              </label>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h3 className="font-condensed text-[18px] font-bold uppercase text-[#0A3768]">
+                          Banners Promocionais ({draftCustomization.subBanners.length})
+                        </h3>
+                        <p className="text-xs text-[#64748B]">
+                          Adicione quantos banners desejar, escolha o posicionamento na linha e a proporção de cada um.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDraftCustomization((prev) => ({
+                            ...prev,
+                            subBanners: [
+                              ...prev.subBanners,
+                              {
+                                id: `sub-${Date.now()}`,
+                                title: '',
+                                subtitle: '',
+                                ctaText: '',
+                                cta: '',
+                                category: '',
+                                imageUrl: '',
+                                image: '',
+                                aspectRatio: '16:9',
+                              },
+                            ],
+                          }));
+                        }}
+                        className="h-9 px-4 rounded-[3px] bg-[#18A3DE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wide inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Adicionar Banner
+                      </button>
                     </div>
+
+                    {/* Seletor de Posicionamento na Linha */}
+                    <div className="p-4 bg-[#F0F7FF] border border-[#BFDBFE] rounded-[3px] space-y-2.5 text-xs">
+                      <span className="block font-bold text-[#0A3768] uppercase tracking-wider text-[11px]">
+                        Posicionamento dos Banners na Linha (Layout):
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        {(
+                          [
+                            { id: '1-col', label: '1 por linha (Largura total)' },
+                            { id: '2-cols', label: '2 lado a lado (50% / 50%)' },
+                            { id: '3-cols', label: '3 numa única linha' },
+                            { id: 'asymmetric', label: '2 assimétricos (1/3 + 2/3)' },
+                          ] as Array<{ id: BannerRowLayout; label: string }>
+                        ).map((opt) => {
+                          const currentLayout = draftCustomization.subBannersLayout || '2-cols';
+                          const active = currentLayout === opt.id;
+                          return (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() =>
+                                setDraftCustomization((prev) => ({
+                                  ...prev,
+                                  subBannersLayout: opt.id,
+                                }))
+                              }
+                              className={`h-8 px-3.5 rounded-[3px] border text-xs font-bold transition-colors cursor-pointer ${
+                                active
+                                  ? 'bg-[#0A3768] border-[#0A3768] text-white'
+                                  : 'bg-white border-[#CBD5E1] text-[#334155] hover:border-[#0475EE]'
+                              }`}
+                            >
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {draftCustomization.subBanners.length === 0 ? (
+                      <div className="p-8 border-2 border-dashed border-[#CBD5E1] rounded-[3px] text-center space-y-3 bg-[#F8FAFC]">
+                        <p className="text-xs text-[#64748B]">
+                          Nenhum banner promocional cadastrado no momento.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDraftCustomization((prev) => ({
+                              ...prev,
+                              subBanners: [
+                                {
+                                  id: `sub-${Date.now()}`,
+                                  title: '',
+                                  subtitle: '',
+                                  ctaText: '',
+                                  cta: '',
+                                  category: '',
+                                  imageUrl: '',
+                                  image: '',
+                                  aspectRatio: '16:9',
+                                },
+                              ],
+                            }));
+                          }}
+                          className="h-9 px-4 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wide inline-flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          Criar Primeiro Banner
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap items-stretch gap-4">
+                        {draftCustomization.subBanners.map((sb, sbIdx) => (
+                          <div
+                            key={sb.id || sbIdx}
+                            className="w-full lg:w-[calc(50%-8px)] p-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-[3px] space-y-3 text-xs flex flex-col justify-between"
+                          >
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-2">
+                                <p className="font-bold text-[#0A3768] uppercase">
+                                  Banner #{sbIdx + 1}
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setDraftCustomization((prev) => ({
+                                      ...prev,
+                                      subBanners: prev.subBanners.filter((_, idx) => idx !== sbIdx),
+                                    }));
+                                  }}
+                                  aria-label={`Remover Banner ${sbIdx + 1}`}
+                                  className="text-rose-600 hover:text-rose-800 inline-flex items-center gap-1 text-[11px] font-bold cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  Remover
+                                </button>
+                              </div>
+
+                              <div>
+                                <label className="block font-bold text-[#444444] mb-1">
+                                  Proporção / Formato do Banner
+                                </label>
+                                <select
+                                  value={sb.aspectRatio || 'auto'}
+                                  onChange={(e) => {
+                                    const val = e.target.value as BannerAspectRatio;
+                                    setDraftCustomization((prev) => {
+                                      const updated = [...prev.subBanners];
+                                      updated[sbIdx] = { ...updated[sbIdx], aspectRatio: val };
+                                      return { ...prev, subBanners: updated };
+                                    });
+                                  }}
+                                  className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333] font-semibold"
+                                >
+                                  <option value="16:9">16:9 (Widescreen / Horizontal)</option>
+                                  <option value="1:1">1:1 (Quadrado)</option>
+                                  <option value="4:3">4:3 (Clássico)</option>
+                                  <option value="21:9">21:9 (Faixa Ultrawide)</option>
+                                  <option value="auto">Automático (Cartão com texto ao lado)</option>
+                                </select>
+                              </div>
+
+                              <div>
+                                <label className="block font-bold text-[#444444] mb-1">
+                                  Título (opcional se usar arte pronta)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={sb.title}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setDraftCustomization((prev) => {
+                                      const updated = [...prev.subBanners];
+                                      updated[sbIdx] = { ...updated[sbIdx], title: val };
+                                      return { ...prev, subBanners: updated };
+                                    });
+                                  }}
+                                  className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block font-bold text-[#444444] mb-1">
+                                  Subtítulo (opcional)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={sb.subtitle}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setDraftCustomization((prev) => {
+                                      const updated = [...prev.subBanners];
+                                      updated[sbIdx] = { ...updated[sbIdx], subtitle: val };
+                                      return { ...prev, subBanners: updated };
+                                    });
+                                  }}
+                                  className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
+                                />
+                              </div>
+
+                              <div className="flex flex-wrap gap-2">
+                                <div className="flex-1 min-w-[130px]">
+                                  <label className="block font-bold text-[#444444] mb-1">
+                                    Categoria Vinculada
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={sb.category || ''}
+                                    placeholder="Ex: Smartphones"
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setDraftCustomization((prev) => {
+                                        const updated = [...prev.subBanners];
+                                        updated[sbIdx] = { ...updated[sbIdx], category: val };
+                                        return { ...prev, subBanners: updated };
+                                      });
+                                    }}
+                                    className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
+                                  />
+                                </div>
+                                <div className="flex-1 min-w-[130px]">
+                                  <label className="block font-bold text-[#444444] mb-1">
+                                    Texto do Botão (opcional)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={sb.ctaText || sb.cta || ''}
+                                    placeholder="Ex: VER AGORA"
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setDraftCustomization((prev) => {
+                                        const updated = [...prev.subBanners];
+                                        updated[sbIdx] = { ...updated[sbIdx], ctaText: val, cta: val };
+                                        return { ...prev, subBanners: updated };
+                                      });
+                                    }}
+                                    className="w-full h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
+                                  />
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block font-bold text-[#444444] mb-1">Imagem do Banner</label>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="text"
+                                    value={sb.imageUrl || sb.image || ''}
+                                    placeholder="URL ou faça upload da imagem"
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setDraftCustomization((prev) => {
+                                        const updated = [...prev.subBanners];
+                                        updated[sbIdx] = { ...updated[sbIdx], imageUrl: val, image: val };
+                                        return { ...prev, subBanners: updated };
+                                      });
+                                    }}
+                                    className="flex-1 h-9 px-2.5 border border-[#DCDCDC] rounded-[2px] bg-white text-[#333333]"
+                                  />
+                                  <label className="h-9 px-3 rounded-[2px] bg-white border border-[#0475EE] text-[#0475EE] hover:bg-[#EAF6FC] font-bold inline-flex items-center gap-1 cursor-pointer shrink-0">
+                                    <Upload className="w-3 h-3" />
+                                    {uploadingField === `sb-${sbIdx}` ? '...' : 'Upload'}
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      className="hidden"
+                                      disabled={uploadingField !== null}
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                          handleUploadImage(`sb-${sbIdx}`, file, (url) => {
+                                            setDraftCustomization((prev) => {
+                                              const updated = [...prev.subBanners];
+                                              updated[sbIdx] = { ...updated[sbIdx], imageUrl: url, image: url };
+                                              return { ...prev, subBanners: updated };
+                                            });
+                                          });
+                                        }
+                                      }}
+                                    />
+                                  </label>
+                                </div>
+                              </div>
+                            </div>
+
+                            {(sb.imageUrl || sb.image) && (
+                              <div className="pt-2 border-t border-[#E2E8F0]">
+                                <p className="text-[10px] font-bold text-[#64748B] uppercase mb-1">
+                                  Pré-visualização ({sb.aspectRatio || 'auto'}):
+                                </p>
+                                <div
+                                  className={`w-full overflow-hidden rounded-[2px] border border-[#CBD5E1] bg-white ${
+                                    sb.aspectRatio === '16:9'
+                                      ? 'aspect-[16/9]'
+                                      : sb.aspectRatio === '1:1'
+                                        ? 'aspect-square max-h-48 mx-auto'
+                                        : sb.aspectRatio === '4:3'
+                                          ? 'aspect-[4/3]'
+                                          : sb.aspectRatio === '21:9'
+                                            ? 'aspect-[21/9]'
+                                            : 'h-24'
+                                  }`}
+                                >
+                                  <img
+                                    src={sb.imageUrl || sb.image}
+                                    alt={sb.title || `Banner ${sbIdx + 1}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Wide Horizontal Banner */}

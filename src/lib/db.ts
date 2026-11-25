@@ -2038,6 +2038,7 @@ export async function getSiteCustomization(): Promise<SiteCustomization> {
         Array.isArray(raw.subBanners)
           ? raw.subBanners
           : DEFAULT_SITE_CUSTOMIZATION.subBanners,
+      subBannersLayout: raw.subBannersLayout ?? DEFAULT_SITE_CUSTOMIZATION.subBannersLayout,
       wideBanner: { ...DEFAULT_SITE_CUSTOMIZATION.wideBanner, ...(raw.wideBanner ?? {}) },
       partnerBrands:
         Array.isArray(raw.partnerBrands)

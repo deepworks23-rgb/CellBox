@@ -9,6 +9,7 @@ export const DEFAULT_SITE_CUSTOMIZATION: SiteCustomization = {
   },
   heroSlides: [],
   subBanners: [],
+  subBannersLayout: '2-cols',
   wideBanner: {
     title: '',
     kicker: '',
