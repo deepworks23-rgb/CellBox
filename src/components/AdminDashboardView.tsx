@@ -74,6 +74,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
     siteCustomization,
     updateSiteCustomization,
     uploadImageAsset,
+    navigate,
     showToast,
   } = useMarketplace();
 
@@ -320,6 +321,14 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
           </nav>
 
           <div className="pt-4 border-t border-white/15 space-y-2">
+            <button
+              type="button"
+              onClick={() => navigate({ type: 'home' })}
+              className="w-full h-9 px-3 rounded-full bg-white/15 hover:bg-white/25 text-xs font-bold uppercase tracking-wide text-white inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Store className="w-3.5 h-3.5" />
+              Ver Loja Pública
+            </button>
             <button
               type="button"
               onClick={() => void logout()}

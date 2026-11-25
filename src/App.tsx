@@ -1,5 +1,5 @@
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
-import { LogOut, ShieldCheck } from 'lucide-react';
+import { LogOut, ShieldCheck, Store } from 'lucide-react';
 import { MarketplaceProvider, useMarketplace } from './context/MarketplaceContext';
 import { Navbar } from './components/Navbar';
 import { HomeView } from './components/HomeView';
@@ -21,7 +21,7 @@ import { Footer } from './components/Footer';
 import { MotionButton } from './components/MotionPrimitives';
 
 function AdminIsolatedShell() {
-  const { view, currentUser, logout } = useMarketplace();
+  const { view, currentUser, logout, navigate } = useMarketplace();
   if (!currentUser || currentUser.role !== 'admin') return null;
 
   return (
@@ -52,6 +52,15 @@ function AdminIsolatedShell() {
               <p className="text-xs font-bold text-white">{currentUser.name}</p>
               <p className="text-[11px] text-white/75">{currentUser.email}</p>
             </div>
+            <MotionButton
+              type="button"
+              data-testid="admin-view-public-store-btn"
+              onClick={() => navigate({ type: 'home' })}
+              className="h-9 px-4 rounded-full bg-white text-[#0A3768] hover:bg-[#EAF6FC] text-xs font-bold uppercase tracking-wide inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Store className="w-3.5 h-3.5" />
+              Ver Loja Pública
+            </MotionButton>
             <MotionButton
               type="button"
               data-testid="admin-logout-btn"
