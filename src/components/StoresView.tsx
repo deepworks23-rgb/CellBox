@@ -16,7 +16,7 @@ import { formatCurrency, isStorePubliclyActive } from '../utils/marketplace';
 import { MotionButton } from './MotionPrimitives';
 import { ProductImage } from './ProductImage';
 
-function getStoreCoverImage(store: SellerStore): string {
+function getStoreCoverImage(store: SellerStore, _index?: number): string {
   return store.bannerImage || store.logoUrl || '';
 }
 
@@ -174,7 +174,7 @@ export function StoresView() {
             data-testid="stores-directory-grid"
             className="grid grid-cols-1 md:grid-cols-2 gap-6"
           >
-            {filteredStores.map((store, idx) => {
+            {filteredStores.map((store) => {
               const storeProducts = products.filter((p) => p.sellerId === store.id);
               const previewProducts = storeProducts.slice(0, 3);
               const coverImg = getStoreCoverImage(store);
@@ -187,12 +187,14 @@ export function StoresView() {
                 >
                   {/* Static Store Visual Cover + Logo Badge (Proporção 1000x300) */}
                   <div className="relative aspect-[10/3] w-full min-h-[190px] max-h-[250px] bg-[#0A3768] overflow-hidden">
-                    <img
-                      src={coverImg}
-                      alt={`Vitrine ${store.name}`}
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover opacity-90"
-                    />
+                    {coverImg && (
+                      <img
+                        src={coverImg}
+                        alt={`Vitrine ${store.name}`}
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover opacity-90"
+                      />
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0A3768]/95 via-[#0A3768]/35 to-transparent" />
 
                     <div className="absolute top-3 right-3 flex items-center gap-1.5">
