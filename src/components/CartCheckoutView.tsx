@@ -319,9 +319,9 @@ export function CartCheckoutView() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
         {/* Left column */}
-        <div className="lg:col-span-8 space-y-5">
+        <div className="flex-1 min-w-0 w-full space-y-5">
           {groups.map((group) => (
             <section
               key={group.seller.id}
@@ -607,7 +607,7 @@ export function CartCheckoutView() {
         </div>
 
         {/* Right column: Sticky Order Summary */}
-        <aside className="lg:col-span-4 lg:sticky lg:top-[174px] bg-white border border-[#EAEAEA] rounded-[3px] p-6 space-y-5">
+        <aside className="w-full lg:w-[360px] shrink-0 lg:sticky lg:top-[174px] bg-white border border-[#EAEAEA] rounded-[3px] p-6 space-y-5">
           <h2 className="font-condensed text-[20px] font-bold uppercase text-[#0A3768] pb-3 border-b border-[#EAEAEA]">
             Resumo do Pedido
           </h2>

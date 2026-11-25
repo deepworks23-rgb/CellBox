@@ -10,9 +10,10 @@ import { ProductImage } from './ProductImage';
 interface ProductCardProps {
   product: Product;
   tiled?: boolean;
+  className?: string;
 }
 
-export function ProductCard({ product, tiled = true }: ProductCardProps) {
+export function ProductCard({ product, tiled = true, className = '' }: ProductCardProps) {
   const {
     sellers,
     wishlist,
@@ -57,7 +58,7 @@ export function ProductCard({ product, tiled = true }: ProductCardProps) {
         tiled
           ? 'border-r border-b border-[#EAEAEA]'
           : 'border border-[#EAEAEA] rounded-xs'
-      }`}
+      } ${className}`}
     >
       {/* Subtle Top-Right Action Icons with tactile spring hover & click */}
       <div className="absolute top-2.5 right-2.5 flex flex-col gap-1.5 z-10">

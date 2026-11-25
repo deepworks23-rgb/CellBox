@@ -1183,9 +1183,9 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
         {/* Sidebar Navigation */}
-        <aside className="lg:col-span-3 bg-white border border-[#EAEAEA] rounded-[3px] p-4 space-y-5">
+        <aside className="w-full lg:w-[270px] shrink-0 bg-white border border-[#EAEAEA] rounded-[3px] p-4 space-y-5">
           <div className="flex items-center gap-3 pb-4 border-b border-[#EAEAEA]">
             {seller.logoUrl ? (
               <img
@@ -1249,7 +1249,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
         </aside>
 
         {/* Main Workspace Content */}
-        <main className="lg:col-span-9 space-y-6 min-w-0">
+        <main className="flex-1 min-w-0 w-full space-y-6">
           {/* Header Row */}
           <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-[#EAEAEA]">
             <div>
@@ -1283,8 +1283,8 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
           {/* TAB 1: VISÃO GERAL */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-5">
+              <div className="flex flex-wrap items-stretch gap-4">
+                <div className="flex-1 min-w-[200px] bg-white border border-[#EAEAEA] rounded-[3px] p-5 flex flex-col justify-between">
                   <p className="text-xs font-semibold text-[#777777]">Vendas do Mês (Bruto)</p>
                   <p className="text-2xl font-extrabold font-mono tabular-nums text-[#222222] mt-2">
                     {formatCurrency(analytics.monthlySales)}
@@ -1294,7 +1294,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                   </p>
                 </div>
 
-                <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-5 flex flex-col justify-between">
+                <div className="flex-1 min-w-[200px] bg-white border border-[#EAEAEA] rounded-[3px] p-5 flex flex-col justify-between">
                   <div>
                     <p className="text-xs font-semibold text-[#777777]">Saldo Disponível para Saque</p>
                     <p className="text-2xl font-extrabold font-mono tabular-nums text-[#0475EE] mt-2">
@@ -1314,7 +1314,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                   </button>
                 </div>
 
-                <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-5">
+                <div className="flex-1 min-w-[200px] bg-white border border-[#EAEAEA] rounded-[3px] p-5 flex flex-col justify-between">
                   <p className="text-xs font-semibold text-[#777777]">Pedidos Pendentes</p>
                   <p className="text-2xl font-extrabold font-mono tabular-nums text-[#18A3DE] mt-2">
                     {analytics.pendingOrdersCount}
@@ -1324,7 +1324,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                   </p>
                 </div>
 
-                <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-5">
+                <div className="flex-1 min-w-[200px] bg-white border border-[#EAEAEA] rounded-[3px] p-5 flex flex-col justify-between">
                   <p className="text-xs font-semibold text-[#777777]">Avaliação da Loja</p>
                   <p className="text-2xl font-extrabold font-mono tabular-nums text-[#222222] mt-2 inline-flex items-center gap-1.5">
                     <Star className="w-5 h-5 fill-[#F5A623] text-[#F5A623]" />
@@ -1670,8 +1670,8 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
               </div>
 
               {/* 4 KPIs Financeiros */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-5">
+              <div className="flex flex-wrap items-stretch gap-4">
+                <div className="flex-1 min-w-[200px] bg-white border border-[#EAEAEA] rounded-[3px] p-5 flex flex-col justify-between">
                   <p className="text-xs font-semibold text-[#777777]">Vendas Brutas Totais</p>
                   <p className="text-2xl font-extrabold font-mono tabular-nums text-[#222222] mt-2">
                     {formatCurrency(analytics.monthlySales)}
@@ -1681,7 +1681,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                   </p>
                 </div>
 
-                <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-5">
+                <div className="flex-1 min-w-[200px] bg-white border border-[#EAEAEA] rounded-[3px] p-5 flex flex-col justify-between">
                   <p className="text-xs font-semibold text-[#777777]">
                     Comissão Cellbox ({commissionRate}%)
                   </p>
@@ -1691,7 +1691,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                   <p className="text-xs text-[#777777] mt-1">Retida automaticamente na fonte</p>
                 </div>
 
-                <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-5">
+                <div className="flex-1 min-w-[200px] bg-white border border-[#EAEAEA] rounded-[3px] p-5 flex flex-col justify-between">
                   <p className="text-xs font-semibold text-[#777777]">Saldo em Custódia (A Liberar)</p>
                   <p className="text-2xl font-extrabold font-mono tabular-nums text-amber-600 mt-2">
                     {formatCurrency(analytics.escrowNet)}
@@ -1701,7 +1701,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                   </p>
                 </div>
 
-                <div className="bg-white border border-[#0475EE]/30 rounded-[3px] p-5 bg-gradient-to-b from-white to-[#F7FBFF]">
+                <div className="flex-1 min-w-[200px] bg-white border border-[#0475EE]/30 rounded-[3px] p-5 bg-gradient-to-b from-white to-[#F7FBFF] flex flex-col justify-between">
                   <p className="text-xs font-bold text-[#0A3768]">Saldo Disponível para Saque</p>
                   <p
                     data-testid="seller-available-balance"

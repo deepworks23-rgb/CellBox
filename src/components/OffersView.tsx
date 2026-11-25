@@ -363,7 +363,7 @@ export function OffersView() {
           ) : (
             <div
               data-testid="offers-product-grid"
-              className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 border-t border-l border-[#EAEAEA]"
+              className="flex flex-wrap items-stretch border-t border-l border-[#EAEAEA]"
             >
               {visibleOffers.map((product) => {
                 const discountPct = getProductDiscountPercent(product);
@@ -373,7 +373,10 @@ export function OffersView() {
                     : 0;
 
                 return (
-                  <div key={product.id} className="relative flex flex-col">
+                  <div
+                    key={product.id}
+                    className="relative flex flex-col w-1/2 sm:w-1/3 lg:w-1/4"
+                  >
                     {/* Crisp Discount & Flash Deal Badges */}
                     <div className="absolute top-2.5 left-2.5 z-20 flex flex-col items-start gap-1 pointer-events-none">
                       {discountPct > 0 && (

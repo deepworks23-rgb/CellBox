@@ -275,9 +275,9 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
 
   return (
     <div className="max-w-[1170px] mx-auto px-4 py-6 pb-16">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
         {/* Sidebar (Official Cellbox Deep Navy #0A3768) */}
-        <aside className="lg:col-span-3 bg-[#0A3768] text-white rounded-[3px] p-4 space-y-5">
+        <aside className="w-full lg:w-[270px] shrink-0 bg-[#0A3768] text-white rounded-[3px] p-4 space-y-5">
           <div className="flex items-center gap-3 px-2 pt-1 pb-4 border-b border-white/15">
             <div className="w-10 h-10 rounded-[3px] bg-white/15 flex items-center justify-center shrink-0">
               <ShieldCheck className="w-5 h-5 text-[#1AD6DE]" />
@@ -331,7 +331,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
         </aside>
 
         {/* Main Content */}
-        <main className="lg:col-span-9 space-y-6 min-w-0">
+        <main className="flex-1 min-w-0 w-full space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-[#EAEAEA]">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-wider text-[#777777]">
@@ -375,8 +375,8 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
           {/* TAB 1: DASHBOARD GLOBAL */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-5">
+              <div className="flex flex-wrap items-stretch gap-4">
+                <div className="flex-1 min-w-[200px] bg-white border border-[#EAEAEA] rounded-[3px] p-5 flex flex-col justify-between">
                   <p className="text-xs font-semibold text-[#777777]">GMV Global</p>
                   <p className="text-2xl font-extrabold font-mono tabular-nums text-[#222222] mt-2">
                     {formatCurrency(analytics.gmv)}
@@ -386,7 +386,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                   </p>
                 </div>
 
-                <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-5">
+                <div className="flex-1 min-w-[200px] bg-white border border-[#EAEAEA] rounded-[3px] p-5 flex flex-col justify-between">
                   <p className="text-xs font-semibold text-[#777777]">Receita de Comissões</p>
                   <p
                     data-testid="admin-commission-revenue"
@@ -399,7 +399,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                   </p>
                 </div>
 
-                <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-5">
+                <div className="flex-1 min-w-[200px] bg-white border border-[#EAEAEA] rounded-[3px] p-5 flex flex-col justify-between">
                   <p className="text-xs font-semibold text-[#777777]">Vendedores Ativos</p>
                   <p
                     data-testid="admin-active-sellers-count"
@@ -412,7 +412,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                   </p>
                 </div>
 
-                <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-5">
+                <div className="flex-1 min-w-[200px] bg-white border border-[#EAEAEA] rounded-[3px] p-5 flex flex-col justify-between">
                   <p className="text-xs font-semibold text-[#777777]">Total de Usuários</p>
                   <p className="text-2xl font-extrabold font-mono tabular-nums text-[#222222] mt-2">
                     {users.length}
@@ -761,8 +761,8 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
           {activeTab === 'finance' && (
             <div className="space-y-6">
               {/* 4 KPIs Financeiros Modo A */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-5">
+              <div className="flex flex-wrap items-stretch gap-4">
+                <div className="flex-1 min-w-[200px] bg-white border border-[#EAEAEA] rounded-[3px] p-5 flex flex-col justify-between">
                   <p className="text-xs font-semibold text-[#777777]">Receita Líquida de Comissões</p>
                   <p className="text-2xl font-extrabold font-mono tabular-nums text-[#0475EE] mt-2">
                     {formatCurrency(analytics.commissionRevenue)}
@@ -772,7 +772,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                   </p>
                 </div>
 
-                <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-5">
+                <div className="flex-1 min-w-[200px] bg-white border border-[#EAEAEA] rounded-[3px] p-5 flex flex-col justify-between">
                   <p className="text-xs font-semibold text-[#777777]">Custódia de Pedidos em Trânsito</p>
                   <p className="text-2xl font-extrabold font-mono tabular-nums text-amber-600 mt-2">
                     {formatCurrency(analytics.escrowLiabilityTotal)}
@@ -782,7 +782,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                   </p>
                 </div>
 
-                <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-5">
+                <div className="flex-1 min-w-[200px] bg-white border border-[#EAEAEA] rounded-[3px] p-5 flex flex-col justify-between">
                   <p className="text-xs font-semibold text-[#777777]">Saques Aguardando Transferência</p>
                   <p
                     data-testid="admin-pending-payouts-amount"
@@ -796,7 +796,7 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                   </p>
                 </div>
 
-                <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-5">
+                <div className="flex-1 min-w-[200px] bg-white border border-[#EAEAEA] rounded-[3px] p-5 flex flex-col justify-between">
                   <p className="text-xs font-semibold text-[#777777]">Total Já Repassado aos Lojistas</p>
                   <p className="text-2xl font-extrabold font-mono tabular-nums text-emerald-600 mt-2">
                     {formatCurrency(analytics.paidPayoutsTotal)}

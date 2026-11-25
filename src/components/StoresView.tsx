@@ -171,7 +171,7 @@ export function StoresView() {
           <section
             aria-label="Lista de lojas disponíveis"
             data-testid="stores-directory-grid"
-            className="grid grid-cols-1 md:grid-cols-2 gap-6"
+            className="flex flex-wrap items-stretch gap-6"
           >
             {filteredStores.map((store) => {
               const storeProducts = products.filter((p) => p.sellerId === store.id);
@@ -182,7 +182,7 @@ export function StoresView() {
                 <article
                   key={store.id}
                   data-testid={`store-directory-card-${store.id}`}
-                  className="bg-white border border-[#E5E7EB] rounded-[3px] overflow-hidden flex flex-col shadow-[0_2px_10px_rgba(10,55,104,0.04)]"
+                  className="w-full md:w-[calc(50%-12px)] bg-white border border-[#E5E7EB] rounded-[3px] overflow-hidden flex flex-col shadow-[0_2px_10px_rgba(10,55,104,0.04)]"
                 >
                   {/* Static Store Visual Cover + Logo Badge (Proporção 1000x300) */}
                   <div className="relative aspect-[10/3] w-full min-h-[190px] max-h-[250px] bg-[#0A3768] overflow-hidden">

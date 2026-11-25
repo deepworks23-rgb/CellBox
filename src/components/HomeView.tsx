@@ -253,11 +253,11 @@ export function HomeView() {
         {(subBanner1 || subBanner2) && (
           <section
             aria-label="Promoções por categoria"
-            className="!mt-3 grid grid-cols-1 md:grid-cols-12 gap-3"
+            className="!mt-3 flex flex-col md:flex-row items-stretch gap-3"
           >
             {/* Left 1/3 Banner */}
             {subBanner1 && (
-              <div className={`${subBanner2 ? 'md:col-span-4' : 'md:col-span-12'} bg-[#F1F2F4] border border-[#E7E9EC] px-5 py-5 flex items-center justify-between gap-2 overflow-hidden min-h-[146px]`}>
+              <div className={`${subBanner2 ? 'md:flex-1' : 'w-full'} bg-[#F1F2F4] border border-[#E7E9EC] px-5 py-5 flex items-center justify-between gap-2 overflow-hidden min-h-[146px]`}>
                 <div className="min-w-0 z-10">
                   <h2 className="font-condensed text-xl font-bold uppercase text-[#18A3DE] leading-tight">
                     {subBanner1.title}
@@ -287,7 +287,7 @@ export function HomeView() {
 
             {/* Right 2/3 Banner */}
             {subBanner2 && (
-              <div className={`${subBanner1 ? 'md:col-span-8' : 'md:col-span-12'} bg-[#F1F2F4] border border-[#E7E9EC] px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 overflow-hidden min-h-[146px]`}>
+              <div className={`${subBanner1 ? 'md:flex-[2]' : 'w-full'} bg-[#F1F2F4] border border-[#E7E9EC] px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 overflow-hidden min-h-[146px]`}>
                 <div className="min-w-0 max-w-xs z-10">
                   <h2 className="font-condensed text-2xl font-bold uppercase text-[#0A3768] leading-tight">
                     {subBanner2.title}
@@ -416,9 +416,9 @@ export function HomeView() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.18 }}
-                className="mb-4 p-4 bg-[#F7F9FB] border border-[#E5E7EB] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end"
+                className="mb-4 p-4 bg-[#F7F9FB] border border-[#E5E7EB] flex flex-wrap items-end gap-3"
               >
-                <div>
+                <div className="flex-1 min-w-[140px]">
                   <label htmlFor="flt-cond" className="block text-[11px] font-bold uppercase text-[#666666] mb-1">
                     Condição
                   </label>
@@ -440,7 +440,7 @@ export function HomeView() {
                   </select>
                 </div>
 
-                <div>
+                <div className="flex-1 min-w-[140px]">
                   <label htmlFor="flt-brand" className="block text-[11px] font-bold uppercase text-[#666666] mb-1">
                     Marca
                   </label>
@@ -461,7 +461,7 @@ export function HomeView() {
                   </select>
                 </div>
 
-                <div>
+                <div className="flex-1 min-w-[120px]">
                   <label htmlFor="flt-min" className="block text-[11px] font-bold uppercase text-[#666666] mb-1">
                     Preço Mín. (MT)
                   </label>
@@ -482,7 +482,7 @@ export function HomeView() {
                   />
                 </div>
 
-                <div>
+                <div className="flex-1 min-w-[120px]">
                   <label htmlFor="flt-max" className="block text-[11px] font-bold uppercase text-[#666666] mb-1">
                     Preço Máx. (MT)
                   </label>
@@ -503,7 +503,7 @@ export function HomeView() {
                   />
                 </div>
 
-                <div>
+                <div className="flex-1 min-w-[140px]">
                   <label htmlFor="flt-sort" className="block text-[11px] font-bold uppercase text-[#666666] mb-1">
                     Ordenar por
                   </label>
@@ -527,7 +527,7 @@ export function HomeView() {
                   </select>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   <MotionButton
                     type="button"
                     onClick={() => {
@@ -571,10 +571,15 @@ export function HomeView() {
           ) : (
             <div
               data-testid="catalog-product-grid"
-              className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 border-t border-l border-[#EAEAEA]"
+              className="flex flex-wrap items-stretch border-t border-l border-[#EAEAEA]"
             >
               {visiblePageProducts.map((product) => (
-                <ProductCard key={product.id} product={product} tiled />
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  tiled
+                  className="w-1/2 sm:w-1/3 lg:w-1/5"
+                />
               ))}
             </div>
           )}
@@ -705,14 +710,14 @@ export function HomeView() {
             initial={{ opacity: 0.25, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+            className="flex flex-wrap items-stretch gap-6"
           >
               {visibleStoreCards.map((card) => (
                 <motion.article
                   key={card.id}
                   whileHover={{ y: -4 }}
                   transition={SPRING_CARD}
-                  className="flex flex-col"
+                  className="w-full md:w-[calc(33.333%-16px)] flex flex-col"
                 >
                   <button
                     type="button"
@@ -746,7 +751,7 @@ export function HomeView() {
                     {card.description}
                   </p>
 
-                  <div className="mt-4">
+                  <div className="mt-auto pt-4">
                     <MotionButton
                       type="button"
                       onClick={card.onAction}
@@ -770,7 +775,7 @@ export function HomeView() {
         <section
           aria-label="Marcas parceiras"
           data-testid="partner-brands-strip"
-          className="pt-8 pb-4 border-t border-[#EFEFEF] grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4 sm:gap-6 items-center"
+          className="pt-8 pb-4 border-t border-[#EFEFEF] flex flex-wrap items-center justify-center sm:justify-between gap-4 sm:gap-6"
         >
           {partnerBrands.map((b) => (
             <motion.button

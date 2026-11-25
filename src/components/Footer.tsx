@@ -197,8 +197,8 @@ export function Footer() {
 
       {/* Band 2: 5-Column White Links Directory */}
       <div className="bg-white border-b border-[#EAEAEA]">
-        <div className="max-w-[1170px] mx-auto px-4 py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8">
-          <div className="lg:col-span-1">
+        <div className="max-w-[1170px] mx-auto px-4 py-10 flex flex-wrap justify-between gap-8">
+          <div className="flex-1 min-w-[200px]">
             <h3 className="font-condensed text-[14px] font-bold uppercase tracking-wide text-[#0A3768] mb-4">
               CONTATO
             </h3>
@@ -245,7 +245,7 @@ export function Footer() {
             </ul>
           </div>
 
-          <div>
+          <div className="flex-1 min-w-[160px]">
             <h3 className="font-condensed text-[14px] font-bold uppercase tracking-wide text-[#0A3768] mb-4">
               INSTITUCIONAL
             </h3>
@@ -298,7 +298,7 @@ export function Footer() {
             </ul>
           </div>
 
-          <div>
+          <div className="flex-1 min-w-[160px]">
             <h3 className="font-condensed text-[14px] font-bold uppercase tracking-wide text-[#0A3768] mb-4">
               MINHA CONTA
             </h3>
@@ -440,7 +440,7 @@ export function Footer() {
             </ul>
           </div>
 
-          <div>
+          <div className="flex-1 min-w-[160px]">
             <h3 className="font-condensed text-[14px] font-bold uppercase tracking-wide text-[#0A3768] mb-4">
               ATENDIMENTO
             </h3>
