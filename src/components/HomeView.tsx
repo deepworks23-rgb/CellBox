@@ -174,35 +174,44 @@ export function HomeView() {
                 >
                   {/* Left Copy Column — Tightly Aligned Vertical Axis */}
                   <div className="md:col-span-6 flex flex-col items-start text-left text-white z-10 min-w-0">
-                    <p className="text-[11px] sm:text-xs font-bold tracking-[0.16em] uppercase text-[#B7F2FA]">
-                      {activeSlide.kicker}
+                    <p className="text-[11px] sm:text-xs font-bold tracking-[0.16em] uppercase text-[#B7F2FA] truncate max-w-full">
+                      {activeSlide.kicker || (activeSlide as any).badge}
                     </p>
-                    <h1 className="font-condensed text-[34px] sm:text-[46px] lg:text-[52px] font-bold uppercase tracking-tight leading-[1.02] text-white mt-2 max-w-[440px] [text-wrap:balance]">
+                    <h1 className="font-condensed text-[28px] sm:text-[38px] lg:text-[44px] font-bold uppercase tracking-tight leading-[1.06] text-white mt-2 max-w-[540px] [text-wrap:balance]">
                       {activeSlide.title}
                     </h1>
-                    <p className="mt-3 text-[13px] sm:text-[15px] text-white/90 max-w-[420px] leading-relaxed">
+                    <p className="mt-3 text-[13px] sm:text-[15px] text-white/90 max-w-[480px] leading-relaxed line-clamp-3">
                       {activeSlide.subtitle}
                     </p>
-                    <p className="mt-2.5 text-xs font-medium text-[#C8F5FC] tabular-nums">
-                      {activeSlide.highlight}
-                    </p>
+                    {activeSlide.highlight && (
+                      <p className="mt-2.5 text-xs font-medium text-[#C8F5FC] tabular-nums">
+                        {activeSlide.highlight}
+                      </p>
+                    )}
                     <div className="mt-6 flex flex-wrap items-center gap-3">
                       <MotionButton
                         type="button"
                         onClick={() => {
+                          const targetCat = (activeSlide as any).ctaCategory || (activeSlide as any).category;
                           if (activeSlide.productId) {
                             navigate({ type: 'product', productId: activeSlide.productId });
                           } else {
+                            if (targetCat && targetCat !== 'Todos') {
+                              setFilters((prev) => ({ ...prev, category: targetCat, condition: 'all' }));
+                              setPageIdx(0);
+                            }
                             document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
                           }
                         }}
                         className="h-10 px-6 rounded-full bg-white text-[#0A3768] hover:bg-[#EAF6FC] text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer shadow-sm whitespace-nowrap shrink-0"
                       >
-                        {(activeSlide as any).ctaText || (activeSlide as any).cta || 'VER OFERTAS'}
+                        {(activeSlide as any).ctaText || (activeSlide as any).cta || (activeSlide as any).ctaLabel || 'VER OFERTAS'}
                       </MotionButton>
                       <MotionButton
                         type="button"
                         onClick={() => {
+                          setFilters((prev) => ({ ...prev, category: 'Todas', condition: 'all' }));
+                          setPageIdx(0);
                           document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
                         }}
                         className="h-10 px-5 rounded-full border border-white/75 text-white hover:bg-white/15 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap shrink-0"
@@ -257,7 +266,8 @@ export function HomeView() {
             {subBanners.map((banner, idx) => {
               const imgSrc = banner.imageUrl || banner.image || '';
               const ratio = banner.aspectRatio || 'auto';
-              const ctaLabel = banner.ctaText || banner.cta || '';
+              const ctaLabel = banner.ctaText || banner.cta || (banner as any).ctaLabel || '';
+              const targetCategory = banner.category || (banner as any).ctaCategory || '';
               const hasText = Boolean(banner.title?.trim() || banner.subtitle?.trim() || ctaLabel.trim());
 
               const widthClass =
@@ -283,8 +293,12 @@ export function HomeView() {
                         : 'min-h-[146px]';
 
               const handleBannerClick = () => {
-                if (banner.category?.trim()) {
-                  setFilters((prev) => ({ ...prev, category: banner.category!.trim() }));
+                if (targetCategory.trim()) {
+                  setFilters((prev) => ({
+                    ...prev,
+                    category: targetCategory.trim() === 'Todos' ? 'Todas' : targetCategory.trim(),
+                    condition: 'all',
+                  }));
                 }
                 setPageIdx(0);
                 document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
@@ -303,9 +317,9 @@ export function HomeView() {
                       className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 select-none"
                     />
                     {hasText && (
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#0A3768]/85 via-[#0A3768]/25 to-transparent p-5 flex flex-col justify-end">
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#0A3768]/85 via-[#0A3768]/30 to-transparent p-4 flex flex-col justify-end">
                         {banner.title && (
-                          <h2 className="font-condensed text-xl sm:text-2xl font-bold uppercase text-white leading-tight">
+                          <h2 className="font-condensed text-lg sm:text-xl font-bold uppercase text-white leading-snug line-clamp-2">
                             {banner.title}
                           </h2>
                         )}
@@ -313,8 +327,8 @@ export function HomeView() {
                           <p className="text-xs text-white/90 mt-0.5 line-clamp-2">{banner.subtitle}</p>
                         )}
                         {ctaLabel && (
-                          <div className="mt-3">
-                            <span className="h-7 px-4 rounded-full bg-[#18A3DE] group-hover:bg-[#0475EE] text-white text-[10px] font-bold uppercase tracking-wider inline-flex items-center transition-colors">
+                          <div className="mt-2.5">
+                            <span className="h-7 px-4 rounded-full bg-[#18A3DE] group-hover:bg-[#0475EE] text-white text-[10px] font-bold uppercase tracking-wider inline-flex items-center whitespace-nowrap transition-colors">
                               {ctaLabel}
                             </span>
                           </div>
@@ -362,72 +376,51 @@ export function HomeView() {
           </section>
         )}
 
-        {/* 3. NOVIDADES & CATÁLOGO PRINCIPAL — 5-Column Grid + Animated Pill Category Tabs */}
+        {/* 3. NOVIDADES & CATÁLOGO PRINCIPAL — 5-Column Grid + Clean Single-Row Scrollable Category Bar */}
         <section id="catalogo-principal" aria-labelledby="heading-catalog" className="pt-2">
-          <div className="flex flex-wrap items-center justify-between gap-3 pb-3.5">
-            <div className="flex items-baseline gap-3">
-              <h2
-                id="heading-catalog"
-                className="font-condensed text-[22px] font-bold uppercase tracking-wide text-[#0A3768]"
-              >
-                {filters.search.trim()
-                  ? `BUSCA: "${filters.search.trim()}"`
-                  : 'NOVIDADES & DESTAQUES'}
-              </h2>
-              <p className="text-xs text-[#888888] tabular-nums">
-                {filteredProducts.length}{' '}
-                {filteredProducts.length === 1 ? 'produto disponível' : 'produtos disponíveis'}
-              </p>
-            </div>
+          <div className="flex flex-col gap-3 pb-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-baseline gap-3 min-w-0">
+                <h2
+                  id="heading-catalog"
+                  className="font-condensed text-[22px] font-bold uppercase tracking-wide text-[#0A3768] whitespace-nowrap"
+                >
+                  {filters.search.trim()
+                    ? `BUSCA: "${filters.search.trim()}"`
+                    : 'NOVIDADES & DESTAQUES'}
+                </h2>
+                <p className="text-xs text-[#888888] tabular-nums whitespace-nowrap">
+                  {filteredProducts.length}{' '}
+                  {filteredProducts.length === 1 ? 'produto disponível' : 'produtos disponíveis'}
+                </p>
+              </div>
 
-            <div className="flex flex-wrap items-center gap-1.5">
-              {pillCategories.map((cat) => {
-                const active = filters.category === cat;
-                return (
-                  <MotionButton
-                    key={cat}
-                    type="button"
-                    hoverScale={1.04}
-                    hoverY={-1}
-                    onClick={() => {
-                      setFilters((prev) => ({ ...prev, category: cat }));
-                      setPageIdx(0);
-                    }}
-                    className={`h-7 px-3.5 rounded-full text-[11px] font-bold uppercase tracking-wide transition-colors whitespace-nowrap cursor-pointer ${active
-                      ? 'bg-[#0475EE] text-white shadow-xs'
-                      : 'bg-[#F2F3F5] text-[#666666] hover:bg-[#EAF6FC] hover:text-[#0A3768]'
-                      }`}
-                  >
-                    {cat === 'Todas' ? 'Todos' : cat}
-                  </MotionButton>
-                );
-              })}
-
-              <MotionButton
-                type="button"
-                hoverScale={1.04}
-                hoverY={-1}
-                onClick={() => setFiltersPanelOpen((v) => !v)}
-                aria-expanded={filtersPanelOpen}
-                className={`h-7 px-3 rounded-full text-[11px] font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer ${filtersPanelOpen || hasExtraFilters
-                  ? 'bg-[#0A3768] text-white'
-                  : 'bg-[#F2F3F5] text-[#555555] hover:bg-[#EAF6FC] hover:text-[#0A3768]'
-                  }`}
-              >
-                <SlidersHorizontal className="w-3 h-3" />
-                <span>Filtros</span>
-              </MotionButton>
-
-              <div className="flex items-center gap-1 ml-1">
+              <div className="flex items-center gap-2 shrink-0">
                 <MotionButton
                   type="button"
-                  hoverScale={1.08}
-                  hoverY={0}
-                  aria-label="Página anterior de produtos"
-                  disabled={safePageIdx <= 0}
-                  onClick={() => setPageIdx((p) => Math.max(0, p - 1))}
-                  className="w-7 h-7 rounded-full bg-[#B5C8D4] hover:bg-[#0475EE] disabled:opacity-45 text-white inline-flex items-center justify-center transition-colors cursor-pointer"
+                  hoverScale={1.04}
+                  hoverY={-1}
+                  onClick={() => setFiltersPanelOpen((v) => !v)}
+                  aria-expanded={filtersPanelOpen}
+                  className={`h-7 px-3 rounded-full text-[11px] font-semibold inline-flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer ${filtersPanelOpen || hasExtraFilters
+                    ? 'bg-[#0A3768] text-white'
+                    : 'bg-[#F2F3F5] text-[#555555] hover:bg-[#EAF6FC] hover:text-[#0A3768]'
+                    }`}
                 >
+                  <SlidersHorizontal className="w-3 h-3" />
+                  <span>Filtros</span>
+                </MotionButton>
+
+                <div className="flex items-center gap-1">
+                  <MotionButton
+                    type="button"
+                    hoverScale={1.08}
+                    hoverY={0}
+                    aria-label="Página anterior de produtos"
+                    disabled={safePageIdx <= 0}
+                    onClick={() => setPageIdx((p) => Math.max(0, p - 1))}
+                    className="w-7 h-7 rounded-full bg-[#B5C8D4] hover:bg-[#0475EE] disabled:opacity-45 text-white inline-flex items-center justify-center transition-colors cursor-pointer"
+                  >
                   <ChevronLeft className="w-4 h-4" />
                 </MotionButton>
                 <MotionButton
@@ -442,6 +435,31 @@ export function HomeView() {
                   <ChevronRight className="w-4 h-4" />
                 </MotionButton>
               </div>
+            </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+              {pillCategories.map((cat) => {
+                const active = filters.category === cat;
+                return (
+                  <MotionButton
+                    key={cat}
+                    type="button"
+                    hoverScale={1.04}
+                    hoverY={-1}
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, category: cat }));
+                      setPageIdx(0);
+                    }}
+                    className={`h-7 px-3.5 rounded-full text-[11px] font-bold uppercase tracking-wide transition-colors whitespace-nowrap shrink-0 cursor-pointer ${active
+                      ? 'bg-[#0475EE] text-white shadow-xs'
+                      : 'bg-[#F2F3F5] text-[#666666] hover:bg-[#EAF6FC] hover:text-[#0A3768]'
+                      }`}
+                  >
+                    {cat === 'Todas' ? 'Todos' : cat}
+                  </MotionButton>
+                );
+              })}
             </div>
           </div>
 
@@ -627,31 +645,36 @@ export function HomeView() {
           aria-label="Oferta especial de economia"
           className="bg-[#F1F2F4] border border-[#E7E9EC] px-6 sm:px-10 py-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 overflow-hidden"
         >
-          <div className="max-w-md z-10">
+          <div className="max-w-lg z-10">
             <h2 className="font-condensed text-2xl sm:text-[28px] font-bold uppercase text-[#0A3768] leading-tight">
               {wideBanner.title}
             </h2>
             <p className="text-[11px] font-bold uppercase tracking-wider text-[#18A3DE] mt-0.5">
-              {wideBanner.kicker}
+              {wideBanner.kicker || (wideBanner as any).badge}
             </p>
             <p className="text-xs text-[#666666] mt-2 leading-relaxed">
-              {wideBanner.description}
+              {wideBanner.description || (wideBanner as any).subtitle}
             </p>
             <MotionButton
               type="button"
               onClick={() => {
+                const targetCat = (wideBanner as any).ctaCategory;
+                if (!targetCat || targetCat === 'Todos' || targetCat === 'Todas') {
+                  navigate({ type: 'stores' });
+                  return;
+                }
                 setFilters((prev) => ({
                   ...prev,
-                  category: 'Todas',
-                  condition: 'Recondicionado',
+                  category: targetCat,
+                  condition: 'all',
                 }));
                 setPageIdx(0);
                 document.getElementById('catalogo-principal')?.scrollIntoView({ behavior: 'smooth' });
               }}
-              className="mt-4 h-8 px-5 rounded-full bg-[#0A3768] hover:bg-[#0475EE] text-white text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="mt-4 h-8 px-5 rounded-full bg-[#0A3768] hover:bg-[#0475EE] text-white text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer"
             >
               <ShoppingCart className="w-3.5 h-3.5" />
-              {(wideBanner as any).ctaText || (wideBanner as any).cta || 'VER SEMINOVOS CERTIFICADOS'}
+              {(wideBanner as any).ctaText || (wideBanner as any).cta || (wideBanner as any).ctaLabel || 'EXPLORAR LOJAS OFICIAIS'}
             </MotionButton>
           </div>
 
@@ -676,18 +699,18 @@ export function HomeView() {
         {/* 5. LOJAS OFICIAIS VERIFICADAS — Interactive Multi-Slide Carousel */}
         {storeShowcaseCards.length > 0 && (
         <section id="lojas-oficiais" aria-labelledby="heading-verified-stores" className="pt-2">
-          <div className="flex items-center justify-between gap-4 pb-4">
-            <div className="flex items-baseline gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 pb-4">
+            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
               <h2
                 id="heading-verified-stores"
-                className="font-condensed text-[22px] font-bold uppercase tracking-wide text-[#0A3768]"
+                className="font-condensed text-[22px] font-bold uppercase tracking-wide text-[#0A3768] whitespace-nowrap"
               >
                 LOJAS OFICIAIS VERIFICADAS
               </h2>
               <button
                 type="button"
                 onClick={() => navigate({ type: 'stores' })}
-                className="text-xs font-bold text-[#0475EE] hover:text-[#0A3768] transition-colors cursor-pointer"
+                className="text-xs font-bold text-[#0475EE] hover:text-[#0A3768] whitespace-nowrap transition-colors cursor-pointer"
               >
                 Ver todas as lojas →
               </button>

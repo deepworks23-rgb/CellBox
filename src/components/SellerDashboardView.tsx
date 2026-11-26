@@ -1600,7 +1600,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                               {entry.fulfillment.status}
                             </span>
                           </span>
-                          {nextStatus ? (
+                          {nextStatus && nextStatus !== 'Entregue' ? (
                             <MotionButton
                               type="button"
                               onClick={() =>
@@ -1611,8 +1611,13 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                               Avançar para {nextStatus}
                               <ArrowRight className="w-3.5 h-3.5" />
                             </MotionButton>
+                          ) : nextStatus === 'Entregue' ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EAF6FC] text-[#0A3768] text-[11px] font-bold whitespace-nowrap">
+                              <Clock className="w-3.5 h-3.5 text-[#18A3DE]" />
+                              Aguardando confirmação do comprador
+                            </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-xs font-bold text-[#0A3768]">
+                            <span className="inline-flex items-center gap-1 text-xs font-bold text-[#0A3768] whitespace-nowrap">
                               <CheckCircle2 className="w-4 h-4 text-[#0475EE]" />
                               Concluído
                             </span>

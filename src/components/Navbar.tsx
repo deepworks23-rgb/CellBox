@@ -140,13 +140,13 @@ export function Navbar() {
       {/* 1. Top Slim Utility Bar (#EFEFEF) */}
       <div className="bg-[#EFEFEF] border-b border-[#E3E3E3] text-[11px] text-[#666666]">
         <div className="max-w-[1170px] mx-auto px-4 h-8 flex items-center justify-between gap-3">
-          <div className="hidden sm:flex items-center gap-5">
-            <span className="inline-flex items-center gap-1.5">
-              <Mail className="w-3.5 h-3.5 text-[#18A3DE]" />
+          <div className="hidden sm:flex items-center gap-5 min-w-0">
+            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+              <Mail className="w-3.5 h-3.5 text-[#18A3DE] shrink-0" />
               <span>E-mail: {siteCustomization?.header?.email || 'suporte@cellbox.co.mz'}</span>
             </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Phone className="w-3.5 h-3.5 text-[#18A3DE]" />
+            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+              <Phone className="w-3.5 h-3.5 text-[#18A3DE] shrink-0" />
               <span>Atendimento: {siteCustomization?.header?.phone || '+258 84 400 2026'}</span>
             </span>
           </div>
@@ -482,7 +482,7 @@ export function Navbar() {
                   {cartCount}
                 </motion.span>
               </div>
-              <div className="text-left leading-tight">
+              <div className="text-left leading-tight whitespace-nowrap">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-[#555555]">
                   Meu Carrinho
                 </p>
@@ -495,18 +495,18 @@ export function Navbar() {
             <MotionButton
               type="button"
               onClick={() => navigate({ type: 'seller_dashboard', tab: 'overview' })}
-              className="h-9 px-4 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wide inline-flex items-center gap-1.5 cursor-pointer shrink-0"
+              className="h-9 px-4 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-xs font-bold uppercase tracking-wide inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer shrink-0"
             >
-              <Store className="w-3.5 h-3.5" />
+              <Store className="w-3.5 h-3.5 shrink-0" />
               Minha Loja
             </MotionButton>
           ) : (
             <MotionButton
               type="button"
               onClick={() => navigate({ type: 'admin_dashboard', tab: 'overview' })}
-              className="h-9 px-4 rounded-full bg-[#0A3768] hover:bg-[#0475EE] text-white text-xs font-bold uppercase tracking-wide inline-flex items-center gap-1.5 cursor-pointer shrink-0"
+              className="h-9 px-4 rounded-full bg-[#0A3768] hover:bg-[#0475EE] text-white text-xs font-bold uppercase tracking-wide inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer shrink-0"
             >
-              <ShieldCheck className="w-3.5 h-3.5" />
+              <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
               Painel Admin
             </MotionButton>
           )}

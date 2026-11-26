@@ -158,18 +158,18 @@ export function ProductCard({ product, tiled = true, className = '' }: ProductCa
             </span>
           </>
         ) : (
-          <span className="text-[10.5px] text-[#AAAAAA]">Sem avaliações</span>
+          <span className="text-[10.5px] text-[#AAAAAA] whitespace-nowrap">Sem avaliações</span>
         )}
       </div>
 
       {/* Centered Bold Brand Price in Metical (MT) */}
       <div className="mt-2">
         {product.originalPrice && product.originalPrice > product.price && (
-          <p className="text-[11px] text-[#AAAAAA] line-through font-mono tabular-nums">
+          <p className="text-[11px] text-[#AAAAAA] line-through font-mono tabular-nums whitespace-nowrap">
             {formatCurrency(product.originalPrice)}
           </p>
         )}
-        <p className="text-[14.5px] font-bold text-[#0475EE] font-mono tabular-nums">
+        <p className="text-[14.5px] font-bold text-[#0475EE] font-mono tabular-nums whitespace-nowrap">
           {formatCurrency(product.price)}
         </p>
       </div>

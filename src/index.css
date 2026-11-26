@@ -40,6 +40,14 @@
   font-feature-settings: "zero" 0;
 }
 
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Hero gradient matching exact official Cellbox logo sweep with subtle product spotlight */
 .cellbox-hero-gradient {
   background:

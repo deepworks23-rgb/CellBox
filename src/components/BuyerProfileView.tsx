@@ -55,6 +55,7 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
     removeAddress,
     updateProfile,
     changePassword,
+    updateOrderFulfillmentStatus,
     uploadImageAsset,
     logout,
     navigate,
@@ -460,20 +461,34 @@ export function BuyerProfileView({ initialTab = 'orders' }: BuyerProfileViewProp
                               Rastreio: {f.trackingCode}
                             </span>
                           </div>
-                          <span className="inline-flex items-center gap-1.5 text-xs font-bold">
-                            {f.status === 'Entregue' ? (
-                              <CheckCircle2 className="w-4 h-4 text-[#0475EE]" />
-                            ) : (
-                              <Truck className="w-4 h-4 text-[#18A3DE]" />
-                            )}
-                            <span
-                              className={
-                                f.status === 'Entregue' ? 'text-[#0A3768]' : 'text-[#18A3DE]'
-                              }
-                            >
-                              {f.status}
+                          <div className="flex flex-wrap items-center gap-3">
+                            <span className="inline-flex items-center gap-1.5 text-xs font-bold whitespace-nowrap">
+                              {f.status === 'Entregue' ? (
+                                <CheckCircle2 className="w-4 h-4 text-[#0475EE]" />
+                              ) : (
+                                <Truck className="w-4 h-4 text-[#18A3DE]" />
+                              )}
+                              <span
+                                className={
+                                  f.status === 'Entregue' ? 'text-[#0A3768]' : 'text-[#18A3DE]'
+                                }
+                              >
+                                {f.status}
+                              </span>
                             </span>
-                          </span>
+                            {f.status === 'Enviado' && (
+                              <MotionButton
+                                type="button"
+                                onClick={() =>
+                                  void updateOrderFulfillmentStatus(order.id, f.sellerId, 'Entregue')
+                                }
+                                className="h-7 px-3.5 rounded-full bg-[#0475EE] hover:bg-[#0A3768] text-white text-[10.5px] font-bold uppercase tracking-wide inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                Confirmar Receção
+                              </MotionButton>
+                            )}
+                          </div>
                         </div>
 
                         {/* Visual Tracking Stepper */}
