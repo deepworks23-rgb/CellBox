@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import type { Response } from 'express';
-import type { SiteCustomization } from '../types.ts';
+import type { SellerStore, SiteCustomization } from '../types.ts';
 
 export type UserRole = 'admin' | 'seller' | 'buyer';
 
@@ -12,6 +12,16 @@ const SENSITIVE_GATEWAY_KEYS = [
   'emolaApiKey',
   'emolaPublicKey',
 ] as const;
+
+/**
+ * Comparação de segredos em tempo constante para webhooks e tokens.
+ */
+export function safeSecretEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a, 'utf8');
+  const bufB = Buffer.from(b, 'utf8');
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 /**
  * Centraliza a verificação de papel do usuário (Conformidade 6.2).
@@ -249,6 +259,9 @@ function transformGatewaySecrets(
 ): SiteCustomization['gateways'] | undefined {
   if (!gateways) return gateways;
   const next: NonNullable<SiteCustomization['gateways']> = { ...gateways };
+  if (typeof next.escalePayWebhookSecret === 'string' && next.escalePayWebhookSecret.trim().length > 0) {
+    next.escalePayWebhookSecret = fn(next.escalePayWebhookSecret, masterSecret);
+  }
   for (const providerKey of ['paySuite', 'debitoPay', 'mpesaDirect'] as const) {
     const cfg = next[providerKey];
     if (!cfg) continue;
@@ -276,4 +289,42 @@ export function decryptGatewaySecrets(
   masterSecret: string
 ): SiteCustomization['gateways'] | undefined {
   return transformGatewaySecrets(gateways, masterSecret, decryptSecret);
+}
+
+/**
+ * Remove documentos KYC, comprovativos financeiros e dados bancários das lojas
+ * quando o requisitante não é o Super Admin nem o lojista proprietário.
+ */
+export function sanitizeSellersForUser(
+  sellers: readonly SellerStore[],
+  user: { id?: string; role?: string; sellerId?: string } | null | undefined
+): SellerStore[] {
+  if (hasRole(user, ['admin'])) {
+    return [...sellers];
+  }
+  return sellers.map((seller) => {
+    const isOwner = Boolean(
+      user?.id && (seller.ownerUserId === user.id || (user.sellerId && seller.id === user.sellerId))
+    );
+    if (isOwner) return seller;
+    return {
+      ...seller,
+      documentId: '',
+      kyc: seller.kyc ? { status: seller.kyc.status ?? 'not_submitted' } : undefined,
+      activation: seller.activation
+        ? {
+            profileCompleted: Boolean(seller.activation.profileCompleted),
+            kycCompleted: Boolean(seller.activation.kycCompleted),
+            feePaid: Boolean(seller.activation.feePaid),
+            feeStatus: seller.activation.feeStatus,
+          }
+        : undefined,
+      payoutInfo: {
+        bankName: '',
+        accountType: '',
+        accountNumber: '',
+        pixOrWallet: '',
+      },
+    };
+  });
 }

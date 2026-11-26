@@ -684,8 +684,8 @@ export async function findUserByPhone(phone: string): Promise<StoredUser | null>
   if (!normalized) return null;
   const res = await query(
     `SELECT * FROM users
-     WHERE regexp_replace(COALESCE(phone, ''), '\\D', 'g') = $1
-        OR regexp_replace(COALESCE(phone, ''), '\\D', 'g') = $2
+     WHERE regexp_replace(COALESCE(phone, ''), '\\D', '', 'g') = $1
+        OR regexp_replace(COALESCE(phone, ''), '\\D', '', 'g') = $2
      LIMIT 1`,
     [normalized, `258${normalized}`]
   );

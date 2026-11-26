@@ -56,3 +56,14 @@ test('metadata de entrada não usa placeholder genérico (react-example)', () =>
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
   assert.ok(html.includes('CellBox'), 'index.html deve identificar o produto CellBox');
 });
+
+test('cerca de papéis (Conformidade 6.2): nenhuma comparação manual de .role em src/server/app.ts', () => {
+  const appPath = path.join(ROOT, 'src', 'server', 'app.ts');
+  const content = fs.readFileSync(appPath, 'utf8');
+  const manualRoleChecks = content.match(/\.role\s*[!=]==?/g) ?? [];
+  assert.equal(
+    manualRoleChecks.length,
+    0,
+    `Encontradas ${manualRoleChecks.length} comparações manuais de .role em src/server/app.ts; use requireRole/hasRole de src/server/security.ts.`
+  );
+});

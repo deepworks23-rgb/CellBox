@@ -57,7 +57,13 @@ import {
   validateImageUploadPayload,
 } from './storage.ts';
 import { isEmailServiceConfigured, sendPasswordResetEmail } from './mailer.ts';
-import { hasRole, LoginRateLimiter, requireRole } from './security.ts';
+import {
+  hasRole,
+  LoginRateLimiter,
+  requireRole,
+  safeSecretEqual,
+  sanitizeSellersForUser,
+} from './security.ts';
 
 const PORT = Number(process.env.PORT) || 3000;
 const SESSION_COOKIE_NAME = 'cellbox_session';
@@ -182,9 +188,9 @@ function clearSessionCookie(req: Request, res: Response): void {
 
 function sanitizeSiteCustomizationForRole(
   settings: SiteCustomization,
-  role?: User['role'] | null
+  user?: { role?: string } | null
 ): SiteCustomization {
-  if (role === 'admin') return settings;
+  if (hasRole(user, ['admin'])) return settings;
   const g = settings.gateways;
   if (!g) return settings;
   return {
@@ -228,7 +234,7 @@ async function buildBootstrapPayload(user: StoredUser | null) {
     db.getCommissionRate().catch(() => 10),
     user ? db.listAddressesByUser(user.id).catch(() => []) : Promise.resolve([]),
     user ? db.listWishlistByUser(user.id).catch(() => []) : Promise.resolve([]),
-    user?.role === 'admin' ? db.listUsers().catch(() => []) : Promise.resolve([]),
+    hasRole(user, ['admin']) ? db.listUsers().catch(() => []) : Promise.resolve([]),
     db.getSiteCustomization().catch(() => DEFAULT_SITE_CUSTOMIZATION),
     db.listScopedPayouts(user).catch(() => []),
   ]);
@@ -236,19 +242,19 @@ async function buildBootstrapPayload(user: StoredUser | null) {
   return {
     currentUser: user ? toPublicUser(user) : null,
     users:
-      user?.role === 'admin'
+      hasRole(user, ['admin'])
         ? allUsers.map(toPublicUser)
         : user
           ? [toPublicUser(user)]
           : [],
-    sellers,
+    sellers: sanitizeSellersForUser(sellers, user),
     products,
     categories,
     orders,
     addresses,
     wishlist,
     commissionRate,
-    siteCustomization: sanitizeSiteCustomizationForRole(siteCustomization, user?.role),
+    siteCustomization: sanitizeSiteCustomizationForRole(siteCustomization, user),
     payouts,
   };
 }
@@ -568,10 +574,7 @@ export function createApiApp(): Express {
     '/api/seller/kyc',
     asyncHandler(async (req, res) => {
       const user = await getAuthenticatedUser(req);
-      if (!user || user.role !== 'seller') {
-        res.status(401).json({ error: 'Apenas vendedores podem submeter verificação KYC.' });
-        return;
-      }
+      if (!requireRole(user, ['seller'], res, 'Apenas vendedores podem submeter verificação KYC.')) return;
       const seller = await db.findSellerOwnedBy(user.id, user.sellerId);
       if (!seller) {
         res.status(404).json({ error: 'Loja não encontrada.' });
@@ -616,10 +619,7 @@ export function createApiApp(): Express {
     '/api/seller/activate-fee',
     asyncHandler(async (req, res) => {
       const user = await getAuthenticatedUser(req);
-      if (!user || user.role !== 'seller') {
-        res.status(401).json({ error: 'Acesso restrito ao vendedor.' });
-        return;
-      }
+      if (!requireRole(user, ['seller'], res, 'Acesso restrito ao vendedor.')) return;
       const seller = await db.findSellerOwnedBy(user.id, user.sellerId);
       if (!seller) {
         res.status(404).json({ error: 'Loja não encontrada.' });
@@ -674,6 +674,32 @@ export function createApiApp(): Express {
         return;
       }
 
+      const customization = await db.getSiteCustomization();
+      const expectedSecret = customization.gateways?.escalePayWebhookSecret?.trim() || '';
+      if (!expectedSecret) {
+        res.status(503).json({
+          ok: false,
+          error: 'Segredo de webhook EscalePay não configurado no painel administrativo.',
+        });
+        return;
+      }
+
+      const providedHeader = String(
+        req.headers['x-webhook-secret'] ||
+          req.headers['x-escalepay-signature'] ||
+          req.headers['x-signature'] ||
+          req.headers.authorization?.replace(/^Bearer\s+/i, '') ||
+          ''
+      ).trim();
+      const bodySecret = String((req.body as Record<string, unknown> | undefined)?.secret || '').trim();
+      const secretOk =
+        (providedHeader.length > 0 && safeSecretEqual(providedHeader, expectedSecret)) ||
+        (bodySecret.length > 0 && safeSecretEqual(bodySecret, expectedSecret));
+      if (!secretOk) {
+        res.status(401).json({ ok: false, error: 'Assinatura/segredo do webhook EscalePay inválido.' });
+        return;
+      }
+
       const payload = (req.body || {}) as Record<string, any>;
       const data = payload.data || payload;
       const customer = data.customer || payload.customer || {};
@@ -687,16 +713,16 @@ export function createApiApp(): Express {
         `TX-${Date.now()}`
       );
 
-      const status = String(data.status || payload.status || payload.event || '').toLowerCase();
+      const status = String(data.status || payload.status || payload.event || '').toLowerCase().trim();
 
-      // Check if event/status signifies approved payment
+      // Exige status explícito de pagamento aprovado (nunca trata status vazio como pago)
       const isSuccess =
-        !status ||
-        status.includes('paid') ||
-        status.includes('approved') ||
-        status.includes('success') ||
-        status.includes('completed') ||
-        status.includes('sale.approved');
+        status.length > 0 &&
+        (status.includes('paid') ||
+          status.includes('approved') ||
+          status.includes('success') ||
+          status.includes('completed') ||
+          status.includes('sale.approved'));
 
       // Extract seller reference from metadata / reference / params
       const reference = String(
@@ -793,25 +819,34 @@ export function createApiApp(): Express {
 
       const expectedSecret =
         provider === 'paysuite'
-          ? gateways.paySuite?.webhookSecret?.trim()
+          ? gateways.paySuite?.webhookSecret?.trim() || ''
           : provider === 'debitopay'
-            ? gateways.debitoPay?.webhookSecret?.trim()
-            : '';
+            ? gateways.debitoPay?.webhookSecret?.trim() || ''
+            : gateways.mpesaDirect?.apiKey?.trim() || '';
 
-      if (expectedSecret) {
-        const providedHeader = String(
-          req.headers['x-webhook-secret'] ||
-            req.headers['x-paysuite-signature'] ||
-            req.headers['x-debito-signature'] ||
-            req.headers['x-signature'] ||
-            req.headers.authorization?.replace(/^Bearer\s+/i, '') ||
-            ''
-        ).trim();
-        const bodySecret = String((req.body as Record<string, unknown> | undefined)?.secret || '').trim();
-        if (providedHeader !== expectedSecret && bodySecret !== expectedSecret) {
-          res.status(401).json({ ok: false, error: 'Assinatura/segredo do webhook inválido.' });
-          return;
-        }
+      if (!expectedSecret) {
+        res.status(503).json({
+          ok: false,
+          error: `Segredo/chave do webhook ${provider} não configurado no painel administrativo.`,
+        });
+        return;
+      }
+
+      const providedHeader = String(
+        req.headers['x-webhook-secret'] ||
+          req.headers['x-paysuite-signature'] ||
+          req.headers['x-debito-signature'] ||
+          req.headers['x-signature'] ||
+          req.headers.authorization?.replace(/^Bearer\s+/i, '') ||
+          ''
+      ).trim();
+      const bodySecret = String((req.body as Record<string, unknown> | undefined)?.secret || '').trim();
+      const secretOk =
+        (providedHeader.length > 0 && safeSecretEqual(providedHeader, expectedSecret)) ||
+        (bodySecret.length > 0 && safeSecretEqual(bodySecret, expectedSecret));
+      if (!secretOk) {
+        res.status(401).json({ ok: false, error: 'Assinatura/segredo do webhook inválido.' });
+        return;
       }
 
       console.log(`[CellBox Webhook:${provider}] Notificação recebida:`, {
@@ -909,21 +944,23 @@ export function createApiApp(): Express {
         return;
       }
 
-      const user = await db.findUserByEmail(normalizedEmail);
-      if (!user) {
-        // Conformidade 6.6: não revelar na resposta se o e-mail possui conta registada.
-        res.json({
-          ok: true,
-          message:
-            'Se existir uma conta registada com este e-mail, enviámos um link de redefinição de senha. Verifique a caixa de entrada e a pasta de spam.',
-        });
-        return;
-      }
-
       if (!isEmailServiceConfigured()) {
         res.status(503).json({
           error:
             'O serviço de envio de e-mail não está configurado no servidor. Configure SMTP (SMTP_HOST, SMTP_USER, SMTP_PASS) ou RESEND_API_KEY nas variáveis de ambiente.',
+        });
+        return;
+      }
+
+      const neutralForgotMsg =
+        'Se existir uma conta registada com este e-mail, enviámos um link de redefinição de senha. Verifique a caixa de entrada e a pasta de spam.';
+
+      const user = await db.findUserByEmail(normalizedEmail);
+      if (!user) {
+        // Conformidade 6.6: resposta idêntica quer a conta exista quer não.
+        res.json({
+          ok: true,
+          message: neutralForgotMsg,
         });
         return;
       }
@@ -952,8 +989,7 @@ export function createApiApp(): Express {
 
       res.json({
         ok: true,
-        message:
-          'Enviámos um link de redefinição de senha para o seu e-mail. Verifique a caixa de entrada e a pasta de spam.',
+        message: neutralForgotMsg,
       });
     })
   );
@@ -1043,10 +1079,7 @@ export function createApiApp(): Express {
     '/api/products',
     asyncHandler(async (req, res) => {
       const user = await getAuthenticatedUser(req);
-      if (!user || user.role !== 'seller') {
-        res.status(403).json({ error: 'Apenas lojistas autenticados podem cadastrar produtos.' });
-        return;
-      }
+      if (!requireRole(user, ['seller'], res, 'Apenas lojistas autenticados podem cadastrar produtos.')) return;
 
       const ownedSeller = await db.findSellerOwnedBy(user.id, user.sellerId);
       if (!ownedSeller) {
@@ -1109,10 +1142,7 @@ export function createApiApp(): Express {
     '/api/products/bulk',
     asyncHandler(async (req, res) => {
       const user = await getAuthenticatedUser(req);
-      if (!user || user.role !== 'seller') {
-        res.status(403).json({ error: 'Apenas lojistas autenticados podem importar produtos.' });
-        return;
-      }
+      if (!requireRole(user, ['seller'], res, 'Apenas lojistas autenticados podem importar produtos.')) return;
       const ownedSeller = await db.findSellerOwnedBy(user.id, user.sellerId);
       if (!ownedSeller) {
         res.status(403).json({ error: 'Loja do vendedor não encontrada.' });
@@ -1147,10 +1177,7 @@ export function createApiApp(): Express {
     '/api/products/:id',
     asyncHandler(async (req, res) => {
       const user = await getAuthenticatedUser(req);
-      if (!user || user.role !== 'seller') {
-        res.status(403).json({ error: 'Apenas o Vendedor responsável pode editar o produto.' });
-        return;
-      }
+      if (!requireRole(user, ['seller'], res, 'Apenas o Vendedor responsável pode editar o produto.')) return;
       const target = await db.findProductById(req.params.id);
       if (!target) {
         res.status(404).json({ error: 'Produto não encontrado.' });
@@ -1161,8 +1188,25 @@ export function createApiApp(): Express {
         res.status(403).json({ error: 'Sem permissão para editar produtos de outra loja.' });
         return;
       }
-      const updates = req.body as Partial<Product>;
-      await db.updateProduct(req.params.id, updates);
+      const body = (req.body || {}) as Partial<Product>;
+      // Whitelist estrita para impedir mass assignment de rating, soldCount ou badges
+      const allowedUpdates: Partial<Product> = {};
+      if (typeof body.title === 'string' && body.title.trim()) allowedUpdates.title = body.title.trim();
+      if (typeof body.brand === 'string') allowedUpdates.brand = body.brand.trim();
+      if (typeof body.category === 'string' && body.category.trim()) allowedUpdates.category = body.category.trim();
+      if (body.condition !== undefined) allowedUpdates.condition = body.condition;
+      if (body.price !== undefined && Number(body.price) > 0) allowedUpdates.price = Number(body.price);
+      if (body.originalPrice !== undefined) {
+        allowedUpdates.originalPrice = Number(body.originalPrice) > 0 ? Number(body.originalPrice) : undefined;
+      }
+      if (body.stock !== undefined && Number.isInteger(Number(body.stock)) && Number(body.stock) >= 0) {
+        allowedUpdates.stock = Number(body.stock);
+      }
+      if (typeof body.description === 'string') allowedUpdates.description = body.description.trim();
+      if (Array.isArray(body.images)) allowedUpdates.images = body.images.filter((x) => typeof x === 'string' && x.trim().length > 0);
+      if (body.specs && typeof body.specs === 'object' && !Array.isArray(body.specs)) allowedUpdates.specs = body.specs;
+
+      await db.updateProduct(req.params.id, allowedUpdates);
       const products = await db.listProducts();
       res.json({ products });
     })
@@ -1172,16 +1216,13 @@ export function createApiApp(): Express {
     '/api/products/:id',
     asyncHandler(async (req, res) => {
       const user = await getAuthenticatedUser(req);
-      if (!user || (user.role !== 'seller' && user.role !== 'admin')) {
-        res.status(403).json({ error: 'Sem permissão para remover produto.' });
-        return;
-      }
+      if (!requireRole(user, ['seller', 'admin'], res, 'Sem permissão para remover produto.')) return;
       const target = await db.findProductById(req.params.id);
       if (!target) {
         res.status(404).json({ error: 'Produto não encontrado.' });
         return;
       }
-      if (user.role === 'seller') {
+      if (hasRole(user, ['seller'])) {
         const ownsStore = await db.doesUserOwnSeller(target.sellerId, user.id, user.sellerId);
         if (!ownsStore) {
           res.status(403).json({ error: 'Sem permissão para remover produtos de outra loja.' });
@@ -1199,16 +1240,7 @@ export function createApiApp(): Express {
     '/api/addresses',
     asyncHandler(async (req, res) => {
       const user = await getAuthenticatedUser(req);
-      if (!user) {
-        res.status(401).json({ error: 'Faça login para salvar endereços.' });
-        return;
-      }
-      if (user.role !== 'buyer') {
-        res.status(403).json({
-          error: 'Apenas contas de Comprador podem gerir endereços de entrega.',
-        });
-        return;
-      }
+      if (!requireRole(user, ['buyer'], res, 'Apenas contas de Comprador podem gerir endereços de entrega.')) return;
       const body = req.body as Omit<Address, 'id'>;
       if (
         !body.label?.trim() ||
@@ -1271,16 +1303,7 @@ export function createApiApp(): Express {
     '/api/wishlist/toggle',
     asyncHandler(async (req, res) => {
       const user = await getAuthenticatedUser(req);
-      if (!user) {
-        res.status(401).json({ error: 'Faça login para salvar na lista de desejos.' });
-        return;
-      }
-      if (user.role !== 'buyer') {
-        res.status(403).json({
-          error: 'Apenas contas de Comprador podem usar a lista de desejos.',
-        });
-        return;
-      }
+      if (!requireRole(user, ['buyer'], res, 'Apenas contas de Comprador podem usar a lista de desejos.')) return;
       const { productId } = req.body as { productId?: string };
       if (!productId) {
         res.status(400).json({ error: 'Produto inválido.' });
@@ -1296,14 +1319,7 @@ export function createApiApp(): Express {
     '/api/orders',
     asyncHandler(async (req, res) => {
       const user = await getAuthenticatedUser(req);
-      if (!user) {
-        res.status(401).json({ error: 'Faça login para concluir seu pedido.' });
-        return;
-      }
-      if (user.role !== 'buyer') {
-        res.status(403).json({ error: 'Apenas contas de Comprador podem realizar pedidos.' });
-        return;
-      }
+      if (!requireRole(user, ['buyer'], res, 'Apenas contas de Comprador podem realizar pedidos.')) return;
 
       const { cart, address, paymentMethod, couponCode } = req.body as {
         cart?: CartItem[];
@@ -1327,6 +1343,25 @@ export function createApiApp(): Express {
       if (groups.length === 0) {
         res.status(400).json({ error: 'Carrinho vazio ou produtos indisponíveis.' });
         return;
+      }
+
+      // Validar quantidades inteiras positivas e stock disponível a partir dos grupos validados
+      const qtyByProduct = new Map<string, number>();
+      for (const g of groups) {
+        for (const entry of g.items) {
+          if (!Number.isInteger(entry.quantity) || entry.quantity <= 0) {
+            res.status(400).json({ error: `Quantidade inválida para "${entry.product.title}".` });
+            return;
+          }
+          const nextQty = (qtyByProduct.get(entry.product.id) ?? 0) + entry.quantity;
+          if (nextQty > entry.product.stock) {
+            res.status(400).json({
+              error: `Stock insuficiente para "${entry.product.title}" (disponível: ${entry.product.stock}).`,
+            });
+            return;
+          }
+          qtyByProduct.set(entry.product.id, nextQty);
+        }
       }
 
       const totals = calculateCartTotals(groups);
@@ -1372,11 +1407,6 @@ export function createApiApp(): Express {
         })),
       };
 
-      const qtyByProduct = new Map<string, number>();
-      for (const item of cart) {
-        qtyByProduct.set(item.productId, (qtyByProduct.get(item.productId) ?? 0) + item.quantity);
-      }
-
       await db.createOrderAndUpdateStock(newOrder, qtyByProduct);
 
       const [updatedProducts, scopedOrders] = await Promise.all([
@@ -1396,10 +1426,14 @@ export function createApiApp(): Express {
     '/api/orders/:orderId/fulfillment',
     asyncHandler(async (req, res) => {
       const user = await getAuthenticatedUser(req);
-      if (!user || user.role !== 'seller') {
-        res.status(403).json({
-          error: 'Apenas o Vendedor responsável pode atualizar o envio.',
-        });
+      if (
+        !requireRole(
+          user,
+          ['seller', 'buyer', 'admin'],
+          res,
+          'Sem permissão para atualizar o estado do pedido.'
+        )
+      ) {
         return;
       }
 
@@ -1407,13 +1441,37 @@ export function createApiApp(): Express {
         sellerId?: string;
         nextStatus?: OrderStatus;
       };
-      if (!sellerId || !(await db.doesUserOwnSeller(sellerId, user.id, user.sellerId))) {
-        res.status(403).json({ error: 'Sem permissão para alterar pedidos de outra loja.' });
+      if (!sellerId || !nextStatus || !ORDER_STATUS_FLOW.includes(nextStatus)) {
+        res.status(400).json({ error: 'Loja ou status de envio inválido.' });
         return;
       }
-      if (!nextStatus || !ORDER_STATUS_FLOW.includes(nextStatus)) {
-        res.status(400).json({ error: 'Status de envio inválido.' });
-        return;
+
+      if (hasRole(user, ['seller'])) {
+        if (!(await db.doesUserOwnSeller(sellerId, user.id, user.sellerId))) {
+          res.status(403).json({ error: 'Sem permissão para alterar pedidos de outra loja.' });
+          return;
+        }
+        // Conformidade Modo A: o vendedor não pode liberar a própria custódia marcando 'Entregue'
+        if (nextStatus === 'Entregue') {
+          res.status(403).json({
+            error:
+              'Apenas o comprador ou o Super Admin pode confirmar a entrega e liberar a custódia.',
+          });
+          return;
+        }
+      } else if (hasRole(user, ['buyer'])) {
+        if (nextStatus !== 'Entregue') {
+          res.status(403).json({
+            error: 'O comprador apenas pode confirmar a entrega do seu pedido.',
+          });
+          return;
+        }
+        const buyerOrders = await db.listScopedOrders(user);
+        const ownsOrder = buyerOrders.some((o) => o.id === req.params.orderId);
+        if (!ownsOrder) {
+          res.status(403).json({ error: 'Sem permissão para confirmar pedidos de outro comprador.' });
+          return;
+        }
       }
 
       const today = new Date().toISOString().slice(0, 10);
@@ -1425,8 +1483,10 @@ export function createApiApp(): Express {
   // ── Sellers & Admin ──────────────────────────────────────────────────────
   app.get(
     '/api/sellers',
-    asyncHandler(async (_req, res) => {
-      res.json({ sellers: await db.listSellers() });
+    asyncHandler(async (req, res) => {
+      const user = await getAuthenticatedUser(req);
+      const sellers = await db.listSellers();
+      res.json({ sellers: sanitizeSellersForUser(sellers, user) });
     })
   );
 
@@ -1555,10 +1615,7 @@ export function createApiApp(): Express {
     '/api/seller/payouts',
     asyncHandler(async (req, res) => {
       const user = await getAuthenticatedUser(req);
-      if (!user || user.role !== 'seller') {
-        res.status(403).json({ error: 'Apenas vendedores autenticados podem solicitar saques.' });
-        return;
-      }
+      if (!requireRole(user, ['seller'], res, 'Apenas vendedores autenticados podem solicitar saques.')) return;
       const seller = await db.findSellerOwnedBy(user.id, user.sellerId);
       if (!seller) {
         res.status(404).json({ error: 'Loja não encontrada.' });
@@ -1793,7 +1850,7 @@ export function createApiApp(): Express {
       const user = await getAuthenticatedUser(req);
       const siteCustomization = await db.getSiteCustomization();
       res.json({
-        siteCustomization: sanitizeSiteCustomizationForRole(siteCustomization, user?.role),
+        siteCustomization: sanitizeSiteCustomizationForRole(siteCustomization, user),
       });
     })
   );
@@ -1884,6 +1941,7 @@ export function createApiApp(): Express {
     '/api/uploads',
     asyncHandler(async (req, res) => {
       const user = await getAuthenticatedUser(req);
+      if (!requireRole(user, ['admin', 'seller', 'buyer'], res, 'Faça login para enviar ficheiros.')) return;
 
       if (!isS3Configured()) {
         res.status(503).json({
@@ -1951,6 +2009,10 @@ export function createApiApp(): Express {
         res.status(400).json({ error: 'Chave do objeto inválida.' });
         return;
       }
+      if (/(kyc|proof|fee)/i.test(key)) {
+        const user = await getAuthenticatedUser(req);
+        if (!requireRole(user, ['admin', 'seller'], res, 'Acesso restrito a documentos privados.')) return;
+      }
       try {
         const url = await getObjectPresignedUrl(key, 3600);
         res.json({ key, bucket: getS3Bucket(), url, expiresIn: 3600 });
@@ -1973,6 +2035,10 @@ export function createApiApp(): Express {
       if (!key) {
         res.status(400).json({ error: 'Arquivo inválido.' });
         return;
+      }
+      if (/(kyc|proof|fee)/i.test(key)) {
+        const user = await getAuthenticatedUser(req);
+        if (!requireRole(user, ['admin', 'seller'], res, 'Acesso restrito a documentos privados.')) return;
       }
       try {
         const signedUrl = await getObjectPresignedUrl(key, 3600);

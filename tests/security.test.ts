@@ -9,7 +9,10 @@ import {
   LoginRateLimiter,
   normalizeClientIp,
   requireRole,
+  safeSecretEqual,
+  sanitizeSellersForUser,
 } from '../src/server/security.ts';
+import type { SellerStore } from '../src/types.ts';
 
 test('normalizeClientIp agrupa IPv6 em /64 e normaliza IPv4-mapped', () => {
   assert.equal(normalizeClientIp('::ffff:192.168.1.50'), '192.168.1.50');
@@ -110,4 +113,85 @@ test('hasRole e requireRole centralizam decisão de acesso', () => {
   assert.deepEqual(body, { error: 'Apenas admin' });
 
   assert.equal(requireRole({ role: 'admin' }, ['admin'], mockRes, 'Apenas admin'), true);
+});
+
+test('safeSecretEqual e cifragem de escalePayWebhookSecret funcionam corretamente', () => {
+  const master = 'test-master-secret-32-bytes-minimum';
+  assert.equal(safeSecretEqual('segredo-123', 'segredo-123'), true);
+  assert.equal(safeSecretEqual('segredo-123', 'segredo-124'), false);
+  assert.equal(safeSecretEqual('curto', 'muito-mais-longo'), false);
+
+  const gw = encryptGatewaySecrets(
+    {
+      escalePayWebhookSecret: 'ep_wh_secret_999',
+    },
+    master
+  );
+  assert.ok(gw?.escalePayWebhookSecret?.startsWith('enc:v1:'));
+  const dec = decryptGatewaySecrets(gw, master);
+  assert.equal(dec?.escalePayWebhookSecret, 'ep_wh_secret_999');
+});
+
+test('sanitizeSellersForUser oculta KYC, comprovativos e dados bancários para terceiros', () => {
+  const sampleSeller: SellerStore = {
+    id: 'seller-1',
+    ownerUserId: 'user-seller-1',
+    name: 'Tech258',
+    slug: 'tech258',
+    documentId: '110100258001A',
+    mainCategory: 'Smartphones',
+    description: 'Loja oficial',
+    logoText: 'T2',
+    accentColor: '#10b981',
+    bannerImage: 'https://example.com/banner.jpg',
+    status: 'active',
+    verified: true,
+    rating: 5,
+    reviewCount: 1,
+    joinedDate: '2026-11-25',
+    tenureLabel: 'Novo',
+    location: 'Maputo',
+    kyc: {
+      status: 'verified',
+      fullName: 'Carlos Machel',
+      documentType: 'BI',
+      documentNumber: '110100258001A',
+      documentFrontUrl: '/api/assets/kyc/front.png',
+    },
+    activation: {
+      profileCompleted: true,
+      kycCompleted: true,
+      feePaid: true,
+      feeStatus: 'verified',
+      feePhone: '840000001',
+      feeTransactionId: 'MP26TX01',
+      feeProofUrl: '/api/assets/fee/proof.png',
+    },
+    payoutInfo: {
+      bankName: 'Millennium BIM',
+      accountType: 'Conta Corrente',
+      accountNumber: '1234567890',
+      pixOrWallet: '840000001',
+    },
+  };
+
+  // Visitante anónimo não recebe PII/KYC/banco
+  const anon = sanitizeSellersForUser([sampleSeller], null)[0];
+  assert.equal(anon.documentId, '');
+  assert.equal(anon.kyc?.documentNumber, undefined);
+  assert.equal(anon.kyc?.documentFrontUrl, undefined);
+  assert.equal(anon.kyc?.status, 'verified');
+  assert.equal(anon.activation?.feeTransactionId, undefined);
+  assert.equal(anon.activation?.feePhone, undefined);
+  assert.equal(anon.payoutInfo.accountNumber, '');
+
+  // Outro vendedor também não recebe
+  const other = sanitizeSellersForUser([sampleSeller], { id: 'user-other', role: 'seller', sellerId: 'seller-2' })[0];
+  assert.equal(other.payoutInfo.accountNumber, '');
+
+  // O próprio dono e o Admin recebem os dados completos
+  const owner = sanitizeSellersForUser([sampleSeller], { id: 'user-seller-1', role: 'seller', sellerId: 'seller-1' })[0];
+  assert.equal(owner.payoutInfo.accountNumber, '1234567890');
+  const admin = sanitizeSellersForUser([sampleSeller], { id: 'user-admin', role: 'admin' })[0];
+  assert.equal(admin.kyc?.documentNumber, '110100258001A');
 });
