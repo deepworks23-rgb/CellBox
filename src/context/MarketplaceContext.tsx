@@ -232,6 +232,7 @@ interface MarketplaceContextValue {
       logoUrl?: string;
       mainCategory?: string;
       socials?: SellerSocials;
+      theme?: import('../types').SellerStoreTheme;
       payoutInfo: SellerPayoutInfo;
     }
   ) => Promise<void>;

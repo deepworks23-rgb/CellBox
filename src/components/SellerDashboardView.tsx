@@ -279,7 +279,12 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
     description: seller?.description ?? '',
     logoText: seller?.logoText ?? '',
     logoUrl: seller?.logoUrl ?? '',
-    accentColor: seller?.accentColor ?? '#0475EE',
+    accentColor: seller?.theme?.primaryColor ?? seller?.accentColor ?? '#0475EE',
+    secondaryColor: seller?.theme?.secondaryColor ?? '#0A3768',
+    backgroundColor: seller?.theme?.backgroundColor ?? '#FFFFFF',
+    textColor: seller?.theme?.textColor ?? '#0A3768',
+    tagline: seller?.theme?.tagline ?? '',
+    announcement: seller?.theme?.announcement ?? '',
     location: seller?.location ?? '',
     bannerImage: seller?.bannerImage ?? '',
     facebook: seller?.socials?.facebook ?? '',
@@ -330,7 +335,12 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
       description: seller.description || '',
       logoText: seller.logoText || '',
       logoUrl: seller.logoUrl || '',
-      accentColor: seller.accentColor || '#0475EE',
+      accentColor: seller.theme?.primaryColor || seller.accentColor || '#0475EE',
+      secondaryColor: seller.theme?.secondaryColor || '#0A3768',
+      backgroundColor: seller.theme?.backgroundColor || '#FFFFFF',
+      textColor: seller.theme?.textColor || '#0A3768',
+      tagline: seller.theme?.tagline || '',
+      announcement: seller.theme?.announcement || '',
       location: seller.location || '',
       bannerImage: seller.bannerImage || '',
       facebook: seller.socials?.facebook || '',
@@ -771,6 +781,14 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
         accentColor: storeForm.accentColor,
         location: storeForm.location.trim(),
         bannerImage: storeForm.bannerImage.trim(),
+        theme: {
+          primaryColor: storeForm.accentColor,
+          secondaryColor: storeForm.secondaryColor,
+          backgroundColor: storeForm.backgroundColor,
+          textColor: storeForm.textColor,
+          tagline: storeForm.tagline.trim() || undefined,
+          announcement: storeForm.announcement.trim() || undefined,
+        },
         socials: {
           facebook: storeForm.facebook.trim() || undefined,
           instagram: storeForm.instagram.trim() || undefined,
@@ -2010,7 +2028,7 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                       </div>
                       <div>
                         <label htmlFor="store-color" className="block text-xs font-bold text-[#444444] mb-1">
-                          Cor da Marca
+                          Cor Principal
                         </label>
                         <input
                           id="store-color"
@@ -2018,6 +2036,122 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                           value={storeForm.accentColor}
                           onChange={(e) => setStoreForm((p) => ({ ...p, accentColor: e.target.value }))}
                           className="w-full h-10 p-1 rounded-[2px] border border-[#DCDCDC] bg-white cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Personalização Visual Avançada da Loja */}
+                  <div className="mt-6 pt-5 border-t border-[#EAEAEA] space-y-4">
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wide text-[#0A3768]">
+                        Personalização Visual da Loja (Paleta de Cores & Vitrine)
+                      </h4>
+                      <p className="text-[11px] text-[#777777]">
+                        Escolha uma paleta pronta ou personalize as cores, slogan e faixa promocional da página pública da sua loja.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { name: 'Azul Tech', primary: '#0475EE', secondary: '#0A3768', bg: '#FFFFFF', text: '#0A3768' },
+                        { name: 'Esmeralda', primary: '#10B981', secondary: '#064E3B', bg: '#F8FAFC', text: '#064E3B' },
+                        { name: 'Rosa Moda', primary: '#DB2777', secondary: '#831843', bg: '#FFFDFD', text: '#831843' },
+                        { name: 'Dourado Luxo', primary: '#D97706', secondary: '#1F2937', bg: '#FFFBEB', text: '#1F2937' },
+                        { name: 'Preto Minimal', primary: '#111827', secondary: '#374151', bg: '#FFFFFF', text: '#111827' },
+                        { name: 'Coral Vibrante', primary: '#EA580C', secondary: '#7C2D12', bg: '#FFF7ED', text: '#7C2D12' },
+                      ].map((preset) => (
+                        <button
+                          key={preset.name}
+                          type="button"
+                          onClick={() =>
+                            setStoreForm((p) => ({
+                              ...p,
+                              accentColor: preset.primary,
+                              secondaryColor: preset.secondary,
+                              backgroundColor: preset.bg,
+                              textColor: preset.text,
+                            }))
+                          }
+                          className="h-8 px-3 rounded-full border border-[#DCDCDC] hover:border-[#0475EE] bg-white text-[11px] font-semibold text-[#333333] inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                        >
+                          <span className="w-3 h-3 rounded-full" style={{ backgroundColor: preset.primary }} />
+                          <span className="w-3 h-3 rounded-full -ml-2 border border-white" style={{ backgroundColor: preset.secondary }} />
+                          {preset.name}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-[#444444] mb-1">
+                          Cor Secundária / Capa
+                        </label>
+                        <input
+                          type="color"
+                          value={storeForm.secondaryColor}
+                          onChange={(e) => setStoreForm((p) => ({ ...p, secondaryColor: e.target.value }))}
+                          className="w-full h-9 p-1 rounded-[2px] border border-[#DCDCDC] bg-white cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-[#444444] mb-1">
+                          Fundo da Vitrine
+                        </label>
+                        <input
+                          type="color"
+                          value={storeForm.backgroundColor}
+                          onChange={(e) => setStoreForm((p) => ({ ...p, backgroundColor: e.target.value }))}
+                          className="w-full h-9 p-1 rounded-[2px] border border-[#DCDCDC] bg-white cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-[#444444] mb-1">
+                          Cor dos Títulos
+                        </label>
+                        <input
+                          type="color"
+                          value={storeForm.textColor}
+                          onChange={(e) => setStoreForm((p) => ({ ...p, textColor: e.target.value }))}
+                          className="w-full h-9 p-1 rounded-[2px] border border-[#DCDCDC] bg-white cursor-pointer"
+                        />
+                      </div>
+                      <div className="col-span-2 sm:col-span-1 flex items-end">
+                        <div
+                          className="w-full h-9 rounded-[2px] px-2.5 flex items-center justify-between text-white text-[10px] font-bold"
+                          style={{
+                            background: `linear-gradient(90deg, ${storeForm.secondaryColor}, ${storeForm.accentColor})`,
+                          }}
+                        >
+                          <span className="truncate">{storeForm.name || 'Sua Loja'}</span>
+                          <span>Prévia</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-[#444444] mb-1">
+                          Slogan da Loja (opcional)
+                        </label>
+                        <input
+                          type="text"
+                          value={storeForm.tagline}
+                          onChange={(e) => setStoreForm((p) => ({ ...p, tagline: e.target.value }))}
+                          placeholder="Ex: Garantia oficial e entrega rápida em Maputo"
+                          className="w-full h-9 px-3 rounded-[2px] border border-[#DCDCDC] text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-[#444444] mb-1">
+                          Faixa Promocional no Topo da Loja (opcional)
+                        </label>
+                        <input
+                          type="text"
+                          value={storeForm.announcement}
+                          onChange={(e) => setStoreForm((p) => ({ ...p, announcement: e.target.value }))}
+                          placeholder="Ex: Envio grátis em compras acima de 5.000 MT!"
+                          className="w-full h-9 px-3 rounded-[2px] border border-[#DCDCDC] text-xs"
                         />
                       </div>
                     </div>

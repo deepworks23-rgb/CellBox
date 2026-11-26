@@ -70,4 +70,13 @@ export const DEFAULT_SITE_CUSTOMIZATION: SiteCustomization = {
       emolaShortcode: '',
     },
   },
+  theme: {
+    logoUrl: '/assets/aistudio/CellBox_9c0f59ac.png',
+    faviconUrl: '/assets/aistudio/CellBox_favicon_92a1b80e.png',
+    primaryColor: '#0475EE',
+    navyColor: '#0A3768',
+    accentColor: '#18A3DE',
+    highlightColor: '#1AD6DE',
+    surfaceColor: '#F5F7FA',
+  },
 };

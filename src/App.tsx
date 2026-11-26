@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import { LogOut, ShieldCheck, Store } from 'lucide-react';
 import { MarketplaceProvider, useMarketplace } from './context/MarketplaceContext';
@@ -21,20 +22,25 @@ import { Footer } from './components/Footer';
 import { MotionButton } from './components/MotionPrimitives';
 
 function AdminIsolatedShell() {
-  const { view, currentUser, logout, navigate } = useMarketplace();
+  const { view, currentUser, logout, navigate, siteCustomization } = useMarketplace();
   if (!currentUser || currentUser.role !== 'admin') return null;
+
+  const brandLogo = siteCustomization?.theme?.logoUrl?.trim() || '/assets/aistudio/CellBox_9c0f59ac.png';
 
   return (
     <div
       data-testid="isolated-admin-shell"
       className="min-h-screen flex flex-col bg-[#F5F7FA] text-[#333333]"
     >
-      <header className="sticky top-0 z-50 bg-[#0A3768] text-white border-b border-white/10 shadow-sm">
+      <header
+        className="sticky top-0 z-50 text-white border-b border-white/10 shadow-sm"
+        style={{ backgroundColor: siteCustomization?.theme?.navyColor || '#0A3768' }}
+      >
         <div className="max-w-[1170px] mx-auto px-4 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="bg-white rounded-[3px] px-2.5 py-1 flex items-center">
               <img
-                src="/assets/aistudio/CellBox_9c0f59ac.png"
+                src={brandLogo}
                 alt="Cellbox"
                 className="h-7 w-auto object-contain"
               />
@@ -86,7 +92,27 @@ function AdminIsolatedShell() {
 }
 
 function CellboxShell() {
-  const { view, authReady, currentUser } = useMarketplace();
+  const { view, authReady, currentUser, siteCustomization } = useMarketplace();
+
+  useEffect(() => {
+    const theme = siteCustomization?.theme;
+    if (!theme) return;
+    const root = document.documentElement;
+    if (theme.primaryColor) root.style.setProperty('--color-brand-royal', theme.primaryColor);
+    if (theme.navyColor) root.style.setProperty('--color-brand-navy', theme.navyColor);
+    if (theme.accentColor) root.style.setProperty('--color-brand-cyan', theme.accentColor);
+    if (theme.highlightColor) root.style.setProperty('--color-brand-aqua', theme.highlightColor);
+    if (theme.surfaceColor) root.style.setProperty('--color-brand-tint', theme.surfaceColor);
+
+    if (theme.faviconUrl?.trim()) {
+      const href = theme.faviconUrl.trim();
+      const selectors = ['link[rel="icon"]', 'link[rel="shortcut icon"]', 'link[rel="apple-touch-icon"]'];
+      selectors.forEach((sel) => {
+        const el = document.querySelector<HTMLLinkElement>(sel);
+        if (el) el.href = href;
+      });
+    }
+  }, [siteCustomization?.theme]);
 
   const isProtectedRoute =
     view.type === 'profile' ||

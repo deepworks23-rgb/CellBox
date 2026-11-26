@@ -143,6 +143,15 @@ export interface SellerActivationStatus {
   feeRejectionReason?: string;
 }
 
+export interface SellerStoreTheme {
+  primaryColor?: string;
+  secondaryColor?: string;
+  backgroundColor?: string;
+  textColor?: string;
+  tagline?: string;
+  announcement?: string;
+}
+
 export interface SellerStore {
   id: string;
   ownerUserId: string;
@@ -163,6 +172,7 @@ export interface SellerStore {
   tenureLabel: string;
   location: string;
   socials?: SellerSocials;
+  theme?: SellerStoreTheme;
   kyc?: SellerKycInfo;
   activation?: SellerActivationStatus;
   payoutInfo: SellerPayoutInfo;
@@ -396,6 +406,16 @@ export interface SitePaymentGatewaysConfig {
   mpesaDirect?: MpesaDirectGatewayConfig;
 }
 
+export interface SiteThemeConfig {
+  logoUrl?: string;
+  faviconUrl?: string;
+  primaryColor: string;
+  navyColor: string;
+  accentColor: string;
+  highlightColor: string;
+  surfaceColor: string;
+}
+
 export interface SiteCustomization {
   header: SiteHeaderConfig;
   heroSlides: HeroSlideConfig[];
@@ -405,5 +425,6 @@ export interface SiteCustomization {
   partnerBrands: PartnerBrandConfig[];
   contact: SiteContactConfig;
   footer: SiteFooterConfig;
+  theme?: SiteThemeConfig;
   gateways?: SitePaymentGatewaysConfig;
 }

@@ -17,6 +17,7 @@ import type {
   SellerSocials,
   SellerStatus,
   SellerStore,
+  SellerStoreTheme,
   SiteCustomization,
   User,
 } from '../types.ts';
@@ -355,6 +356,7 @@ function mapSellerRow(r: QueryResultRow): SellerStore {
     tenureLabel: String(r.tenure_label),
     location: String(r.location),
     socials: (r.socials as SellerSocials) ?? {},
+    theme: r.theme_json ? (r.theme_json as SellerStoreTheme) : undefined,
     kyc: (r.kyc as SellerKycInfo) ?? { status: 'not_submitted' },
     activation: (r.activation as SellerActivationStatus) ?? {
       profileCompleted: true,
@@ -620,6 +622,7 @@ export async function ensureDatabaseSchema(): Promise<void> {
 
     CREATE INDEX IF NOT EXISTS idx_seller_payouts_seller_id ON seller_payouts(seller_id);
     CREATE INDEX IF NOT EXISTS idx_seller_payouts_status ON seller_payouts(status);
+    ALTER TABLE sellers ADD COLUMN IF NOT EXISTS theme_json JSONB;
   `);
 }
 
@@ -1425,6 +1428,7 @@ export async function updateSellerSettings(
     logoUrl?: string;
     mainCategory?: string;
     socials?: SellerSocials;
+    theme?: SellerStoreTheme;
     payoutInfo: SellerPayoutInfo;
   }
 ): Promise<SellerStore | null> {
@@ -1436,7 +1440,7 @@ export async function updateSellerSettings(
       : (current?.description ?? '');
   const nextLogoText =
     updates.logoText?.trim().slice(0, 3).toUpperCase() || current?.logoText || 'CB';
-  const nextAccent = updates.accentColor || current?.accentColor || '#0475EE';
+  const nextAccent = updates.theme?.primaryColor || updates.accentColor || current?.accentColor || '#0475EE';
   const nextLocation =
     typeof updates.location === 'string' ? updates.location.trim() : (current?.location ?? '');
   const nextBanner =
@@ -1445,6 +1449,7 @@ export async function updateSellerSettings(
     typeof updates.logoUrl === 'string' ? updates.logoUrl.trim() : (current?.logoUrl ?? null);
   const nextCategory = updates.mainCategory?.trim() || current?.mainCategory || 'Geral';
   const nextSocials = updates.socials ?? current?.socials ?? {};
+  const nextTheme = updates.theme ?? current?.theme ?? {};
   const nextPayout = updates.payoutInfo ?? current?.payoutInfo;
 
   const profileCompleted = Boolean(nextName && nextCategory && nextLocation);
@@ -1470,7 +1475,8 @@ export async function updateSellerSettings(
       main_category = $9,
       socials = $10::jsonb,
       payout_info = $11::jsonb,
-      activation = $12::jsonb
+      activation = $12::jsonb,
+      theme_json = $13::jsonb
      WHERE id = $1
      RETURNING *`,
     [
@@ -1486,6 +1492,7 @@ export async function updateSellerSettings(
       JSON.stringify(nextSocials),
       JSON.stringify(nextPayout),
       JSON.stringify(nextActivation),
+      JSON.stringify(nextTheme),
     ]
   );
   return res.rows[0] ? mapSellerRow(res.rows[0]) : null;
@@ -2059,6 +2066,10 @@ export async function getSiteCustomization(): Promise<SiteCustomization> {
         },
       },
       footer: { ...DEFAULT_SITE_CUSTOMIZATION.footer, ...(raw.footer ?? {}) },
+      theme: {
+        ...DEFAULT_SITE_CUSTOMIZATION.theme!,
+        ...(raw.theme ?? {}),
+      },
       gateways: decryptGatewaySecrets(
         {
           ...DEFAULT_SITE_CUSTOMIZATION.gateways,

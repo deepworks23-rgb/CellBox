@@ -48,11 +48,11 @@
   display: none;
 }
 
-/* Hero gradient matching exact official Cellbox logo sweep with subtle product spotlight */
+/* Hero gradient matching exact official Cellbox logo sweep with dynamic theme variables */
 .cellbox-hero-gradient {
   background:
     radial-gradient(ellipse 46% 78% at 76% 52%, rgba(255, 255, 255, 0.22) 0%, rgba(26, 214, 222, 0.14) 44%, rgba(10, 55, 104, 0) 75%),
-    linear-gradient(112deg, #072850 0%, #0a3768 24%, #0475ee 58%, #18a3de 84%, #1ad6de 100%);
+    linear-gradient(112deg, #072850 0%, var(--color-brand-navy, #0a3768) 24%, var(--color-brand-royal, #0475ee) 58%, var(--color-brand-cyan, #18a3de) 84%, var(--color-brand-aqua, #1ad6de) 100%);
 }
 
 /* Custom subtle scrollbars */

@@ -396,7 +396,7 @@ export function Navbar() {
             className="flex items-center shrink-0 cursor-pointer group"
           >
             <img
-              src="/assets/aistudio/CellBox_9c0f59ac.png"
+              src={siteCustomization?.theme?.logoUrl?.trim() || '/assets/aistudio/CellBox_9c0f59ac.png'}
               alt="Cellbox"
               className="h-9 sm:h-11 w-auto object-contain transition-opacity group-hover:opacity-90"
             />
@@ -514,7 +514,10 @@ export function Navbar() {
       </div>
 
       {/* 3. Full-Width Official Cellbox Cyan-Blue Bar (#18A3DE) */}
-      <div className="bg-[#18A3DE]">
+      <div
+        className="bg-[#18A3DE]"
+        style={{ backgroundColor: siteCustomization?.theme?.accentColor || '#18A3DE' }}
+      >
         <div className="max-w-[1170px] mx-auto px-4 min-h-[46px] py-1.5 sm:py-0 flex items-center gap-3 sm:gap-4">
           <div ref={catRef} className="relative shrink-0">
             <button
@@ -522,7 +525,8 @@ export function Navbar() {
               onClick={() => setCatDropdownOpen((v) => !v)}
               aria-expanded={catDropdownOpen}
               aria-haspopup="menu"
-              className="h-[46px] -my-1.5 sm:my-0 px-3 sm:px-5 sm:w-[240px] bg-[#0A3768] hover:bg-[#082C54] text-white text-[12px] font-bold uppercase tracking-wide inline-flex items-center justify-between gap-2 transition-colors cursor-pointer whitespace-nowrap"
+              style={{ backgroundColor: siteCustomization?.theme?.navyColor || '#0A3768' }}
+              className="h-[46px] -my-1.5 sm:my-0 px-3 sm:px-5 sm:w-[240px] bg-[#0A3768] hover:brightness-95 text-white text-[12px] font-bold uppercase tracking-wide inline-flex items-center justify-between gap-2 transition-all cursor-pointer whitespace-nowrap"
             >
               <span className="inline-flex items-center gap-2.5">
                 <Menu className="w-4 h-4 shrink-0 text-[#1AD6DE]" />

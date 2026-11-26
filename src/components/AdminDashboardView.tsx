@@ -1229,6 +1229,194 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                       className="w-full h-10 px-3 border border-[#DCDCDC] rounded-[2px] text-xs text-[#333333] focus:border-[#0475EE] focus:outline-none"
                     />
                   </div>
+
+                  {/* Identidade Visual Global: Logo, Favicon & Paleta de Cores */}
+                  <div className="pt-4 mt-2 border-t border-[#EAEAEA] space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wide text-[#0A3768]">
+                          Identidade Visual da CellBox (Logo, Favicon & Paleta de Cores)
+                        </h4>
+                        <p className="text-[11px] text-[#777777]">
+                          Personalize o logotipo, ícone da aba do navegador (favicon) e as cores globais do site.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDraftCustomization((prev) => ({
+                            ...prev,
+                            theme: {
+                              logoUrl: '/assets/aistudio/CellBox_9c0f59ac.png',
+                              faviconUrl: '/assets/aistudio/CellBox_favicon_92a1b80e.png',
+                              primaryColor: '#0475EE',
+                              navyColor: '#0A3768',
+                              accentColor: '#18A3DE',
+                              highlightColor: '#1AD6DE',
+                              surfaceColor: '#F5F7FA',
+                            },
+                          }))
+                        }
+                        className="h-7 px-3 rounded-full border border-[#DCDCDC] hover:border-[#0475EE] text-[11px] font-semibold text-[#555555] hover:text-[#0475EE] cursor-pointer whitespace-nowrap"
+                      >
+                        Restaurar Padrão
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-[#444444] mb-1">
+                          URL do Logotipo Principal
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={draftCustomization.theme?.logoUrl ?? ''}
+                            onChange={(e) =>
+                              setDraftCustomization((prev) => ({
+                                ...prev,
+                                theme: {
+                                  primaryColor: '#0475EE',
+                                  navyColor: '#0A3768',
+                                  accentColor: '#18A3DE',
+                                  highlightColor: '#1AD6DE',
+                                  surfaceColor: '#F5F7FA',
+                                  ...(prev.theme ?? {}),
+                                  logoUrl: e.target.value,
+                                },
+                              }))
+                            }
+                            placeholder="/assets/aistudio/CellBox_9c0f59ac.png"
+                            className="flex-1 h-9 px-3 border border-[#DCDCDC] rounded-[2px] text-xs text-[#333333] focus:border-[#0475EE] focus:outline-none"
+                          />
+                          {draftCustomization.theme?.logoUrl && (
+                            <img
+                              src={draftCustomization.theme.logoUrl}
+                              alt="Preview Logo"
+                              className="h-9 w-14 object-contain border border-[#EAEAEA] rounded bg-white p-0.5 shrink-0"
+                            />
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-[#444444] mb-1">
+                          URL do Favicon (Ícone da Aba)
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={draftCustomization.theme?.faviconUrl ?? ''}
+                            onChange={(e) =>
+                              setDraftCustomization((prev) => ({
+                                ...prev,
+                                theme: {
+                                  primaryColor: '#0475EE',
+                                  navyColor: '#0A3768',
+                                  accentColor: '#18A3DE',
+                                  highlightColor: '#1AD6DE',
+                                  surfaceColor: '#F5F7FA',
+                                  ...(prev.theme ?? {}),
+                                  faviconUrl: e.target.value,
+                                },
+                              }))
+                            }
+                            placeholder="/assets/aistudio/CellBox_favicon_92a1b80e.png"
+                            className="flex-1 h-9 px-3 border border-[#DCDCDC] rounded-[2px] text-xs text-[#333333] focus:border-[#0475EE] focus:outline-none"
+                          />
+                          {draftCustomization.theme?.faviconUrl && (
+                            <img
+                              src={draftCustomization.theme.faviconUrl}
+                              alt="Preview Favicon"
+                              className="h-9 w-9 object-contain border border-[#EAEAEA] rounded bg-white p-1 shrink-0"
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Paletas Prontas */}
+                    <div>
+                      <p className="text-[11px] font-bold text-[#555555] mb-1.5">
+                        Paletas Prontas (1 clique):
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { name: 'CellBox Oficial', primaryColor: '#0475EE', navyColor: '#0A3768', accentColor: '#18A3DE', highlightColor: '#1AD6DE', surfaceColor: '#F5F7FA' },
+                          { name: 'Esmeralda Tech', primaryColor: '#059669', navyColor: '#064E3B', accentColor: '#10B981', highlightColor: '#34D399', surfaceColor: '#ECFDF5' },
+                          { name: 'Roxo Moderno', primaryColor: '#7C3AED', navyColor: '#3B0764', accentColor: '#8B5CF6', highlightColor: '#C084FC', surfaceColor: '#F5F3FF' },
+                          { name: 'Laranja Comercial', primaryColor: '#EA580C', navyColor: '#7C2D12', accentColor: '#F97316', highlightColor: '#FBBF24', surfaceColor: '#FFF7ED' },
+                          { name: 'Grafite Elegante', primaryColor: '#2563EB', navyColor: '#111827', accentColor: '#374151', highlightColor: '#38BDF8', surfaceColor: '#F3F4F6' },
+                        ].map((preset) => (
+                          <button
+                            key={preset.name}
+                            type="button"
+                            onClick={() =>
+                              setDraftCustomization((prev) => ({
+                                ...prev,
+                                theme: {
+                                  ...(prev.theme ?? {}),
+                                  primaryColor: preset.primaryColor,
+                                  navyColor: preset.navyColor,
+                                  accentColor: preset.accentColor,
+                                  highlightColor: preset.highlightColor,
+                                  surfaceColor: preset.surfaceColor,
+                                },
+                              }))
+                            }
+                            className="h-8 px-3 rounded-full border border-[#DCDCDC] hover:border-[#0475EE] bg-white text-[11px] font-semibold text-[#333333] inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                          >
+                            <span className="w-3 h-3 rounded-full" style={{ backgroundColor: preset.primaryColor }} />
+                            <span className="w-3 h-3 rounded-full -ml-2 border border-white" style={{ backgroundColor: preset.navyColor }} />
+                            {preset.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Seletores Individuais */}
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                      {(
+                        [
+                          { key: 'primaryColor', label: 'Cor Primária', fallback: '#0475EE' },
+                          { key: 'navyColor', label: 'Cor Escura / Topo', fallback: '#0A3768' },
+                          { key: 'accentColor', label: 'Barra Secundária', fallback: '#18A3DE' },
+                          { key: 'highlightColor', label: 'Cor Destaque', fallback: '#1AD6DE' },
+                          { key: 'surfaceColor', label: 'Fundo Suave', fallback: '#F5F7FA' },
+                        ] as const
+                      ).map((c) => (
+                        <div key={c.key}>
+                          <label className="block text-[11px] font-bold text-[#444444] mb-1">
+                            {c.label}
+                          </label>
+                          <div className="flex items-center gap-1.5 border border-[#DCDCDC] rounded-[2px] p-1 bg-white">
+                            <input
+                              type="color"
+                              value={draftCustomization.theme?.[c.key] || c.fallback}
+                              onChange={(e) =>
+                                setDraftCustomization((prev) => ({
+                                  ...prev,
+                                  theme: {
+                                    primaryColor: '#0475EE',
+                                    navyColor: '#0A3768',
+                                    accentColor: '#18A3DE',
+                                    highlightColor: '#1AD6DE',
+                                    surfaceColor: '#F5F7FA',
+                                    ...(prev.theme ?? {}),
+                                    [c.key]: e.target.value,
+                                  },
+                                }))
+                              }
+                              className="w-7 h-7 p-0 border-0 bg-transparent cursor-pointer shrink-0"
+                            />
+                            <span className="text-[10px] font-mono uppercase text-[#555555] truncate">
+                              {draftCustomization.theme?.[c.key] || c.fallback}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
 

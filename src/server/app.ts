@@ -1510,6 +1510,7 @@ export function createApiApp(): Express {
         logoUrl?: string;
         mainCategory?: string;
         socials?: SellerSocials;
+        theme?: import('../types.ts').SellerStoreTheme;
         payoutInfo: SellerPayoutInfo;
       };
       await db.updateSellerSettings(req.params.id, updates);

@@ -95,14 +95,29 @@ export function SellerStoreView({ sellerId }: SellerStoreViewProps) {
     );
   }
 
-  const brandAccent = seller.accentColor || '#0475EE';
+  const brandAccent = seller.theme?.primaryColor || seller.accentColor || '#0475EE';
+  const brandSecondary = seller.theme?.secondaryColor || '#0A3768';
+  const storeBg = seller.theme?.backgroundColor || '#FFFFFF';
+  const storeText = seller.theme?.textColor || '#0A3768';
 
   return (
-    <main className="max-w-[1170px] mx-auto px-4 py-6 pb-20 space-y-6">
+    <main
+      className="max-w-[1170px] mx-auto px-4 py-6 pb-20 space-y-6 rounded-[4px]"
+      style={{ backgroundColor: storeBg }}
+    >
+      {seller.theme?.announcement && (
+        <div
+          className="px-4 py-2 rounded-[3px] text-white text-xs font-bold text-center tracking-wide"
+          style={{ backgroundColor: brandAccent }}
+        >
+          {seller.theme.announcement}
+        </div>
+      )}
+
       {/* ── Store Banner (Dimensão 1000x300, imagem nítida com overlay apenas na parte inferior) ── */}
       <section
         className="relative text-white rounded-[4px] overflow-hidden shadow-sm w-full h-[260px] sm:h-[300px] flex flex-col justify-between p-5 sm:p-7"
-        style={!seller.bannerImage ? { backgroundColor: '#0A3768' } : undefined}
+        style={{ backgroundColor: brandSecondary }}
       >
         {seller.bannerImage ? (
           <img
@@ -111,12 +126,18 @@ export function SellerStoreView({ sellerId }: SellerStoreViewProps) {
             className="absolute inset-0 w-full h-full object-cover"
           />
         ) : (
-          <div className="absolute inset-0 cellbox-hero-gradient" />
+          <div
+            className="absolute inset-0"
+            style={{ background: `linear-gradient(112deg, ${brandSecondary} 0%, ${brandAccent} 100%)` }}
+          />
         )}
 
         {/* Overlay escuro posicionado estritamente na base inferior onde ficam os textos */}
         <div
-          className="absolute inset-0 bg-gradient-to-t from-[#0A3768]/95 via-[#0A3768]/45 to-transparent pointer-events-none"
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: `linear-gradient(to top, ${brandSecondary}ee 0%, ${brandSecondary}66 55%, transparent 100%)`,
+          }}
           aria-hidden="true"
         />
 
@@ -172,7 +193,7 @@ export function SellerStoreView({ sellerId }: SellerStoreViewProps) {
                 )}
               </div>
               <p className="text-xs sm:text-[13px] text-white/90 line-clamp-1 max-w-xl mt-0.5">
-                {seller.description}
+                {seller.theme?.tagline || seller.description}
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-white/90">
                 {seller.reviewCount > 0 ? (
@@ -214,8 +235,11 @@ export function SellerStoreView({ sellerId }: SellerStoreViewProps) {
         <aside className="w-full lg:w-72 shrink-0 lg:sticky lg:top-24 space-y-4">
           {/* Card Sobre a Loja */}
           <div className="bg-white border border-[#EAEAEA] rounded-[3px] p-4 space-y-3">
-            <h3 className="font-condensed text-sm font-bold uppercase text-[#0A3768] tracking-wider flex items-center gap-2 border-b border-[#F0F0F0] pb-2">
-              <Store className="w-4 h-4 text-[#0475EE]" />
+            <h3
+              className="font-condensed text-sm font-bold uppercase tracking-wider flex items-center gap-2 border-b border-[#F0F0F0] pb-2"
+              style={{ color: storeText }}
+            >
+              <Store className="w-4 h-4" style={{ color: brandAccent }} />
               Sobre a Loja
             </h3>
             <p className="text-xs text-[#555555] leading-relaxed">
