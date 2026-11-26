@@ -19,5 +19,12 @@
 | `/api/auth/login` (Admin) | `POST` | `200 OK` | `role=admin tokenPresent=true` |
 | `/api/site-customization` (Bearer Admin) | `GET` | `200 OK` | `slides=3` |
 
-## 3. O que ficou em modo simulado / não exercitado
+## 3. 2ª Rodada — Repetição após Revisão Fria (Commit `aa21707`)
+- **Data**: 2026-11-26 (`https://cellbox-psi.vercel.app`)
+- `GET /api/health` → `200 OK` (`users: 5`, `sellers: 3`, `products: 30`, `categories: 14`)
+- `GET /api/bootstrap` (anónimo) → `sellers: 3`, **`PII_LEAKED: false`** (`documentId`, `kyc.documentNumber`, `payoutInfo.accountNumber` e `activation.feeTransactionId` sanitizados)
+- `POST /api/uploads` (anónimo) → `401 Unauthorized`
+- `POST /api/webhooks/escalepay` (sem segredo configurado) → `503 Service Unavailable` (falha fechada)
+
+## 4. O que ficou em modo simulado / não exercitado
 - Fluxos externos de pagamento com dinheiro real (PaySuite, Debito Pay, M-Pesa/e-Mola) e envio de e-mail transacional estão listados em [nao-exercitado.md](nao-exercitado.md).
