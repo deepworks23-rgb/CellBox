@@ -57,10 +57,26 @@ import {
   validateImageUploadPayload,
 } from './storage.ts';
 import { isEmailServiceConfigured, sendPasswordResetEmail } from './mailer.ts';
+import { hasRole, LoginRateLimiter, requireRole } from './security.ts';
 
 const PORT = Number(process.env.PORT) || 3000;
 const SESSION_COOKIE_NAME = 'cellbox_session';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'cellbox-mz-session-signing-key-2026-v1';
+
+if (
+  (process.env.NODE_ENV === 'production' || process.env.VERCEL === '1') &&
+  !process.env.SESSION_SECRET
+) {
+  console.warn(
+    '[CellBox Security] AVISO: SESSION_SECRET não definido em produção; defina uma chave aleatória longa nas variáveis de ambiente.'
+  );
+}
+
+const loginLimiter = new LoginRateLimiter({
+  maxAttempts: 10,
+  windowMs: 15 * 60 * 1000,
+  blockMs: 15 * 60 * 1000,
+});
 
 let dbInitPromise: Promise<void> | null = null;
 
@@ -322,6 +338,21 @@ export function createApiApp(): Express {
         return;
       }
 
+      const clientIp =
+        (typeof req.headers['x-forwarded-for'] === 'string'
+          ? req.headers['x-forwarded-for']
+          : req.ip) || 'unknown';
+      const limitStatus = loginLimiter.check(userIdentifier, clientIp);
+      if (!limitStatus.allowed) {
+        res.setHeader('Retry-After', String(limitStatus.retryAfterSeconds));
+        res.status(429).json({
+          error: `Demasiadas tentativas de acesso. Tente novamente dentro de ${Math.ceil(
+            limitStatus.retryAfterSeconds / 60
+          )} minuto(s).`,
+        });
+        return;
+      }
+
       const user = await db.findUserByIdentifier(userIdentifier);
       const trimmedPass = rawPassword.trim();
       const isPasswordValid =
@@ -339,12 +370,15 @@ export function createApiApp(): Express {
               ))));
 
       if (!user || !isPasswordValid) {
+        loginLimiter.recordFailure(userIdentifier, clientIp);
         res.status(401).json({
           error:
             'Número de telefone ou senha incorretos. Verifique suas credenciais e tente novamente.',
         });
         return;
       }
+
+      loginLimiter.reset(userIdentifier, clientIp);
 
       const token = createSessionToken(user.id, SESSION_SECRET);
       setSessionCookie(req, res, token);
@@ -877,8 +911,11 @@ export function createApiApp(): Express {
 
       const user = await db.findUserByEmail(normalizedEmail);
       if (!user) {
-        res.status(404).json({
-          error: 'Não encontramos nenhuma conta registada com este e-mail.',
+        // Conformidade 6.6: não revelar na resposta se o e-mail possui conta registada.
+        res.json({
+          ok: true,
+          message:
+            'Se existir uma conta registada com este e-mail, enviámos um link de redefinição de senha. Verifique a caixa de entrada e a pasta de spam.',
         });
         return;
       }
@@ -1397,12 +1434,9 @@ export function createApiApp(): Express {
     '/api/sellers/:id',
     asyncHandler(async (req, res) => {
       const user = await getAuthenticatedUser(req);
-      if (!user || (user.role !== 'seller' && user.role !== 'admin')) {
-        res.status(403).json({ error: 'Apenas o Vendedor proprietário ou Administrador pode atualizar a loja.' });
-        return;
-      }
-      const ownsStore = await db.doesUserOwnSeller(req.params.id, user.id, user.sellerId);
-      if (user.role !== 'admin' && !ownsStore) {
+      if (!requireRole(user, ['seller', 'admin'], res, 'Apenas o Vendedor proprietário ou Administrador pode atualizar a loja.')) return;
+      const ownsStore = await db.doesUserOwnSeller(req.params.id, user!.id, user!.sellerId);
+      if (!hasRole(user, ['admin']) && !ownsStore) {
         res.status(403).json({ error: 'Sem permissão para alterar outra loja.' });
         return;
       }
@@ -1427,10 +1461,7 @@ export function createApiApp(): Express {
     '/api/sellers/:id/status',
     asyncHandler(async (req, res) => {
       const user = await getAuthenticatedUser(req);
-      if (!user || user.role !== 'admin') {
-        res.status(403).json({ error: 'Apenas Super Admin pode alterar status de vendedores.' });
-        return;
-      }
+      if (!requireRole(user, ['admin'], res, 'Apenas Super Admin pode alterar status de vendedores.')) return;
       const { status } = req.body as { status?: SellerStatus };
       if (!status || !['active', 'pending', 'suspended'].includes(status)) {
         res.status(400).json({ error: 'Status inválido.' });
@@ -1446,10 +1477,7 @@ export function createApiApp(): Express {
     '/api/sellers/:id/kyc',
     asyncHandler(async (req, res) => {
       const user = await getAuthenticatedUser(req);
-      if (!user || user.role !== 'admin') {
-        res.status(403).json({ error: 'Apenas Super Admin pode avaliar documentos KYC.' });
-        return;
-      }
+      if (!requireRole(user, ['admin'], res, 'Apenas Super Admin pode avaliar documentos KYC.')) return;
       const { action, reason } = req.body as { action?: 'approve' | 'reject'; reason?: string };
       if (!action || !['approve', 'reject'].includes(action)) {
         res.status(400).json({ error: 'Ação inválida. Use approve ou reject.' });
@@ -1465,10 +1493,7 @@ export function createApiApp(): Express {
     '/api/sellers/:id/fee',
     asyncHandler(async (req, res) => {
       const user = await getAuthenticatedUser(req);
-      if (!user || user.role !== 'admin') {
-        res.status(403).json({ error: 'Apenas Super Admin pode avaliar pagamentos de taxas.' });
-        return;
-      }
+      if (!requireRole(user, ['admin'], res, 'Apenas Super Admin pode avaliar pagamentos de taxas.')) return;
       const { action, reason } = req.body as { action?: 'approve' | 'reject'; reason?: string };
       if (!action || !['approve', 'reject'].includes(action)) {
         res.status(400).json({ error: 'Ação inválida. Use approve ou reject.' });
@@ -1484,10 +1509,7 @@ export function createApiApp(): Express {
     '/api/categories',
     asyncHandler(async (req, res) => {
       const user = await getAuthenticatedUser(req);
-      if (!user || user.role !== 'admin') {
-        res.status(403).json({ error: 'Apenas Super Admin pode criar categorias.' });
-        return;
-      }
+      if (!requireRole(user, ['admin'], res, 'Apenas Super Admin pode criar categorias.')) return;
       const trimmed = ((req.body as { name?: string }).name ?? '').trim();
       if (!trimmed) {
         res.status(400).json({ error: 'Informe o nome da categoria.' });
@@ -1506,10 +1528,7 @@ export function createApiApp(): Express {
     '/api/categories/:name',
     asyncHandler(async (req, res) => {
       const user = await getAuthenticatedUser(req);
-      if (!user || user.role !== 'admin') {
-        res.status(403).json({ error: 'Apenas Super Admin pode remover categorias.' });
-        return;
-      }
+      if (!requireRole(user, ['admin'], res, 'Apenas Super Admin pode remover categorias.')) return;
       const target = decodeURIComponent(req.params.name);
       await db.removeCategory(target);
       res.json({ categories: await db.listCategories() });
@@ -1520,10 +1539,7 @@ export function createApiApp(): Express {
     '/api/commission',
     asyncHandler(async (req, res) => {
       const user = await getAuthenticatedUser(req);
-      if (!user || user.role !== 'admin') {
-        res.status(403).json({ error: 'Apenas Super Admin pode alterar comissão.' });
-        return;
-      }
+      if (!requireRole(user, ['admin'], res, 'Apenas Super Admin pode alterar comissão.')) return;
       const rate = Number((req.body as { rate?: number }).rate);
       if (!Number.isFinite(rate)) {
         res.status(400).json({ error: 'Taxa inválida.' });
@@ -1663,10 +1679,7 @@ export function createApiApp(): Express {
     '/api/admin/payouts/:id/review',
     asyncHandler(async (req, res) => {
       const user = await getAuthenticatedUser(req);
-      if (!user || user.role !== 'admin') {
-        res.status(403).json({ error: 'Apenas Super Admin pode processar repasses financeiros.' });
-        return;
-      }
+      if (!requireRole(user, ['admin'], res, 'Apenas Super Admin pode processar repasses financeiros.')) return;
 
       const existing = await db.findSellerPayoutById(req.params.id);
       if (!existing) {
@@ -1789,10 +1802,7 @@ export function createApiApp(): Express {
     '/api/site-customization',
     asyncHandler(async (req, res) => {
       const user = await getAuthenticatedUser(req);
-      if (!user || user.role !== 'admin') {
-        res.status(403).json({ error: 'Apenas Super Admin pode alterar as configurações da plataforma.' });
-        return;
-      }
+      if (!requireRole(user, ['admin'], res, 'Apenas Super Admin pode alterar as configurações da plataforma.')) return;
       const updated = await db.setSiteCustomization(req.body as SiteCustomization);
       const bootstrap = await buildBootstrapPayload(user);
       res.json({

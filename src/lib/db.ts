@@ -21,6 +21,12 @@ import type {
   User,
 } from '../types.ts';
 import { DEFAULT_SITE_CUSTOMIZATION } from '../data/defaultCustomization.ts';
+import { decryptGatewaySecrets, encryptGatewaySecrets } from '../server/security.ts';
+
+const GATEWAY_ENCRYPTION_SECRET =
+  process.env.ENCRYPTION_KEY ||
+  process.env.SESSION_SECRET ||
+  'cellbox-mz-session-signing-key-2026-v1';
 
 if (!process.env.VERCEL) {
   dotenv.config({ quiet: true });
@@ -2053,22 +2059,25 @@ export async function getSiteCustomization(): Promise<SiteCustomization> {
         },
       },
       footer: { ...DEFAULT_SITE_CUSTOMIZATION.footer, ...(raw.footer ?? {}) },
-      gateways: {
-        ...DEFAULT_SITE_CUSTOMIZATION.gateways,
-        ...(raw.gateways ?? {}),
-        paySuite: {
-          ...DEFAULT_SITE_CUSTOMIZATION.gateways?.paySuite,
-          ...(raw.gateways?.paySuite ?? {}),
+      gateways: decryptGatewaySecrets(
+        {
+          ...DEFAULT_SITE_CUSTOMIZATION.gateways,
+          ...(raw.gateways ?? {}),
+          paySuite: {
+            ...DEFAULT_SITE_CUSTOMIZATION.gateways?.paySuite,
+            ...(raw.gateways?.paySuite ?? {}),
+          },
+          debitoPay: {
+            ...DEFAULT_SITE_CUSTOMIZATION.gateways?.debitoPay,
+            ...(raw.gateways?.debitoPay ?? {}),
+          },
+          mpesaDirect: {
+            ...DEFAULT_SITE_CUSTOMIZATION.gateways?.mpesaDirect,
+            ...(raw.gateways?.mpesaDirect ?? {}),
+          },
         },
-        debitoPay: {
-          ...DEFAULT_SITE_CUSTOMIZATION.gateways?.debitoPay,
-          ...(raw.gateways?.debitoPay ?? {}),
-        },
-        mpesaDirect: {
-          ...DEFAULT_SITE_CUSTOMIZATION.gateways?.mpesaDirect,
-          ...(raw.gateways?.mpesaDirect ?? {}),
-        },
-      },
+        GATEWAY_ENCRYPTION_SECRET
+      ),
     };
   } catch (err) {
     console.warn('[Cellbox DB] Failed to read siteCustomization, using defaults:', err);
@@ -2079,11 +2088,15 @@ export async function getSiteCustomization(): Promise<SiteCustomization> {
 export async function setSiteCustomization(
   settings: SiteCustomization
 ): Promise<SiteCustomization> {
+  const encryptedSettings: SiteCustomization = {
+    ...settings,
+    gateways: encryptGatewaySecrets(settings.gateways, GATEWAY_ENCRYPTION_SECRET),
+  };
   await query(
     `INSERT INTO platform_settings (key, value, updated_at)
      VALUES ('siteCustomization', $1::jsonb, NOW())
      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
-    [JSON.stringify(settings)]
+    [JSON.stringify(encryptedSettings)]
   );
   return getSiteCustomization();
 }
