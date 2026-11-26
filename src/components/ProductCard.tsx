@@ -132,7 +132,7 @@ export function ProductCard({ product, tiled = true, className = '' }: ProductCa
       <button
         type="button"
         onClick={() => navigate({ type: 'product', productId: product.id })}
-        className="text-[12.5px] font-medium text-[#333333] hover:text-[#0475EE] leading-snug line-clamp-2 min-h-[34px] cursor-pointer transition-colors"
+        className="w-full text-[12.5px] font-medium text-[#333333] hover:text-[#0475EE] leading-snug line-clamp-2 break-words min-h-[34px] cursor-pointer transition-colors"
       >
         {product.title}
       </button>
