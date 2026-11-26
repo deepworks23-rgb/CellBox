@@ -1264,9 +1264,9 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold text-[#444444] mb-1">
-                          URL do Logotipo Principal
+                      <div className="space-y-1.5">
+                        <label className="block text-xs font-bold text-[#444444]">
+                          Logotipo Principal (Upload ou URL)
                         </label>
                         <div className="flex items-center gap-2">
                           <input
@@ -1286,9 +1286,38 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                                 },
                               }))
                             }
-                            placeholder="/assets/aistudio/CellBox_9c0f59ac.png"
-                            className="flex-1 h-9 px-3 border border-[#DCDCDC] rounded-[2px] text-xs text-[#333333] focus:border-[#0475EE] focus:outline-none"
+                            placeholder="https://... ou /assets/aistudio/CellBox_9c0f59ac.png"
+                            className="flex-1 min-w-0 h-9 px-3 border border-[#DCDCDC] rounded-[2px] text-xs text-[#333333] focus:border-[#0475EE] focus:outline-none"
                           />
+                          <label className="h-9 px-3 rounded-[2px] border border-[#0475EE] text-[#0475EE] hover:bg-[#EAF6FC] text-[11px] font-bold inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 transition-colors">
+                            <Upload className="w-3.5 h-3.5" />
+                            {uploadingField === 'theme_logo' ? 'Enviando...' : 'Upload'}
+                            <input
+                              type="file"
+                              accept="image/png,image/jpeg,image/webp,image/avif,image/svg+xml"
+                              disabled={uploadingField === 'theme_logo'}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                e.target.value = '';
+                                if (!file) return;
+                                void handleUploadImage('theme_logo', file, (url) =>
+                                  setDraftCustomization((prev) => ({
+                                    ...prev,
+                                    theme: {
+                                      primaryColor: '#0475EE',
+                                      navyColor: '#0A3768',
+                                      accentColor: '#18A3DE',
+                                      highlightColor: '#1AD6DE',
+                                      surfaceColor: '#F5F7FA',
+                                      ...(prev.theme ?? {}),
+                                      logoUrl: url,
+                                    },
+                                  }))
+                                );
+                              }}
+                              className="sr-only"
+                            />
+                          </label>
                           {draftCustomization.theme?.logoUrl && (
                             <img
                               src={draftCustomization.theme.logoUrl}
@@ -1299,9 +1328,9 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                         </div>
                       </div>
 
-                      <div>
-                        <label className="block text-xs font-bold text-[#444444] mb-1">
-                          URL do Favicon (Ícone da Aba)
+                      <div className="space-y-1.5">
+                        <label className="block text-xs font-bold text-[#444444]">
+                          Favicon — Ícone da Aba (Upload ou URL)
                         </label>
                         <div className="flex items-center gap-2">
                           <input
@@ -1321,9 +1350,38 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
                                 },
                               }))
                             }
-                            placeholder="/assets/aistudio/CellBox_favicon_92a1b80e.png"
-                            className="flex-1 h-9 px-3 border border-[#DCDCDC] rounded-[2px] text-xs text-[#333333] focus:border-[#0475EE] focus:outline-none"
+                            placeholder="https://... ou /assets/aistudio/CellBox_favicon_92a1b80e.png"
+                            className="flex-1 min-w-0 h-9 px-3 border border-[#DCDCDC] rounded-[2px] text-xs text-[#333333] focus:border-[#0475EE] focus:outline-none"
                           />
+                          <label className="h-9 px-3 rounded-[2px] border border-[#0475EE] text-[#0475EE] hover:bg-[#EAF6FC] text-[11px] font-bold inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 transition-colors">
+                            <Upload className="w-3.5 h-3.5" />
+                            {uploadingField === 'theme_favicon' ? 'Enviando...' : 'Upload'}
+                            <input
+                              type="file"
+                              accept="image/png,image/jpeg,image/webp,image/x-icon,image/svg+xml"
+                              disabled={uploadingField === 'theme_favicon'}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                e.target.value = '';
+                                if (!file) return;
+                                void handleUploadImage('theme_favicon', file, (url) =>
+                                  setDraftCustomization((prev) => ({
+                                    ...prev,
+                                    theme: {
+                                      primaryColor: '#0475EE',
+                                      navyColor: '#0A3768',
+                                      accentColor: '#18A3DE',
+                                      highlightColor: '#1AD6DE',
+                                      surfaceColor: '#F5F7FA',
+                                      ...(prev.theme ?? {}),
+                                      faviconUrl: url,
+                                    },
+                                  }))
+                                );
+                              }}
+                              className="sr-only"
+                            />
+                          </label>
                           {draftCustomization.theme?.faviconUrl && (
                             <img
                               src={draftCustomization.theme.faviconUrl}

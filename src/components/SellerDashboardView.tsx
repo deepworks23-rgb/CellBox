@@ -2186,29 +2186,38 @@ export function SellerDashboardView({ initialTab = 'overview' }: SellerDashboard
                             </div>
                           )}
                         </div>
-                        <div className="space-y-2">
-                          <label className="h-9 px-4 rounded-[2px] border border-[#0475EE] text-[#0475EE] hover:bg-[#EAF6FC] text-xs font-bold inline-flex items-center gap-2 cursor-pointer transition-colors">
-                            <Upload className="w-3.5 h-3.5" />
-                            {uploadingLogoImg ? 'Enviando...' : 'Enviar Logotipo'}
-                            <input
-                              type="file"
-                              accept="image/png,image/jpeg,image/webp,image/avif"
-                              disabled={uploadingLogoImg}
-                              onChange={(e) => void handleLogoUpload(e)}
-                              className="sr-only"
-                            />
-                          </label>
-                          {storeForm.logoUrl && (
-                            <div>
+                        <div className="flex-1 min-w-0 space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <label className="h-9 px-4 rounded-[2px] border border-[#0475EE] text-[#0475EE] hover:bg-[#EAF6FC] text-xs font-bold inline-flex items-center gap-2 cursor-pointer whitespace-nowrap transition-colors">
+                              <Upload className="w-3.5 h-3.5" />
+                              {uploadingLogoImg ? 'Enviando...' : 'Upload Logotipo'}
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp,image/avif"
+                                disabled={uploadingLogoImg}
+                                onChange={(e) => void handleLogoUpload(e)}
+                                className="sr-only"
+                              />
+                            </label>
+                            {storeForm.logoUrl && (
                               <button
                                 type="button"
                                 onClick={() => setStoreForm((p) => ({ ...p, logoUrl: '' }))}
-                                className="text-[11px] text-rose-600 hover:underline cursor-pointer"
+                                className="text-[11px] text-rose-600 hover:underline cursor-pointer whitespace-nowrap"
                               >
                                 Remover logotipo
                               </button>
-                            </div>
-                          )}
+                            )}
+                          </div>
+                          <div>
+                            <input
+                              type="text"
+                              value={storeForm.logoUrl}
+                              onChange={(e) => setStoreForm((p) => ({ ...p, logoUrl: e.target.value }))}
+                              placeholder="Ou cole a URL do logotipo (https://...)"
+                              className="w-full h-9 px-3 rounded-[2px] border border-[#DCDCDC] text-xs text-[#333333] focus:border-[#0475EE] focus:outline-none"
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
