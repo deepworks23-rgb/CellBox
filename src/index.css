@@ -9,6 +9,7 @@
   --color-brand-cyan: #18a3de;
   --color-brand-aqua: #1ad6de;
   --color-brand-tint: #eaf6fc;
+  --color-brand-surface: #f5f7fa;
   --color-brand-star: #f5a623;
 }
 
@@ -52,8 +53,46 @@
 .cellbox-hero-gradient {
   background:
     radial-gradient(ellipse 46% 78% at 76% 52%, rgba(255, 255, 255, 0.22) 0%, rgba(26, 214, 222, 0.14) 44%, rgba(10, 55, 104, 0) 75%),
-    linear-gradient(112deg, #072850 0%, var(--color-brand-navy, #0a3768) 24%, var(--color-brand-royal, #0475ee) 58%, var(--color-brand-cyan, #18a3de) 84%, var(--color-brand-aqua, #1ad6de) 100%);
+    linear-gradient(112deg, color-mix(in srgb, var(--color-brand-navy, #0a3768) 78%, black) 0%, var(--color-brand-navy, #0a3768) 24%, var(--color-brand-royal, #0475ee) 58%, var(--color-brand-cyan, #18a3de) 84%, var(--color-brand-aqua, #1ad6de) 100%);
 }
+
+/* Global Theme Sync: garante que a paleta editada no Admin reflita em todo o sistema */
+[class~="bg-[#0475EE]"] { background-color: var(--color-brand-royal); }
+[class~="text-[#0475EE]"] { color: var(--color-brand-royal); }
+[class~="border-[#0475EE]"] { border-color: var(--color-brand-royal); }
+[class~="fill-[#0475EE]"] { fill: var(--color-brand-royal); }
+[class~="ring-[#0475EE]"] { --tw-ring-color: var(--color-brand-royal); }
+[class~="hover:bg-[#0475EE]"]:hover { background-color: var(--color-brand-royal); }
+[class~="hover:text-[#0475EE]"]:hover { color: var(--color-brand-royal); }
+[class~="hover:border-[#0475EE]"]:hover { border-color: var(--color-brand-royal); }
+[class~="focus:border-[#0475EE]"]:focus { border-color: var(--color-brand-royal); }
+[class~="focus:ring-[#0475EE]"]:focus { --tw-ring-color: var(--color-brand-royal); }
+.group:hover [class~="group-hover:bg-[#0475EE]"] { background-color: var(--color-brand-royal); }
+.group:hover [class~="group-hover:text-[#0475EE]"] { color: var(--color-brand-royal); }
+[class~="selection:bg-[#0475EE]"]::selection { background-color: var(--color-brand-royal); }
+
+[class~="bg-[#0A3768]"] { background-color: var(--color-brand-navy); }
+[class~="text-[#0A3768]"] { color: var(--color-brand-navy); }
+[class~="border-[#0A3768]"] { border-color: var(--color-brand-navy); }
+[class~="hover:bg-[#0A3768]"]:hover { background-color: var(--color-brand-navy); }
+[class~="hover:text-[#0A3768]"]:hover { color: var(--color-brand-navy); }
+[class~="hover:bg-[#082C54]"]:hover { background-color: color-mix(in srgb, var(--color-brand-navy) 82%, black); }
+
+[class~="bg-[#18A3DE]"] { background-color: var(--color-brand-cyan); }
+[class~="text-[#18A3DE]"] { color: var(--color-brand-cyan); }
+[class~="border-[#18A3DE]"] { border-color: var(--color-brand-cyan); }
+[class~="hover:bg-[#18A3DE]"]:hover { background-color: var(--color-brand-cyan); }
+
+[class~="text-[#1AD6DE]"] { color: var(--color-brand-aqua); }
+
+[class~="bg-[#EAF6FC]"] { background-color: var(--color-brand-tint); }
+[class~="hover:bg-[#EAF6FC]"]:hover { background-color: var(--color-brand-tint); }
+
+[class~="bg-[#F5F7FA]"] { background-color: var(--color-brand-surface); }
+
+[class~="from-[#0A3768]"] { --tw-gradient-from: var(--color-brand-navy); }
+[class~="via-[#0A3768]"] { --tw-gradient-via: var(--color-brand-navy); }
+[class~="to-[#0475EE]"] { --tw-gradient-to: var(--color-brand-royal); }
 
 /* Custom subtle scrollbars */
 ::-webkit-scrollbar {

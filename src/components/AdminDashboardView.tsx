@@ -203,6 +203,24 @@ export function AdminDashboardView({ initialTab = 'overview' }: AdminDashboardVi
     }
   }, [siteCustomization]);
 
+  // Aplica pré-visualização em tempo real da paleta no sistema inteiro enquanto o Admin edita
+  useEffect(() => {
+    const theme = draftCustomization?.theme;
+    if (!theme) return;
+    const root = document.documentElement;
+    if (theme.primaryColor) {
+      root.style.setProperty('--color-brand-royal', theme.primaryColor);
+      root.style.setProperty(
+        '--color-brand-tint',
+        `color-mix(in srgb, ${theme.primaryColor} 12%, white)`
+      );
+    }
+    if (theme.navyColor) root.style.setProperty('--color-brand-navy', theme.navyColor);
+    if (theme.accentColor) root.style.setProperty('--color-brand-cyan', theme.accentColor);
+    if (theme.highlightColor) root.style.setProperty('--color-brand-aqua', theme.highlightColor);
+    if (theme.surfaceColor) root.style.setProperty('--color-brand-surface', theme.surfaceColor);
+  }, [draftCustomization?.theme]);
+
   const handleUploadImage = async (
     fieldKey: string,
     file: File,

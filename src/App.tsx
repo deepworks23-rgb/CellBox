@@ -21,8 +21,36 @@ import { Toast } from './components/Toast';
 import { Footer } from './components/Footer';
 import { MotionButton } from './components/MotionPrimitives';
 
+function applySiteThemeToDocument(theme?: import('./types').SiteThemeConfig) {
+  if (!theme) return;
+  const root = document.documentElement;
+  if (theme.primaryColor) {
+    root.style.setProperty('--color-brand-royal', theme.primaryColor);
+    root.style.setProperty(
+      '--color-brand-tint',
+      `color-mix(in srgb, ${theme.primaryColor} 12%, white)`
+    );
+  }
+  if (theme.navyColor) root.style.setProperty('--color-brand-navy', theme.navyColor);
+  if (theme.accentColor) root.style.setProperty('--color-brand-cyan', theme.accentColor);
+  if (theme.highlightColor) root.style.setProperty('--color-brand-aqua', theme.highlightColor);
+  if (theme.surfaceColor) root.style.setProperty('--color-brand-surface', theme.surfaceColor);
+
+  if (theme.faviconUrl?.trim()) {
+    const href = theme.faviconUrl.trim();
+    const selectors = ['link[rel="icon"]', 'link[rel="shortcut icon"]', 'link[rel="apple-touch-icon"]'];
+    selectors.forEach((sel) => {
+      const el = document.querySelector<HTMLLinkElement>(sel);
+      if (el) el.href = href;
+    });
+  }
+}
+
 function AdminIsolatedShell() {
   const { view, currentUser, logout, navigate, siteCustomization } = useMarketplace();
+  useEffect(() => {
+    applySiteThemeToDocument(siteCustomization?.theme);
+  }, [siteCustomization?.theme]);
   if (!currentUser || currentUser.role !== 'admin') return null;
 
   const brandLogo = siteCustomization?.theme?.logoUrl?.trim() || '/assets/aistudio/CellBox_9c0f59ac.png';
@@ -95,23 +123,7 @@ function CellboxShell() {
   const { view, authReady, currentUser, siteCustomization } = useMarketplace();
 
   useEffect(() => {
-    const theme = siteCustomization?.theme;
-    if (!theme) return;
-    const root = document.documentElement;
-    if (theme.primaryColor) root.style.setProperty('--color-brand-royal', theme.primaryColor);
-    if (theme.navyColor) root.style.setProperty('--color-brand-navy', theme.navyColor);
-    if (theme.accentColor) root.style.setProperty('--color-brand-cyan', theme.accentColor);
-    if (theme.highlightColor) root.style.setProperty('--color-brand-aqua', theme.highlightColor);
-    if (theme.surfaceColor) root.style.setProperty('--color-brand-tint', theme.surfaceColor);
-
-    if (theme.faviconUrl?.trim()) {
-      const href = theme.faviconUrl.trim();
-      const selectors = ['link[rel="icon"]', 'link[rel="shortcut icon"]', 'link[rel="apple-touch-icon"]'];
-      selectors.forEach((sel) => {
-        const el = document.querySelector<HTMLLinkElement>(sel);
-        if (el) el.href = href;
-      });
-    }
+    applySiteThemeToDocument(siteCustomization?.theme);
   }, [siteCustomization?.theme]);
 
   const isProtectedRoute =
